@@ -1,6 +1,17 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **diseño** (Paso 1). Se completa en los Pasos 3, 4, 5 y 7.
+> Estado: **esqueleto implementado** (Paso 3). Se completa en los Pasos 4, 5 y 7.
+
+## Estructura y arranque
+
+- App factory: `backend/app/main.py::create_app(settings=None)`; uvicorn con
+  `--factory app.main:create_app`. Sin instancia global (los tests inyectan `Settings`).
+- `Settings` vive en `app.state.settings`; en endpoints se obtiene con la dependencia
+  `SettingsDep` (`get_app_settings`).
+- El `lifespan` configura logging, crea `DATA_DIR` y registra un resumen sin secretos.
+- `GET /health` → `{"status": "ok"|"degraded", "version", "mode", "data_dir_writable"}`;
+  `503` si el volumen no es escribible (lo usa el `HEALTHCHECK` de Docker).
+- Tests: `TestClient(create_app(Settings.load(env_file=None)))` con `DATA_DIR` en `tmp_path`.
 
 ## Convenciones
 
@@ -31,7 +42,7 @@ Escritura atómica (temp + `os.replace`) bajo lock por proyecto (decisión D4).
 
 | Método | Ruta | Paso |
 |--------|------|------|
-| GET | `/health` | 3 |
+| GET | `/health` | 3 ✅ |
 | POST/GET | `/api/v1/proyectos` | 5 |
 | GET/PATCH/DELETE | `/api/v1/proyectos/{id}` | 5 |
 | POST/GET | `/api/v1/proyectos/{id}/assets/{tipo}` | 5 |
