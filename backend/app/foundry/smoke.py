@@ -32,8 +32,10 @@ from app.foundry import (
     InputImage,
     TextRequest,
     TextResult,
+    Usage,
     create_foundry_client,
 )
+from app.telemetry.pricing import PricingTable, estimate_cost, load_pricing
 from shared import Settings
 from shared.roles import Role
 from shared.settings import AuditorSettings
@@ -174,6 +176,15 @@ def _summarize(result: Result, out_dir: Path, key: str) -> dict[str, Any]:
     return summary
 
 
+def _add_cost(outcome: dict[str, Any], pricing: PricingTable | None) -> None:
+    """Añade el coste estimado (EUR) con `pricing.yaml` a una llamada correcta."""
+    if outcome["status"] != "ok":
+        return
+    sizes = [tuple(map(int, img["size"].split("x"))) for img in outcome.get("images", [])]
+    cost = estimate_cost(pricing, outcome["deployment"], Usage(**outcome["usage"]), sizes)
+    outcome["cost_eur"] = cost.total if cost else None
+
+
 def _print_result(key: str, outcome: dict[str, Any]) -> None:
     if outcome["status"] == "ok":
         usage = outcome["usage"]
@@ -186,6 +197,9 @@ def _print_result(key: str, outcome: dict[str, Any]) -> None:
             print(f"  Texto: {outcome['text']}")
         for image in outcome.get("images", []):
             print(f"  Imagen: {image['path']} ({image['size']})")
+        if "cost_eur" in outcome:
+            cost = outcome["cost_eur"]
+            print(f"  Coste estimado: {cost:.6f} EUR" if cost is not None else "  Sin precio")
     elif outcome["status"] == "error":
         print(f"  ERROR {outcome['error']}: {outcome['message']}")
         if outcome.get("usage"):
@@ -230,12 +244,14 @@ async def run(
     confirm: Callable[[str], str],
 ) -> list[dict[str, Any]]:
     outcomes = []
+    pricing = load_pricing(settings.storage.pricing_file)
     client = client_factory(settings)
     try:
         for check in build_plan():
             if roles and check.role not in roles:
                 continue
             outcome = await _execute(check, client, out_dir, confirm)
+            _add_cost(outcome, pricing)
             _print_result(check.key, outcome)
             outcomes.append(outcome)
 
@@ -258,6 +274,7 @@ async def run(
                     )
                 finally:
                     await fallback_client.aclose()
+                _add_cost(fallback, pricing)
                 _print_result("3b", fallback)
                 outcomes.append(fallback)
     finally:

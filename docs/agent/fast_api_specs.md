@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **API de proyectos y assets implementada** (Paso 5). Se completa en el Paso 7.
+> Estado: **API de proyectos, assets y costes implementada** (Pasos 5 y 7).
 
 ## Estructura y arranque
 
@@ -69,7 +69,8 @@ data/
 | GET | `/projects/{id}/assets?kind=` | `[Asset]` | 5 ✅ |
 | GET/DELETE | `/projects/{id}/assets/{asset_id}` | `Asset` / 204 (borrado suave) | 5 ✅ |
 | GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
-| GET | `/projects/{id}/costs` | — | 7 |
+| GET | `/projects/{id}/costs?limit=50` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, últimos registros | 7 ✅ |
+| GET | `/pricing` | `PricingTable` (404 si no hay tabla) | 7 ✅ |
 | POST | `/projects/{id}/pipelines/...` | — | 8–9 |
 | POST | `/projects/{id}/iterations/{it}/{approve\|reject}` | — | 10 |
 
@@ -88,6 +89,13 @@ data/
 - Duplicados por `sha256` en el proyecto → 409 `{"detail", "existing_asset_id"}`;
   `?allow_duplicate=true` para forzar.
 - `original_name` saneado (`clean_original_name`: sin rutas, controles ni comillas).
+
+## Middleware (orden: el último añadido es el más externo)
+
+1. `RequestIdMiddleware` (externo): `X-Request-ID` (respeta el del cliente si cumple
+   `^[A-Za-z0-9._-]{1,64}$`; si no, `uuid4().hex`), lo devuelve en la respuesta, lo pone en el
+   `contextvar` de telemetría y registra método, ruta, estado y latencia.
+2. `BodySizeLimitMiddleware`.
 
 ## Errores (`app/api/errors.py`)
 

@@ -204,11 +204,14 @@ class AzureFoundryClient(FoundryClient):
 
         usage = Usage()
         if response.usage is not None:
-            details = response.usage.output_tokens_details
+            out_details = response.usage.output_tokens_details
+            in_details = response.usage.input_tokens_details
             usage = Usage(
                 input_tokens=response.usage.input_tokens,
+                cached_input_tokens=(getattr(in_details, "cached_tokens", None) or 0),
+                cache_write_tokens=(getattr(in_details, "cache_write_tokens", None) or 0),
                 output_tokens=response.usage.output_tokens,
-                reasoning_tokens=details.reasoning_tokens if details else 0,
+                reasoning_tokens=out_details.reasoning_tokens if out_details else 0,
             )
         log_call(role, deployment, latency, usage, f"status={response.status}")
 
@@ -294,8 +297,11 @@ class AzureFoundryClient(FoundryClient):
         latency = time.perf_counter() - start
         usage = Usage()
         if getattr(response, "usage", None) is not None:
+            details = response.usage.input_tokens_details
             usage = Usage(
                 input_tokens=response.usage.input_tokens,
+                input_text_tokens=(getattr(details, "text_tokens", None) or 0),
+                input_image_tokens=(getattr(details, "image_tokens", None) or 0),
                 output_tokens=response.usage.output_tokens,
             )
         log_call(role, deployment, latency, usage, f"{len(images)} imagen(es)")

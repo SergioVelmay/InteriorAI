@@ -31,12 +31,13 @@ FROM python:3.11-slim AS runtime
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app \
     && mkdir -p /app/data && chown app:app /app/data
 COPY --from=builder /opt/venv /opt/venv
+COPY config/ /app/config/
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 # Falla el build si falta alguna dependencia (los imports diferidos no se ven en mock)
-RUN python -c "import app.main, app.foundry.azure, app.foundry.smoke, app.storage.__main__"
+RUN python -c "import app.main, app.foundry.azure, app.foundry.smoke, app.storage.__main__, app.telemetry.__main__"
 USER app
 
 EXPOSE 8000

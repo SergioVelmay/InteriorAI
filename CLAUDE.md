@@ -34,6 +34,12 @@ docker compose exec backend python -m app.storage reindexar
 ```
 
 ```bash
+# Telemetría: llamadas simuladas (solo mock, sin coste) y resumen de costes
+docker compose exec backend python -m app.telemetry simular <id_proyecto> --llamadas 6
+curl http://127.0.0.1:8000/api/v1/projects/<id_proyecto>/costs
+```
+
+```bash
 # Verificación real de Azure (COSTE): solo con AI_PROVIDER_MODE=azure puesto por el usuario
 echo s | docker compose exec -T backend python -m app.foundry.smoke --role FAST_DRAFT
 ```

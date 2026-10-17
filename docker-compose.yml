@@ -28,6 +28,7 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     volumes:
       - studio_shared_data:/app/data
+      - ./config:/app/config:ro   # precios editables sin reconstruir (reiniciar el backend)
     depends_on:
       data-init:
         condition: service_completed_successfully
@@ -35,6 +36,7 @@ services:
     develop:
       watch:
         - { action: rebuild, path: ./backend }
+        - { action: restart, path: ./config }
         - { action: rebuild, path: ./shared }
 
   frontend:

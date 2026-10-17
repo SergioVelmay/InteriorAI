@@ -1,6 +1,6 @@
 # Azure AI Foundry — integración por rol
 
-> Estado: **cliente implementado y verificado contra Azure** (Paso 6). Telemetría en el Paso 7.
+> Estado: **cliente verificado contra Azure** (Paso 6) **con telemetría y costes** (Paso 7).
 
 ## Principio
 
@@ -79,3 +79,25 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 Implicaciones: dejar margen en `max_output_tokens` (incluye el razonamiento); el auditor es
 lento y con coste dominado por razonamiento; para inpainting exacto, recomponer en local solo
 la zona de la máscara (B-009).
+
+## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
+
+- `app.state.foundry` es un **`MeteredFoundryClient`** que envuelve al cliente mock/Azure
+  (`create_metered_client`). Mide latencia (con reintentos), tokens (entrada, caché, escritura
+  en caché, texto/imagen, salida, razonamiento), imágenes y megapíxeles, y estima el coste.
+- **Para que una llamada se guarde en un proyecto**, envolverla en
+  `with telemetry_scope(project_id): ...` (`contextvars`). Sin ámbito, solo se registra en el
+  log. El `request_id` lo pone el middleware HTTP.
+- Las llamadas fallidas también se registran (`status="error"`), con coste si `FoundryError.usage`.
+  Si guardar la telemetría falla, la llamada a la IA no falla (solo se loguea).
+- Se registra el **despliegue configurado del rol** (`settings.deployment_for`) incluso en mock,
+  para estimar con precios reales; los registros llevan `simulated=true`.
+- `config/pricing.yaml` (`pricing.py`): `deployment_type` (`global`), `long_context_threshold_tokens`
+  (272.000: entrada > umbral → precio *long*), `megapixel_rounding` (`exact`). Tipos de precio:
+  `tokens` (por 1M; entrada sin caché, caché, escritura en caché, salida), `image_tokens` (texto vs
+  imagen de entrada, salida) y `megapixels` (primer MP, MP adicionales, MP de referencia).
+  Despliegue sin precio → `cost_eur=None` (aviso al arrancar). Montado en solo lectura.
+- Persistencia: `ProjectRepository.append_telemetry/read_telemetry` (`costes_telemetria.json`,
+  escritura atómica bajo el bloqueo del proyecto).
+- CLI (solo mock): `python -m app.telemetry simular <id> [--llamadas N]`.
+- **Coste estimado** con precios de lista: la cifra real está en Azure Cost Management.

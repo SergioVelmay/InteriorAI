@@ -13,6 +13,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from shared.roles import Role
+
 SCHEMA_VERSION = 1
 
 
@@ -177,8 +179,39 @@ class ProjectIndex(_Model):
     projects: list[ProjectSummary] = Field(default_factory=list)
 
 
+AiOperation = Literal["complete_text", "generate_image", "edit_image"]
+
+
+class TelemetryRecord(_Model):
+    """Una llamada a la IA: tokens, imágenes, latencia y coste estimado."""
+
+    id: UUID = Field(default_factory=uuid4)
+    timestamp: datetime = Field(default_factory=utc_now)
+    request_id: str | None = None  # X-Request-ID de la petición HTTP que la originó
+    role: Role
+    deployment: str
+    operation: AiOperation
+    status: Literal["ok", "error"]
+    error_type: str | None = None
+    latency_s: float = Field(ge=0)
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    cache_write_tokens: int = 0
+    input_text_tokens: int = 0
+    input_image_tokens: int = 0
+    output_tokens: int = 0
+    reasoning_tokens: int = 0
+    images_out: int = 0
+    megapixels_out: float = 0.0
+    megapixels_ref: float = 0.0
+    cost_eur: float | None = None  # None = despliegue sin precio en pricing.yaml
+    cost_breakdown: dict[str, float] = Field(default_factory=dict)
+    pricing_tier: str | None = None
+    simulated: bool = False  # True en AI_PROVIDER_MODE=mock
+
+
 class TelemetryLog(_Model):
-    """Contenido de `{id}/costes_telemetria.json` (registros tipados en el Paso 7)."""
+    """Contenido de `{id}/costes_telemetria.json`."""
 
     schema_version: Literal[1] = SCHEMA_VERSION
-    records: list[dict[str, Any]] = Field(default_factory=list)
+    records: list[TelemetryRecord] = Field(default_factory=list)

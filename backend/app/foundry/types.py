@@ -22,7 +22,13 @@ class _Model(BaseModel):
 
 
 class Usage(_Model):
+    """Tokens de una llamada. Los desgloses son subconjuntos de `input_tokens`/`output_tokens`."""
+
     input_tokens: int = 0
+    cached_input_tokens: int = 0  # entrada servida desde caché (texto)
+    cache_write_tokens: int = 0  # entrada escrita en caché (texto)
+    input_text_tokens: int = 0  # imágenes por tokens: parte textual de la entrada
+    input_image_tokens: int = 0  # imágenes por tokens: imágenes de entrada (ediciones)
     output_tokens: int = 0
     reasoning_tokens: int = 0  # ya incluidos en output_tokens (serie GPT-6 / Responses API)
 
