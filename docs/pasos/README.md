@@ -7,7 +7,7 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
 | 0 | [Plan y decisiones](paso-00-plan-y-decisiones.md) | `main` | ✅ Cerrado |
-| 1 | [Repo seguro y documentación del agente](paso-01-repo-seguro.md) | `feat/paso-01` | 🧪 En validación |
+| 1 | [Repo seguro y documentación del agente](paso-01-repo-seguro.md) | `feat/paso-01` | ✅ Cerrado |
 | 2 | Configuración central (Pydantic Settings) | — | ⏳ Pendiente |
 | 3 | Esqueleto Docker | — | ⏳ Pendiente |
 | 4 | Modelo de dominio y almacenamiento | — | ⏳ Pendiente |

@@ -48,7 +48,7 @@ crear la documentación modular para el agente antes de escribir código de apli
 
 ## 5. Estado final
 
-✅ Cerrado — rama `feat/paso-01`, pendiente de validación del usuario y merge a `main`.
+✅ Cerrado — rama `feat/paso-01`, validado por el usuario y mergeado a `main`.
 
 ## 6. Pendiente / futuro
 
