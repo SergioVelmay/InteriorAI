@@ -7,6 +7,8 @@ dependencies = [
     "interiorai-shared",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
+    "anyio>=4.4",
+    "filelock>=3.16",
 ]
 
 [tool.uv.sources]

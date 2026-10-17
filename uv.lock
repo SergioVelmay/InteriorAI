@@ -381,14 +381,18 @@ name = "interiorai-backend"
 version = "0.1.0"
 source = { editable = "backend" }
 dependencies = [
+    { name = "anyio" },
     { name = "fastapi" },
+    { name = "filelock" },
     { name = "interiorai-shared" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.4" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "filelock", specifier = ">=3.16" },
     { name = "interiorai-shared", editable = "shared" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]

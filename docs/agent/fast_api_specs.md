@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **esqueleto implementado** (Paso 3). Se completa en los Pasos 4, 5 y 7.
+> Estado: **almacenamiento implementado** (Paso 4). Se completa en los Pasos 5 y 7.
 
 ## Estructura y arranque
 
@@ -22,11 +22,13 @@
 - Cada petición recibe un `X-Request-ID` (middleware) que se propaga a la telemetría.
 - El backend es el **único escritor** de `data/`.
 
-## Almacenamiento (Paso 4)
+## Almacenamiento (Paso 4) — `backend/app/storage/`
 
 ```
 data/
-├── proyectos.json                    # índice global
+├── proyectos.json                    # índice global (derivable: se repara solo al arrancar)
+├── .papelera/                        # borrado suave de proyectos y assets
+├── .locks/                           # filelocks (index.lock, {uuid}.lock)
 └── {id_proyecto}/                    # id = UUID (protección path traversal)
     ├── metadatos.json
     ├── costes_telemetria.json
@@ -36,7 +38,20 @@ data/
     └── renders_historico/            # cada render: imagen + JSON sidecar
 ```
 
-Escritura atómica (temp + `os.replace`) bajo lock por proyecto (decisión D4).
+- Modelos en `shared/models.py`: `SpaceType`, `AssetKind` (`.folder`), `Asset`, `ProjectCreate`,
+  `ProjectUpdate` (`changes()` = campos enviados), `ProjectSummary`, `ProjectMetadata`,
+  `ProjectIndex`, `TelemetryLog`. Campos en inglés, valores y carpetas en español,
+  `schema_version: 1` en cada JSON, `extra="forbid"`.
+- `ProjectRepository(data_dir)` (dependencia `RepositoryDep`): `init`, `list_projects`, `create`,
+  `get`, `update`, `delete` (→ `.papelera/{id}-{ts}`), `add_asset`, `list_assets`, `asset_path`,
+  `remove_asset` (→ `.papelera/{id}/`), `reindex`.
+- Errores: `ProjectNotFoundError`, `AssetNotFoundError`, `InvalidPathError`, `CorruptDataError`.
+- Escritura atómica (`atomic.py`: temp + fsync + `replace_with_retry`, que reintenta `os.replace`
+  ante `PermissionError` de Windows) bajo `LockManager.hold(key)`
+  (`asyncio.Lock` + `filelock`). **Orden de locks: proyecto → índice.** E/S en `anyio.to_thread`.
+- `metadatos.json` se escribe el último al crear: su presencia marca el proyecto como completo.
+- En disco los assets se guardan como `{uuid}.{ext}`; el nombre original solo en metadatos.
+- CLI: `python -m app.storage {crear,listar,ver,reindexar} [--data-dir DIR]`.
 
 ## Endpoints previstos
 

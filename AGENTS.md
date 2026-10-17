@@ -22,11 +22,13 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    (`PROMPT_ENGINEER`, `GEOMETRIC_AUDITOR`, `CONTEXT_MANAGER`, `FAST_DRAFT`,
    `STRUCTURAL_COMPOSER`, `PHOTOREALISTIC_RENDERER`). Los nombres solo aparecen en
    `.env.example` y `config/pricing.yaml`. Despliegue de un rol: `settings.deployment_for(role)`.
-3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto.
+3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto:
+   usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano.
 4. **Toda llamada a IA pasa por el cliente Foundry** para que la telemetría de costes la registre.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
 6. **Human-in-the-Loop**: las transiciones de estado de una iteración solo ocurren por acción del usuario.
-7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación.
+7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación
+   (el borrado de la app es suave: mueve a `data/.papelera/`).
 8. **Mínimo privilegio en contenedores**: usuario sin privilegios (uid 1000), puertos publicados
    solo en `127.0.0.1`, el frontend sin credenciales y con `data/` en solo lectura.
 
@@ -51,7 +53,7 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 
 | Ruta | Contenido |
 |------|-----------|
-| `shared/src/shared/` | `settings.py` (configuración), `roles.py` (roles y tipo de API) |
+| `shared/src/shared/` | `settings.py` (configuración), `roles.py` (roles y tipo de API), `models.py` (dominio) |
 | `backend/app/` | FastAPI: `api/`, `core/`, `storage/`, `foundry/`, `telemetry/`, `pipelines/`, `hitl/` |
 | `frontend/ui/` | Gradio: `app.py`, `theme.py`, `api_client.py`, `tabs/` |
 | `config/pricing.yaml` | Precios por despliegue (sin secretos) |
