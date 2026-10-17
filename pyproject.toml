@@ -1,0 +1,25 @@
+[project]
+name = "interiorai"
+version = "0.1.0"
+description = "Estudio de interiorismo asistido por IA con Human-in-the-Loop"
+requires-python = ">=3.11,<3.12"
+dependencies = ["interiorai-shared"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["shared"]
+
+[tool.uv.sources]
+interiorai-shared = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["shared/tests"]
+addopts = "-ra"

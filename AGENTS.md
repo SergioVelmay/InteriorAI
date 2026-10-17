@@ -16,12 +16,12 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 ## Reglas críticas (no negociables)
 
 1. **Cero secretos en el código.** Credenciales, API keys y endpoints se leen de `.env`
-   mediante Pydantic Settings (`shared/settings.py`). Nunca se hardcodean ni se loguean
+   mediante Pydantic Settings (`shared.settings.get_settings()`). Nunca se hardcodean ni se loguean
    (usar `SecretStr`). `.env` jamás se versiona; las variables nuevas se añaden a `.env.example`.
 2. **Cero nombres comerciales de modelo en el código.** Se usa el enum de roles
    (`PROMPT_ENGINEER`, `GEOMETRIC_AUDITOR`, `CONTEXT_MANAGER`, `FAST_DRAFT`,
    `STRUCTURAL_COMPOSER`, `PHOTOREALISTIC_RENDERER`). Los nombres solo aparecen en
-   `.env.example` y `config/pricing.yaml`.
+   `.env.example` y `config/pricing.yaml`. Despliegue de un rol: `settings.deployment_for(role)`.
 3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto.
 4. **Toda llamada a IA pasa por el cliente Foundry** para que la telemetría de costes la registre.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
@@ -34,12 +34,14 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 - Async de extremo a extremo en el backend (sin I/O bloqueante en el event loop).
 - `ruff` (lint + format, config en `ruff.toml`), línea máx. 100.
 - Identificadores en inglés; textos de UI, docs y mensajes de commit en español.
-- Tests con `pytest` junto a cada paquete (`*/tests/`).
+- Tests con `pytest` junto a cada paquete (`*/tests/`), **sin `__init__.py`** y con nombres de
+  archivo únicos en todo el repo (p. ej. `test_settings.py`, `test_api_health.py`).
 - Commits: `tipo: descripción` (`feat`, `fix`, `docs`, `chore`, `test`, `refactor`).
 
 ## Flujo de trabajo
 
-- Desarrollo incremental por pasos: rama `feat/paso-NN` → validación del usuario → merge a `main`.
+- Desarrollo incremental por pasos: rama `feat/paso-NN` → Pull Request en GitHub → validación
+  del usuario en el PR → merge a `main`.
 - Cada paso se documenta en `docs/pasos/paso-NN-*.md`; lo diferido va a `docs/pasos/BACKLOG.md`.
 - Índice y estado de pasos: [docs/pasos/README.md](docs/pasos/README.md).
 
@@ -47,7 +49,7 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 
 | Ruta | Contenido |
 |------|-----------|
-| `shared/` | Settings, enums de roles y modelos comunes |
+| `shared/src/shared/` | `settings.py` (configuración), `roles.py` (roles y tipo de API) |
 | `backend/app/` | FastAPI: `api/`, `core/`, `storage/`, `foundry/`, `telemetry/`, `pipelines/`, `hitl/` |
 | `frontend/ui/` | Gradio: `app.py`, `theme.py`, `api_client.py`, `tabs/` |
 | `config/pricing.yaml` | Precios por despliegue (sin secretos) |

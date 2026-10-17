@@ -7,9 +7,15 @@ construido con FastAPI, Gradio y Azure AI Foundry.
 
 ## Puesta en marcha
 
+Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.11 automáticamente).
+
 ```bash
 cp .env.example .env        # rellena tus valores; .env nunca se sube a git
 uvx pre-commit install      # activa los hooks de seguridad (gitleaks, bloqueo de .env)
+uv sync                     # crea el entorno
+uv run python -m shared     # comprueba tu configuración (la clave se muestra enmascarada)
+uv run pytest               # tests
 ```
 
-Las instrucciones completas (Docker, tests) se añadirán en los siguientes pasos.
+Sin credenciales de Azure, la aplicación funciona en modo `AI_PROVIDER_MODE=mock`.
+Las instrucciones de Docker se añadirán en el Paso 3.

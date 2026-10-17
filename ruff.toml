@@ -15,7 +15,10 @@ select = [
 ]
 
 [lint.per-file-ignores]
-"**/tests/**" = ["S101"]  # assert en tests
+"**/tests/**" = ["S101", "S105", "S106"]  # assert y credenciales falsas en tests
 
 [format]
 quote-style = "double"
+
+[lint.isort]
+known-first-party = ["shared"]
