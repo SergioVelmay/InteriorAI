@@ -1,0 +1,43 @@
+# Instalar:  uvx pre-commit install
+# Ejecutar:  uvx pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: forbid-env-files
+        name: Bloquear archivos .env (usa .env.example)
+        entry: "Archivo .env detectado: nunca se versiona. Usa .env.example"
+        language: fail
+        files: '(^|/)(\.env(\..+)?|[^/]+\.env)$'
+        exclude: '(^|/)\.env\.example$'
+      - id: forbid-data-dir
+        name: Bloquear datos de usuario (data/)
+        entry: "data/ contiene proyectos y renders locales: nunca se versiona"
+        language: fail
+        files: '^data/'

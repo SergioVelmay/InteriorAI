@@ -1,0 +1,36 @@
+# Nunca copiar secretos ni datos dentro de las imágenes
+.env
+.env.*
+!.env.example
+data/
+secrets/
+*.pem
+*.key
+
+# Control de versiones y tooling local
+.git/
+.gitignore
+.gitattributes
+.pre-commit-config.yaml
+.claude/
+.vscode/
+.idea/
+
+# Entornos y cachés
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.gradio/
+
+# Documentación y artefactos no necesarios en runtime
+docs/
+postman/
+*.md
+!README.md
+*.log

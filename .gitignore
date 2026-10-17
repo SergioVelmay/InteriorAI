@@ -1,0 +1,103 @@
+# =============================================================================
+# InteriorAI — .gitignore (repositorio PÚBLICO: ante la duda, ignorar)
+# =============================================================================
+
+# --- Secretos y configuración local -----------------------------------------
+# Cualquier variante de .env, excepto la plantilla pública.
+.env
+.env.*
+*.env
+!.env.example
+.envrc
+secrets/
+*.secret
+*.secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+credentials*.json
+service-account*.json
+azure_credentials*
+.azure/
+
+# --- Datos de usuario, proyectos y renders (volumen studio_shared_data) -----
+data/
+/data
+renders/
+uploads/
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Entornos virtuales -----------------------------------------------------
+venv/
+.venv/
+env/
+ENV/
+.python-version.local
+
+# --- Cachés y artefactos de Python ------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+pip-wheel-metadata/
+.uv-cache/
+
+# --- Gradio -------------------------------------------------------------------
+.gradio/
+flagged/
+gradio_cached_examples/
+
+# --- Logs y temporales --------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# --- Docker (overrides locales) ----------------------------------------------
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# --- Postman: entornos con valores reales ------------------------------------
+postman/*.local.json
+postman/*.secret.json
+
+# --- IDEs y sistema operativo -------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Claude Code: ajustes locales del usuario --------------------------------
+.claude/settings.local.json
+CLAUDE.local.md
