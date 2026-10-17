@@ -1,12 +1,23 @@
 # Azure AI Foundry — integración por rol
 
-> Estado: **diseño** (Paso 1). Se completa en los Pasos 6 (cliente) y 7 (telemetría).
+> Estado: **configuración implementada** (Paso 2). Cliente en Paso 6, telemetría en Paso 7.
 
 ## Principio
 
 El código solo conoce **roles funcionales**. El despliegue concreto de cada rol se
 resuelve en runtime desde variables de entorno. Cambiar de modelo = cambiar `.env`
 (y su precio en `config/pricing.yaml`), sin tocar código.
+
+## Superficies de API (API v1 de Azure, sin `api-version`)
+
+| `ApiKind` | Ruta sobre el endpoint | Roles |
+|-----------|------------------------|-------|
+| `RESPONSES` | `/openai/v1/responses` (Responses API) | Prompt Engineer, Geometric Auditor, Context Manager |
+| `IMAGES` | `/openai/v1/images/generations` · `/openai/v1/images/edits` | Fast Draft, Structural Composer |
+| `PROVIDER_IMAGES` | `AZURE_FOUNDRY_RENDERER_PATH` (p. ej. `/providers/<proveedor>/v1/<modelo>`) | Photorealistic Renderer |
+
+Con la Responses API, el esfuerzo de razonamiento se envía como `reasoning={"effort": ...}` y
+los tokens de razonamiento llegan en `usage.output_tokens_details.reasoning_tokens`.
 
 ## Roles
 
@@ -24,12 +35,17 @@ resuelve en runtime desde variables de entorno. Cambiar de modelo = cambiar `.en
 | Variable | Descripción |
 |----------|-------------|
 | `AI_PROVIDER_MODE` | `mock` (por defecto, sin coste) o `azure` |
-| `AZURE_FOUNDRY_ENDPOINT` | Endpoint del recurso Foundry |
+| `AZURE_FOUNDRY_ENDPOINT` | **Solo el host** `https://<recurso>.services.ai.azure.com` (se rechaza con ruta) |
 | `AZURE_FOUNDRY_API_KEY` | Clave (siempre `SecretStr`, nunca logueada) |
-| `AZURE_FOUNDRY_API_VERSION` | Versión de API |
-| `AZURE_FOUNDRY_RENDERER_ENDPOINT` | Opcional: endpoint propio del renderizador si difiere |
-| `AZURE_REQUEST_TIMEOUT_S`, `AZURE_MAX_RETRIES` | Resiliencia |
+| `AZURE_FOUNDRY_API_VERSION` | Opcional; la API v1 no la usa (verificar renderizador: B-003) |
+| `AZURE_FOUNDRY_RENDERER_ENDPOINT` | Opcional: host propio del renderizador (vacío = el principal) |
+| `AZURE_FOUNDRY_RENDERER_PATH` | Ruta de la API del renderizador |
+| `AZURE_FOUNDRY_TIMEOUT_S`, `AZURE_FOUNDRY_MAX_RETRIES` | Resiliencia |
 | `GEOMETRIC_AUDITOR_REASONING_EFFORT` | Por defecto `max` — pendiente de verificar (BACKLOG B-001) |
+
+En modo `azure`, `Settings` exige endpoint, clave, ruta del renderizador y los 6 despliegues.
+En modo `mock`, `deployment_for(role)` devuelve `mock-<rol>` si el despliegue no está definido.
+Comprobación: `uv run python -m shared`.
 
 ## Diseño previsto (Paso 6)
 
