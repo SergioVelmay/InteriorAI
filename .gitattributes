@@ -1,0 +1,9 @@
+# Normalizar a LF: el código se ejecuta en contenedores Linux.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.skp binary
+*.pdf binary

@@ -1,0 +1,23 @@
+title = "InteriorAI gitleaks config"
+
+[extend]
+useDefault = true
+
+# Claves de Azure AI Foundry / Azure OpenAI (32 hex clásicas u 84 alfanuméricas nuevas)
+[[rules]]
+id = "azure-ai-foundry-api-key"
+description = "Azure AI Foundry / Azure OpenAI API key"
+regex = '''(?i)(?:azure|foundry|openai)[\w-]{0,30}(?:key|token|secret)\s*[:=]\s*["']?([a-f0-9]{32}|[A-Za-z0-9]{84})\b'''
+secretGroup = 1
+keywords = ["azure", "foundry", "openai"]
+
+# Endpoints reales de recursos Azure (el repo solo debe contener placeholders)
+[[rules]]
+id = "azure-resource-endpoint"
+description = "Endpoint real de un recurso Azure"
+regex = '''https://(?:[a-z0-9-]{3,})\.(?:services\.ai\.azure\.com|openai\.azure\.com|cognitiveservices\.azure\.com)'''
+keywords = ["azure.com"]
+
+[allowlist]
+description = "Placeholders documentados"
+regexes = ['''https://<[^>]+>\.''']

@@ -1,0 +1,21 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+    "ASYNC",    # anti-patrones async
+    "S",        # bandit (seguridad)
+    "RUF",
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S101"]  # assert en tests
+
+[format]
+quote-style = "double"
