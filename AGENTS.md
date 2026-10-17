@@ -25,7 +25,8 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto:
    usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano.
 4. **Toda llamada a IA pasa por `FoundryClient`** (`backend/app/foundry/`, dependencia `FoundryDep`)
-   para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía.
+   para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía. Las llamadas
+   hechas por un proyecto van dentro de `with telemetry_scope(project_id):`.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
    Las llamadas reales solo con el script `python -m app.foundry.smoke`, con el modo `azure`
    activado por el usuario y anunciando cada llamada.
@@ -59,7 +60,7 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 | `shared/src/shared/` | `settings.py` (configuración), `roles.py` (roles y tipo de API), `models.py` (dominio) |
 | `backend/app/` | FastAPI: `api/`, `core/`, `storage/`, `foundry/`, `telemetry/`, `pipelines/`, `hitl/` |
 | `frontend/ui/` | Gradio: `app.py`, `theme.py`, `api_client.py`, `tabs/` |
-| `config/pricing.yaml` | Precios por despliegue (sin secretos) |
+| `config/pricing.yaml` | Precios por despliegue en EUR (sin secretos; montado en solo lectura) |
 | `postman/` | Colección (flujo completo de la API v1), entorno local y `fixtures/` |
 | `data/` | Volumen de proyectos (gitignored): `proyectos.json`, `{id}/...` |
 | `docs/agent/` | Contexto técnico por materia (leer solo cuando aplique) |

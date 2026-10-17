@@ -124,8 +124,11 @@ def _render_edit(role: Role, request: ImageEditRequest, index: int) -> Generated
 def _image_usage(role: Role, prompt: str, width: int, height: int, n: int, inputs: int) -> Usage:
     if role.api_kind is ApiKind.PROVIDER_IMAGES:
         return Usage()  # el renderizador se factura por imagen, no por tokens
+    text_tokens, image_tokens = _tokens(prompt), inputs * IMAGE_INPUT_TOKENS
     return Usage(
-        input_tokens=_tokens(prompt) + inputs * IMAGE_INPUT_TOKENS,
+        input_tokens=text_tokens + image_tokens,
+        input_text_tokens=text_tokens,
+        input_image_tokens=image_tokens,
         output_tokens=n * (width * height) // 4096,
     )
 

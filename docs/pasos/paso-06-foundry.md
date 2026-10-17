@@ -81,7 +81,7 @@ Problemas detectados y resueltos durante el paso:
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-06`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-06`, PR #5 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

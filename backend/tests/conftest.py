@@ -10,7 +10,11 @@ from PIL import Image
 from app.main import create_app
 from shared import Settings
 
-_PREFIXES = ("AI_", "AZURE_", "DEPLOYMENT_ROLE_", "DATA_DIR", "LOG_", "APP_", "MAX_UPLOAD")
+_PREFIXES = (
+    "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_", "DATA_DIR", "LOG_", "APP_",
+    "MAX_UPLOAD", "PRICING_",
+)  # fmt: skip
+PRICING_FILE = Path(__file__).resolve().parents[2] / "config" / "pricing.yaml"
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +34,7 @@ def make_api(
 
     def factory(max_upload_mb: int | None = None) -> TestClient:
         monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setenv("PRICING_FILE", str(PRICING_FILE))
         if max_upload_mb is not None:
             monkeypatch.setenv("MAX_UPLOAD_MB", str(max_upload_mb))
         client = TestClient(create_app(Settings.load(env_file=None)))

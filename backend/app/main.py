@@ -20,8 +20,9 @@ from app.api import v1
 from app.api.deps import SettingsDep
 from app.api.errors import register_exception_handlers
 from app.api.limits import BodySizeLimitMiddleware, max_body_bytes
-from app.foundry import create_foundry_client
 from app.storage import CorruptDataError, ProjectRepository
+from app.telemetry import create_metered_client, load_pricing
+from app.telemetry.middleware import RequestIdMiddleware
 from shared import ProviderMode, Settings, get_settings
 
 logger = logging.getLogger("interiorai.backend")
@@ -68,12 +69,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings = settings or get_settings()
     app.state.repository = ProjectRepository(settings.storage.data_dir)
-    app.state.foundry = create_foundry_client(settings)
+    app.state.foundry = create_metered_client(
+        settings, app.state.repository, load_pricing(settings.storage.pricing_file)
+    )
 
     app.add_middleware(
         BodySizeLimitMiddleware,
         max_body_bytes=max_body_bytes(settings.storage.max_upload_bytes),
     )
+    app.add_middleware(RequestIdMiddleware)  # el último añadido es el más externo
     register_exception_handlers(app)
     app.include_router(v1.router)
 

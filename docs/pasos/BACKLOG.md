@@ -13,4 +13,6 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-007 | Comando para listar/restaurar/vaciar `.papelera/` (siempre con confirmación) | [Paso 4](paso-04-almacenamiento.md) | Paso 15 | ⏳ Abierto |
 | B-008 | Actualizar Postman CLI (instalada 1.73.0, disponible 1.75.0) | [Paso 5](paso-05-api.md) | Cuando el usuario lo decida | ⏳ Abierto |
 | B-009 | La máscara de GPT-image es orientativa: recomponer en local solo la zona enmascarada para inpainting exacto | [Paso 6](paso-06-foundry.md) | Paso 13 | ⏳ Abierto |
-| B-010 | Precios reales de los 6 despliegues para `config/pricing.yaml` (los aporta el usuario) | [Paso 6](paso-06-foundry.md) | Paso 7 | ⏳ Abierto |
+| B-010 | Precios reales de los 6 despliegues para `config/pricing.yaml` (los aporta el usuario) | [Paso 6](paso-06-foundry.md) | Paso 7 | ✅ Resuelto en [Paso 7](paso-07-telemetria.md) |
+| B-011 | Contrastar en Azure Cost Management el redondeo de megapíxeles del renderizador (`exact` vs `ceil`) y, en general, el coste estimado frente al real | [Paso 7](paso-07-telemetria.md) | Cuando haya facturación de las llamadas reales | ⏳ Abierto |
+| B-012 | `costes_telemetria.json` se reescribe entero en cada registro: valorar rotación o JSONL si un proyecto acumula miles de llamadas | [Paso 7](paso-07-telemetria.md) | Paso 15 | ⏳ Abierto |

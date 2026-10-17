@@ -1,0 +1,79 @@
+# =============================================================================
+# InteriorAI — Tabla de precios de los despliegues de Azure AI Foundry
+#
+# Precios de lista en EUR facilitados por el usuario (2026-10-18). Sirven para ESTIMAR
+# el coste de cada llamada; la cifra real es la de Azure Cost Management.
+# Las claves de `deployments` son los nombres de despliegue de `.env` (DEPLOYMENT_ROLE_*).
+# Editable sin reconstruir la imagen: se monta en solo lectura; basta reiniciar el backend.
+# =============================================================================
+
+schema_version: 1
+currency: EUR
+
+# Tipo de despliegue de los modelos de texto: global | data_zone (los 6 son Global Standard)
+deployment_type: global
+
+# Entrada por encima de este número de tokens → precio "long" (GPT-6 / GPT-6.1)
+long_context_threshold_tokens: 272000
+
+# Megapíxeles del renderizador: exact (w*h/1e6) | ceil (redondeo al MP completo).
+# Pendiente de contrastar con Azure Cost Management (BACKLOG B-011).
+megapixel_rounding: exact
+
+deployments:
+  # --- Texto: precio por 1M de tokens --------------------------------------------------
+  gpt-6.1-sol:
+    type: tokens
+    rates:
+      global:
+        short: {input: 1.76, cached_input: 0.09, cache_write: 2.20, output: 8.80}
+        long: {input: 3.52, cached_input: 0.18, cache_write: 4.40, output: 13.20}
+      data_zone:
+        short: {input: 2.12, cached_input: 0.11, cache_write: 2.64, output: 10.56}
+        long: {input: 4.23, cached_input: 0.22, cache_write: 5.28, output: 15.84}
+
+  gpt-6-astra:
+    type: tokens
+    rates:
+      global:
+        short: {input: 8.80, cached_input: 0.88, cache_write: 11.00, output: 44.00}
+        long: {input: 17.60, cached_input: 1.76, cache_write: 22.00, output: 66.00}
+      data_zone:
+        short: {input: 10.56, cached_input: 1.06, cache_write: 13.20, output: 52.80}
+        long: {input: 21.12, cached_input: 2.12, cache_write: 26.40, output: 79.20}
+
+  gpt-6-luna:
+    type: tokens
+    rates:
+      global:
+        short: {input: 0.088, cached_input: 0.009, cache_write: 0.110, output: 0.440}
+        long: {input: 0.176, cached_input: 0.018, cache_write: 0.220, output: 0.660}
+      data_zone:
+        short: {input: 0.106, cached_input: 0.011, cache_write: 0.132, output: 0.528}
+        long: {input: 0.212, cached_input: 0.022, cache_write: 0.264, output: 0.792}
+
+  # --- Imagen por tokens: precio por 1M de tokens (solo hay precio Global) ----------------
+  gpt-image-2.5-flare:
+    type: image_tokens
+    input_text: 4.400
+    cached_input_text: 1.100
+    input_image: 7.040
+    cached_input_image: 1.760
+    output_image: 26.400
+
+  gpt-image-2.5-sunburst:
+    type: image_tokens
+    input_text: 4.400
+    cached_input_text: 1.100
+    input_image: 7.040
+    cached_input_image: 1.760
+    output_image: 26.400
+
+  # --- Renderizador: precio por megapíxel --------------------------------------------------
+  # Primer MP de cada imagen generada a `initial_mp`, el resto a `additional_mp`;
+  # cada MP de las imágenes de referencia (edición) a `reference_mp`.
+  FLUX.2-pro:
+    type: megapixels
+    initial_mp: 0.026400
+    additional_mp: 0.013200
+    reference_mp: 0.013200

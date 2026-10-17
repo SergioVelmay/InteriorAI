@@ -45,6 +45,7 @@ from shared.models import (
     ProjectSummary,
     ProjectUpdate,
     TelemetryLog,
+    TelemetryRecord,
     utc_now,
 )
 
@@ -292,3 +293,23 @@ class ProjectRepository:
         target.parent.mkdir(parents=True, exist_ok=True)
         if source.exists():
             replace_with_retry(source, target)
+
+    # --- Telemetría ------------------------------------------------------------------
+
+    def _read_telemetry_sync(self, paths: ProjectPaths) -> TelemetryLog:
+        self._read_metadata(paths)  # 404 si el proyecto no existe
+        if not paths.telemetry.is_file():
+            return TelemetryLog()
+        return read_json(paths.telemetry, TelemetryLog)
+
+    async def read_telemetry(self, project_id: str | UUID) -> TelemetryLog:
+        paths = self._paths(project_id)
+        async with self._locks.hold(str(paths.project_id)):
+            return await self._run(self._read_telemetry_sync, paths)
+
+    async def append_telemetry(self, project_id: str | UUID, record: TelemetryRecord) -> None:
+        paths = self._paths(project_id)
+        async with self._locks.hold(str(paths.project_id)):
+            log = await self._run(self._read_telemetry_sync, paths)
+            updated = log.model_copy(update={"records": [*log.records, record]})
+            await self._run(write_json_atomic, paths.telemetry, updated)

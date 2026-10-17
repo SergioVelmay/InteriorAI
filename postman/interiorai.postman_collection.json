@@ -476,7 +476,65 @@
       ]
     },
     {
-      "name": "04 Limpieza",
+      "name": "04 Costes",
+      "item": [
+        {
+          "name": "Costes del proyecto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"resumen estimado en EUR\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.currency).to.eql(\"EUR\");",
+                  "  pm.expect(b.estimated).to.be.true;",
+                  "  pm.expect(b.totals).to.have.property(\"cost_eur\");",
+                  "  pm.expect(b).to.have.keys(\"project_id\", \"currency\", \"estimated\", \"includes_simulated\", \"totals\", \"by_role\", \"by_day\", \"by_deployment\", \"records\");",
+                  "});",
+                  "pm.test(\"X-Request-ID en la respuesta\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-ID\")).to.match(/^[A-Za-z0-9._-]{1,64}$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/costs"
+          }
+        },
+        {
+          "name": "Tabla de precios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"umbral de contexto largo y renderizador por MP\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.long_context_threshold_tokens).to.eql(272000);",
+                  "  pm.expect(b.deployment_type).to.eql(\"global\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pricing"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Limpieza",
       "item": [
         {
           "name": "Borrar proyecto (papelera)",
