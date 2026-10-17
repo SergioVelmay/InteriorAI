@@ -9,8 +9,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 0 | [Plan y decisiones](paso-00-plan-y-decisiones.md) | `main` | ✅ Cerrado |
 | 1 | [Repo seguro y documentación del agente](paso-01-repo-seguro.md) | `feat/paso-01` | ✅ Cerrado |
 | 2 | [Configuración central (Pydantic Settings)](paso-02-configuracion.md) | `feat/paso-02` | ✅ Cerrado |
-| 3 | [Esqueleto Docker](paso-03-docker.md) | `feat/paso-03` | 🧪 En validación |
-| 4 | Modelo de dominio y almacenamiento | — | ⏳ Pendiente |
+| 3 | [Esqueleto Docker](paso-03-docker.md) | `feat/paso-03` | ✅ Cerrado |
+| 4 | [Modelo de dominio y almacenamiento](paso-04-almacenamiento.md) | `feat/paso-04` | 🧪 En validación |
 | 5 | API REST de proyectos y assets | — | ⏳ Pendiente |
 | 6 | Abstracción Azure AI Foundry | — | ⏳ Pendiente |
 | 7 | Telemetría y costes | — | ⏳ Pendiente |

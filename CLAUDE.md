@@ -26,4 +26,11 @@ docker compose watch              # desarrollo: reconstruye al cambiar backend/,
 docker compose down
 ```
 
+```bash
+# Almacenamiento (dentro del contenedor)
+docker compose exec backend python -m app.storage listar
+docker compose exec backend python -m app.storage crear "Nombre" --tipo dormitorio
+docker compose exec backend python -m app.storage reindexar
+```
+
 <!-- Se ampliará con Postman CLI (Paso 5). -->

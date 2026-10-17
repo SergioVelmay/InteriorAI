@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI, Request, Response, status
 from pydantic import BaseModel
 
 from app import __version__
+from app.storage import CorruptDataError, ProjectRepository
 from shared import ProviderMode, Settings, get_settings
 
 logger = logging.getLogger("interiorai.backend")
@@ -35,6 +36,13 @@ def get_app_settings(request: Request) -> Settings:
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 
 
+def get_repository(request: Request) -> ProjectRepository:
+    return request.app.state.repository
+
+
+RepositoryDep = Annotated[ProjectRepository, Depends(get_repository)]
+
+
 def _data_dir_writable(path: Path) -> bool:
     return path.is_dir() and os.access(path, os.W_OK)
 
@@ -48,9 +56,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     data_dir = settings.storage.data_dir
     try:
-        data_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        logger.error("No se puede crear el directorio de datos %s: %s", data_dir, exc)
+        await app.state.repository.init()
+    except (OSError, CorruptDataError) as exc:
+        logger.error("No se puede inicializar el directorio de datos %s: %s", data_dir, exc)
     logger.info(
         "InteriorAI backend %s | modo IA: %s | datos: %s",
         __version__,
@@ -66,7 +74,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         lifespan=_lifespan,
     )
-    app.state.settings = settings or get_settings()
+    app.state.settings = settings = settings or get_settings()
+    app.state.repository = ProjectRepository(settings.storage.data_dir)
 
     @app.get("/health", response_model=HealthResponse, tags=["sistema"])
     async def health(settings: SettingsDep, response: Response) -> HealthResponse:
