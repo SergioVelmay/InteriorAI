@@ -20,6 +20,7 @@ from app.api import v1
 from app.api.deps import SettingsDep
 from app.api.errors import register_exception_handlers
 from app.api.limits import BodySizeLimitMiddleware, max_body_bytes
+from app.foundry import create_foundry_client
 from app.storage import CorruptDataError, ProjectRepository
 from shared import ProviderMode, Settings, get_settings
 
@@ -56,6 +57,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         data_dir.as_posix(),
     )
     yield
+    await app.state.foundry.aclose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -66,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings = settings or get_settings()
     app.state.repository = ProjectRepository(settings.storage.data_dir)
+    app.state.foundry = create_foundry_client(settings)
 
     app.add_middleware(
         BodySizeLimitMiddleware,
