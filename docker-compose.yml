@@ -1,0 +1,72 @@
+# InteriorAI — entorno local
+#   docker compose up --build -d      levantar
+#   docker compose watch              desarrollo: reconstruye al cambiar el código
+#   docker compose down               parar (los datos en ./data se conservan)
+name: interiorai
+
+services:
+  # Ajusta el propietario del volumen al usuario sin privilegios (uid 1000) de las imágenes.
+  # Necesario en Docker Desktop (Windows/macOS), donde el bind mount aparece como root.
+  data-init:
+    image: interiorai-backend:dev   # la construye el servicio backend
+    pull_policy: never
+    user: "0:0"
+    entrypoint: ["chown", "1000:1000", "/app/data"]
+    volumes:
+      - studio_shared_data:/app/data
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: interiorai-backend:dev
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+    volumes:
+      - studio_shared_data:/app/data
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    develop:
+      watch:
+        - { action: rebuild, path: ./backend }
+        - { action: rebuild, path: ./shared }
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: interiorai-frontend:dev
+    # Sin env_file: el frontend no recibe credenciales de Azure (mínimo privilegio).
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATA_DIR: /app/data
+      BACKEND_URL: http://backend:${BACKEND_PORT:-8000}
+      FRONTEND_PORT: ${FRONTEND_PORT:-7860}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-7860}:${FRONTEND_PORT:-7860}"
+    volumes:
+      - studio_shared_data:/app/data:ro   # solo lectura: las escrituras pasan por la API
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    develop:
+      watch:
+        - { action: rebuild, path: ./frontend }
+        - { action: rebuild, path: ./shared }
+
+volumes:
+  studio_shared_data:
+    name: studio_shared_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data

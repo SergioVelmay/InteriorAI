@@ -27,6 +27,8 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
 6. **Human-in-the-Loop**: las transiciones de estado de una iteración solo ocurren por acción del usuario.
 7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación.
+8. **Mínimo privilegio en contenedores**: usuario sin privilegios (uid 1000), puertos publicados
+   solo en `127.0.0.1`, el frontend sin credenciales y con `data/` en solo lectura.
 
 ## Estilo de código
 

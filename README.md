@@ -18,4 +18,18 @@ uv run pytest               # tests
 ```
 
 Sin credenciales de Azure, la aplicación funciona en modo `AI_PROVIDER_MODE=mock`.
-Las instrucciones de Docker se añadirán en el Paso 3.
+### Docker
+
+Requisitos: Docker Desktop (o Docker Engine + Compose v2).
+
+```bash
+docker compose up --build -d
+```
+
+| Servicio | URL |
+|----------|-----|
+| Interfaz (Gradio) | http://127.0.0.1:7860 |
+| API (FastAPI) | http://127.0.0.1:8000/docs |
+
+Los proyectos y renders se guardan en `./data` (volumen `studio_shared_data`), que nunca
+se sube a git. En Linux, crea antes la carpeta con `mkdir -p data`.

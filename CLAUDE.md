@@ -17,4 +17,13 @@ uv run ruff check . --fix
 uv run ruff format .
 ```
 
-<!-- Se ampliará con docker compose (Paso 3) y Postman CLI (Paso 5). -->
+```bash
+# Docker (backend :8000, frontend :7860, solo en 127.0.0.1)
+docker compose up --build -d
+docker compose ps                 # data-init Exited (0), backend/frontend healthy
+docker compose logs -f backend
+docker compose watch              # desarrollo: reconstruye al cambiar backend/, frontend/, shared/
+docker compose down
+```
+
+<!-- Se ampliará con Postman CLI (Paso 5). -->

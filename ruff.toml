@@ -21,4 +21,4 @@ select = [
 quote-style = "double"
 
 [lint.isort]
-known-first-party = ["shared"]
+known-first-party = ["shared", "app", "ui"]
