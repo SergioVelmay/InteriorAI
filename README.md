@@ -31,5 +31,12 @@ docker compose up --build -d
 | Interfaz (Gradio) | http://127.0.0.1:7860 |
 | API (FastAPI) | http://127.0.0.1:8000/docs |
 
+Prueba de extremo a extremo de la API con [Postman CLI](https://learning.postman.com/docs/postman-cli/postman-cli-overview/):
+
+```bash
+postman collection run postman/interiorai.postman_collection.json \
+  -e postman/local.postman_environment.json --working-dir postman
+```
+
 Los proyectos y renders se guardan en `./data` (volumen `studio_shared_data`), que nunca
 se sube a git. En Linux, crea antes la carpeta con `mkdir -p data`.

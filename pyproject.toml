@@ -29,3 +29,5 @@ testpaths = ["shared/tests", "backend/tests", "frontend/tests"]
 addopts = "-ra"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# Igual que en producción (app/api/uploads.py): la advertencia de Pillow es un error.
+filterwarnings = ["error::PIL.Image.DecompressionBombWarning"]

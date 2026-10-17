@@ -385,6 +385,8 @@ dependencies = [
     { name = "fastapi" },
     { name = "filelock" },
     { name = "interiorai-shared" },
+    { name = "pillow" },
+    { name = "python-multipart" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -394,6 +396,8 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "filelock", specifier = ">=3.16" },
     { name = "interiorai-shared", editable = "shared" },
+    { name = "pillow", specifier = ">=11.0" },
+    { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 

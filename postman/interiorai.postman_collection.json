@@ -1,0 +1,539 @@
+{
+  "info": {
+    "name": "InteriorAI API",
+    "description": "Flujo completo de la API v1 de InteriorAI (proyectos y assets).\n\npostman collection run postman/interiorai.postman_collection.json -e postman/local.postman_environment.json --working-dir postman",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Sistema",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status ok y modo mock\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.status).to.eql(\"ok\");",
+                  "  pm.expect(b.mode).to.eql(\"mock\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "Tipos de espacio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"9 tipos con etiqueta\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.lengthOf(9);",
+                  "  pm.expect(b[0]).to.have.keys(\"value\", \"label\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/space-types"
+          }
+        },
+        {
+          "name": "Tipos de asset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"render no se puede subir\", () => {",
+                  "  const render = pm.response.json().find(k => k.value === \"render\");",
+                  "  pm.expect(render.uploadable).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/asset-kinds"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Proyectos",
+      "item": [
+        {
+          "name": "Crear proyecto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set(\"projectId\", b.id);",
+                  "pm.test(\"Location apunta al proyecto\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Location\")).to.include(b.id);",
+                  "});",
+                  "pm.test(\"estructura inicial\", () => {",
+                  "  pm.expect(b.space_type).to.eql(\"salon_cocina_comedor\");",
+                  "  pm.expect(b.assets).to.eql([]);",
+                  "  pm.expect(b.schema_version).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Salón principal (Postman)\",\n  \"space_type\": \"salon_cocina_comedor\",\n  \"description\": \"Proyecto creado por la colección de Postman\",\n  \"design_notes\": \"Estilo nórdico, tonos cálidos, mucha luz natural\",\n  \"dimensions\": {\n    \"width_m\": 4.2,\n    \"length_m\": 7.5,\n    \"height_m\": 2.6\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Crear proyecto inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"space_type\": \"garaje\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar proyectos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"incluye el proyecto creado\", () => {",
+                  "  const ids = pm.response.json().map(p => p.id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get(\"projectId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects"
+          }
+        },
+        {
+          "name": "Ver proyecto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"dimensiones guardadas\", () => {",
+                  "  pm.expect(pm.response.json().dimensions.length_m).to.eql(7.5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+          }
+        },
+        {
+          "name": "Editar proyecto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"nombre actualizado y notas intactas\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.name).to.eql(\"Salón principal (editado)\");",
+                  "  pm.expect(b.design_notes).to.include(\"nórdico\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Salón principal (editado)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Assets",
+      "item": [
+        {
+          "name": "Subir plano (multipart)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set(\"planoId\", b.id);",
+                  "pm.test(\"tipo y dimensiones detectados\", () => {",
+                  "  pm.expect(b.mime_type).to.eql(\"image/png\");",
+                  "  pm.expect(b.width_px).to.eql(160);",
+                  "  pm.expect(b.height_px).to.eql(120);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "fixtures/plano.png"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Subir plano duplicado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"indica el asset existente\", () => {",
+                  "  pm.expect(pm.response.json().existing_asset_id)",
+                  "    .to.eql(pm.collectionVariables.get(\"planoId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "fixtures/plano.png"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Subir referencia (Base64)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"referenciaId\", pm.response.json().id);",
+                  "pm.test(\"dimensiones\", () => pm.expect(pm.response.json().width_px).to.eql(32));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"referencia_ikea.png\",\n  \"data_base64\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAAJ0lEQVR42mPsjvnGQEvAxEBjMGrBqAWjFoxaMGrBqAWjFoxaQB0AANHqAg034bUdAAAAAElFTkSuQmCC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Subir render (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/render/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"render.png\",\n  \"data_base64\": \"iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAAJ0lEQVR42mPsjvnGQEvAxEBjMGrBqAWjFoxaMGrBqAWjFoxaQB0AANHqAg034bUdAAAAAElFTkSuQmCC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Subir archivo no válido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"falso.png\",\n  \"data_base64\": \"aG9sYSwgbm8gc295IHVuYSBpbWFnZW4=\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar planos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"solo el plano\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.lengthOf(1);",
+                  "  pm.expect(b[0].id).to.eql(pm.collectionVariables.get(\"planoId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets?kind=plano"
+          }
+        },
+        {
+          "name": "Descargar plano",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"cabeceras seguras\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\");",
+                  "  pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{planoId}}/content"
+          }
+        },
+        {
+          "name": "Borrar referencia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{referenciaId}}"
+          }
+        },
+        {
+          "name": "Referencia borrada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{referenciaId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Limpieza",
+      "item": [
+        {
+          "name": "Borrar proyecto (papelera)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+          }
+        },
+        {
+          "name": "Proyecto borrado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"mensaje en español\", () => {",
+                  "  pm.expect(pm.response.json().detail).to.eql(\"Proyecto no encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "projectId",
+      "value": ""
+    },
+    {
+      "key": "planoId",
+      "value": ""
+    },
+    {
+      "key": "referenciaId",
+      "value": ""
+    }
+  ]
+}

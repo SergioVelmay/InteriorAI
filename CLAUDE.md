@@ -33,4 +33,8 @@ docker compose exec backend python -m app.storage crear "Nombre" --tipo dormitor
 docker compose exec backend python -m app.storage reindexar
 ```
 
-<!-- Se ampliará con Postman CLI (Paso 5). -->
+```bash
+# API: Swagger en http://127.0.0.1:8000/docs ; pruebas de extremo a extremo con Postman CLI
+postman collection run postman/interiorai.postman_collection.json \
+  -e postman/local.postman_environment.json --working-dir postman
+```

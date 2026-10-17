@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA_VERSION = 1
 
@@ -60,12 +60,23 @@ class AssetKind(StrEnum):
         """Subcarpeta del proyecto donde se guardan los assets de este tipo."""
         return _ASSET_FOLDERS[self]
 
+    @property
+    def label(self) -> str:
+        return _ASSET_LABELS[self]
+
 
 _ASSET_FOLDERS: dict[AssetKind, str] = {
     AssetKind.PLANO: "planos",
     AssetKind.REFERENCIA: "referencias",
     AssetKind.CAPTURA_SKETCHUP: "capturas_sketchup",
     AssetKind.RENDER: "renders_historico",
+}
+
+_ASSET_LABELS: dict[AssetKind, str] = {
+    AssetKind.PLANO: "Plano",
+    AssetKind.REFERENCIA: "Referencia",
+    AssetKind.CAPTURA_SKETCHUP: "Captura de SketchUp",
+    AssetKind.RENDER: "Render",
 }
 
 
@@ -87,6 +98,8 @@ class Asset(_Model):
     mime_type: str
     size_bytes: int = Field(ge=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    width_px: int | None = Field(default=None, gt=0)
+    height_px: int | None = Field(default=None, gt=0)
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -116,6 +129,13 @@ class ProjectUpdate(_Model):
     dimensions: Dimensions | None = None
     style: str | None = Field(default=None, max_length=200)
     budget_eur: float | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _required_fields_not_null(self) -> ProjectUpdate:
+        for field in ("name", "space_type"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"'{field}' no puede ser null")
+        return self
 
     def changes(self) -> dict[str, Any]:
         return self.model_dump(exclude_unset=True)
