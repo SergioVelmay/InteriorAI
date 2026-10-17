@@ -24,8 +24,11 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    `.env.example` y `config/pricing.yaml`. Despliegue de un rol: `settings.deployment_for(role)`.
 3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto:
    usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano.
-4. **Toda llamada a IA pasa por el cliente Foundry** para que la telemetría de costes la registre.
+4. **Toda llamada a IA pasa por `FoundryClient`** (`backend/app/foundry/`, dependencia `FoundryDep`)
+   para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
+   Las llamadas reales solo con el script `python -m app.foundry.smoke`, con el modo `azure`
+   activado por el usuario y anunciando cada llamada.
 6. **Human-in-the-Loop**: las transiciones de estado de una iteración solo ocurren por acción del usuario.
 7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación
    (el borrado de la app es suave: mueve a `data/.papelera/`).

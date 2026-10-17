@@ -80,11 +80,19 @@ class FoundrySettings(BaseSettings):
     api_version: str | None = None
     renderer_endpoint: str | None = None
     renderer_path: str | None = None
+    # La API del proveedor del renderizador (/providers/...) exige api-version (B-003).
+    renderer_api_version: str | None = "preview"
     timeout_s: float = Field(default=120, gt=0)
     max_retries: int = Field(default=3, ge=0, le=10)
 
     @field_validator(
-        "endpoint", "api_key", "api_version", "renderer_endpoint", "renderer_path", mode="before"
+        "endpoint",
+        "api_key",
+        "api_version",
+        "renderer_endpoint",
+        "renderer_path",
+        "renderer_api_version",
+        mode="before",
     )
     @classmethod
     def _blank(cls, value: Any) -> Any:
@@ -281,6 +289,7 @@ def render_report(s: Settings) -> str:
         f"{f.renderer_endpoint or '(usa el principal)'}",
         f"    {_mark(f.renderer_path is not None)} Renderer path .... "
         f"{f.renderer_path or '(vacío)'}",
+        f"         Renderer api-version {f.renderer_api_version or '(ninguna)'}",
         f"         Timeout / reintentos {f.timeout_s:g}s / {f.max_retries}",
         "",
         "  Despliegues por rol",

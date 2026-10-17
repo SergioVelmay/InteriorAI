@@ -34,6 +34,11 @@ docker compose exec backend python -m app.storage reindexar
 ```
 
 ```bash
+# Verificación real de Azure (COSTE): solo con AI_PROVIDER_MODE=azure puesto por el usuario
+echo s | docker compose exec -T backend python -m app.foundry.smoke --role FAST_DRAFT
+```
+
+```bash
 # API: Swagger en http://127.0.0.1:8000/docs ; pruebas de extremo a extremo con Postman CLI
 postman collection run postman/interiorai.postman_collection.json \
   -e postman/local.postman_environment.json --working-dir postman

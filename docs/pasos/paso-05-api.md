@@ -69,7 +69,7 @@ El proyecto que la colección de Postman deja en la papelera se eliminó tras la
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-05`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-05`, PR #4 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

@@ -11,8 +11,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 2 | [Configuración central (Pydantic Settings)](paso-02-configuracion.md) | `feat/paso-02` | ✅ Cerrado |
 | 3 | [Esqueleto Docker](paso-03-docker.md) | `feat/paso-03` | ✅ Cerrado |
 | 4 | [Modelo de dominio y almacenamiento](paso-04-almacenamiento.md) | `feat/paso-04` | ✅ Cerrado |
-| 5 | [API REST de proyectos y assets](paso-05-api.md) | `feat/paso-05` | 🧪 En validación |
-| 6 | Abstracción Azure AI Foundry | — | ⏳ Pendiente |
+| 5 | [API REST de proyectos y assets](paso-05-api.md) | `feat/paso-05` | ✅ Cerrado |
+| 6 | [Abstracción Azure AI Foundry](paso-06-foundry.md) | `feat/paso-06` | 🧪 En validación |
 | 7 | Telemetría y costes | — | ⏳ Pendiente |
 | 8 | Pipelines de texto | — | ⏳ Pendiente |
 | 9 | Pipelines de imagen | — | ⏳ Pendiente |

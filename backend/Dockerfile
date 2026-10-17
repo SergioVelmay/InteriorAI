@@ -35,6 +35,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
+# Falla el build si falta alguna dependencia (los imports diferidos no se ven en mock)
+RUN python -c "import app.main, app.foundry.azure, app.foundry.smoke, app.storage.__main__"
 USER app
 
 EXPOSE 8000
