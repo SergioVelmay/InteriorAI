@@ -56,7 +56,7 @@ fallback del renderizador, validación de la ruta del renderizador, la clave nun
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-02`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-02`, PR #1 aprobada por el usuario y mergeada a `main`.
 
 ## 6. Publicación del repositorio (entre Paso 1 y Paso 2)
 
