@@ -1,4 +1,4 @@
-"""Cliente Azure con HTTP interceptado (`httpx.MockTransport`): ninguna petición sale a la red."""
+"""Cliente Azure con HTTP interceptado (`MockTransport` de httpx y httpx2): nada sale a la red."""
 
 import base64
 import io
@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import httpx
+import httpx2
 import pytest
 from PIL import Image
 
@@ -68,8 +69,26 @@ def make_client(
             seen.append(request)
             return handler(request)
 
-        http = httpx.AsyncClient(transport=httpx.MockTransport(recording))
-        return AzureFoundryClient(settings(tmp_path, monkeypatch, **extra), http_client=http), seen
+        def recording_httpx2(request: httpx2.Request) -> httpx2.Response:
+            # El SDK openai usa httpx2: se traduce a httpx para reutilizar los mismos handlers.
+            response = recording(
+                httpx.Request(
+                    request.method,
+                    str(request.url),
+                    headers=request.headers.raw,
+                    content=request.read(),
+                )
+            )
+            return httpx2.Response(
+                response.status_code, headers=response.headers.raw, content=response.content
+            )  # fmt: skip
+
+        client = AzureFoundryClient(
+            settings(tmp_path, monkeypatch, **extra),
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(recording)),
+            openai_http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(recording_httpx2)),
+        )
+        return client, seen
 
     return factory
 

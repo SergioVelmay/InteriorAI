@@ -11,7 +11,8 @@ dependencies = [
     "filelock>=3.16",
     "pillow>=11.0",
     "python-multipart>=0.0.12",
-    "openai>=1.60",
+    "openai>=3.0",
+    "httpx>=0.27",
 ]
 
 [tool.uv.sources]

@@ -129,7 +129,15 @@ def _retry_delay(response: httpx.Response | None, attempt: int) -> float:
 
 
 class AzureFoundryClient(FoundryClient):
-    def __init__(self, settings: Settings, http_client: httpx.AsyncClient | None = None) -> None:
+    """`http_client` (httpx) se usa para el renderizador. El SDK `openai` 3.x trae su propio
+    cliente basado en `httpx2` (librería distinta): `openai_http_client` solo para tests."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        http_client: httpx.AsyncClient | None = None,
+        openai_http_client: Any | None = None,
+    ) -> None:
         foundry = settings.foundry
         if foundry.endpoint is None or foundry.api_key is None:
             raise FoundryAuthError("Falta AZURE_FOUNDRY_ENDPOINT o AZURE_FOUNDRY_API_KEY")
@@ -140,13 +148,16 @@ class AzureFoundryClient(FoundryClient):
 
         self._owns_http = http_client is None
         self._http = http_client or httpx.AsyncClient(timeout=foundry.timeout_s)
+        openai_kwargs: dict[str, Any] = {}
+        if openai_http_client is not None:
+            openai_kwargs["http_client"] = openai_http_client
         self._openai = AsyncOpenAI(
             base_url=f"{foundry.endpoint}/openai/v1/",
             api_key=api_key,
             max_retries=foundry.max_retries,
             timeout=foundry.timeout_s,
-            http_client=self._http,
             default_query={"api-version": foundry.api_version} if foundry.api_version else None,
+            **openai_kwargs,
         )
         self._renderer_url = f"{foundry.renderer_base_url}{foundry.renderer_path or ''}"
         self._renderer_params = (
@@ -155,8 +166,9 @@ class AzureFoundryClient(FoundryClient):
         self._renderer_headers = {"Authorization": f"Bearer {api_key}"}
 
     async def aclose(self) -> None:
+        await self._openai.close()
         if self._owns_http:
-            await self._openai.close()
+            await self._http.aclose()
 
     # --- Texto (Responses API) ------------------------------------------------------------
 

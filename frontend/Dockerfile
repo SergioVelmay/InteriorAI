@@ -37,6 +37,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     GRADIO_ANALYTICS_ENABLED=False \
     GRADIO_TEMP_DIR=/tmp/gradio
 WORKDIR /app
+# Falla el build si falta alguna dependencia
+RUN python -c "import ui.app"
 USER app
 
 EXPOSE 7860
