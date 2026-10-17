@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
@@ -32,6 +31,7 @@ from app.storage.paths import (
     TRASH_DIR,
     InvalidPathError,
     ProjectPaths,
+    clean_original_name,
     parse_uuid,
     safe_join,
     stored_asset_name,
@@ -220,6 +220,8 @@ class ProjectRepository:
         content: bytes,
         original_name: str,
         mime_type: str,
+        width_px: int | None = None,
+        height_px: int | None = None,
     ) -> Asset:
         paths = self._paths(project_id)
         asset_id = uuid4()
@@ -227,10 +229,12 @@ class ProjectRepository:
             id=asset_id,
             kind=kind,
             stored_name=stored_asset_name(asset_id, original_name),
-            original_name=os.path.basename(original_name.replace("\\", "/"))[:255] or "archivo",
+            original_name=clean_original_name(original_name),
             mime_type=mime_type,
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
+            width_px=width_px,
+            height_px=height_px,
         )
         async with self._locks.hold(str(paths.project_id)):
             metadata = await self._run(self._read_metadata, paths)
@@ -249,13 +253,16 @@ class ProjectRepository:
         metadata = await self.get(project_id)
         return [a for a in metadata.assets if kind is None or a.kind is kind]
 
-    async def asset_path(self, project_id: str | UUID, asset_id: str | UUID) -> Path:
+    async def get_asset(self, project_id: str | UUID, asset_id: str | UUID) -> Asset:
         asset_uuid = parse_uuid(asset_id)
-        paths = self._paths(project_id)
-        for asset in await self.list_assets(paths.project_id):
+        for asset in await self.list_assets(project_id):
             if asset.id == asset_uuid:
-                return paths.asset(asset.kind, asset.stored_name)
+                return asset
         raise AssetNotFoundError(str(asset_uuid))
+
+    async def asset_path(self, project_id: str | UUID, asset_id: str | UUID) -> Path:
+        asset = await self.get_asset(project_id, asset_id)
+        return self._paths(project_id).asset(asset.kind, asset.stored_name)
 
     async def remove_asset(self, project_id: str | UUID, asset_id: str | UUID) -> Path:
         """Borrado suave: mueve el archivo a `.papelera/{proyecto}/`. Devuelve la ruta destino."""

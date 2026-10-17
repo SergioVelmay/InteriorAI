@@ -1,13 +1,13 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **almacenamiento implementado** (Paso 4). Se completa en los Pasos 5 y 7.
+> Estado: **API de proyectos y assets implementada** (Paso 5). Se completa en el Paso 7.
 
 ## Estructura y arranque
 
 - App factory: `backend/app/main.py::create_app(settings=None)`; uvicorn con
   `--factory app.main:create_app`. Sin instancia global (los tests inyectan `Settings`).
-- `Settings` vive en `app.state.settings`; en endpoints se obtiene con la dependencia
-  `SettingsDep` (`get_app_settings`).
+- `Settings` y `ProjectRepository` viven en `app.state`; en endpoints se obtienen con
+  `SettingsDep` / `RepositoryDep` (`app/api/deps.py`).
 - El `lifespan` configura logging, crea `DATA_DIR` y registra un resumen sin secretos.
 - `GET /health` → `{"status": "ok"|"degraded", "version", "mode", "data_dir_writable"}`;
   `503` si el volumen no es escribible (lo usa el `HEALTHCHECK` de Docker).
@@ -43,7 +43,7 @@ data/
   `ProjectIndex`, `TelemetryLog`. Campos en inglés, valores y carpetas en español,
   `schema_version: 1` en cada JSON, `extra="forbid"`.
 - `ProjectRepository(data_dir)` (dependencia `RepositoryDep`): `init`, `list_projects`, `create`,
-  `get`, `update`, `delete` (→ `.papelera/{id}-{ts}`), `add_asset`, `list_assets`, `asset_path`,
+  `get`, `update`, `delete` (→ `.papelera/{id}-{ts}`), `add_asset`, `list_assets`, `get_asset`, `asset_path`,
   `remove_asset` (→ `.papelera/{id}/`), `reindex`.
 - Errores: `ProjectNotFoundError`, `AssetNotFoundError`, `InvalidPathError`, `CorruptDataError`.
 - Escritura atómica (`atomic.py`: temp + fsync + `replace_with_retry`, que reintenta `os.replace`
@@ -53,16 +53,54 @@ data/
 - En disco los assets se guardan como `{uuid}.{ext}`; el nombre original solo en metadatos.
 - CLI: `python -m app.storage {crear,listar,ver,reindexar} [--data-dir DIR]`.
 
-## Endpoints previstos
+## Endpoints (`/api/v1`, rutas en inglés)
 
-| Método | Ruta | Paso |
-|--------|------|------|
-| GET | `/health` | 3 ✅ |
-| POST/GET | `/api/v1/proyectos` | 5 |
-| GET/PATCH/DELETE | `/api/v1/proyectos/{id}` | 5 |
-| POST/GET | `/api/v1/proyectos/{id}/assets/{tipo}` | 5 |
-| GET | `/api/v1/proyectos/{id}/costes` | 7 |
-| POST | `/api/v1/proyectos/{id}/pipelines/...` | 8–9 |
-| POST | `/api/v1/proyectos/{id}/iteraciones/{it}/{aprobar\|rechazar}` | 10 |
+| Método | Ruta | Respuesta | Paso |
+|--------|------|-----------|------|
+| GET | `/health` | `HealthResponse`; 503 si `data/` no es escribible | 3 ✅ |
+| GET | `/space-types` | `[{value, label}]` | 5 ✅ |
+| GET | `/asset-kinds` | `[{value, label, folder, uploadable, accepted_mime_types}]` | 5 ✅ |
+| POST | `/projects` | 201 `ProjectMetadata` + `Location` | 5 ✅ |
+| GET | `/projects` | `[ProjectSummary]` (más reciente primero) | 5 ✅ |
+| GET/PATCH | `/projects/{id}` | `ProjectMetadata` | 5 ✅ |
+| DELETE | `/projects/{id}` | 204 (borrado suave) | 5 ✅ |
+| POST | `/projects/{id}/assets/{kind}` | multipart `file` → 201 `Asset` | 5 ✅ |
+| POST | `/projects/{id}/assets/{kind}/base64` | `{filename, data_base64}` → 201 `Asset` | 5 ✅ |
+| GET | `/projects/{id}/assets?kind=` | `[Asset]` | 5 ✅ |
+| GET/DELETE | `/projects/{id}/assets/{asset_id}` | `Asset` / 204 (borrado suave) | 5 ✅ |
+| GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
+| GET | `/projects/{id}/costs` | — | 7 |
+| POST | `/projects/{id}/pipelines/...` | — | 8–9 |
+| POST | `/projects/{id}/iterations/{it}/{approve\|reject}` | — | 10 |
 
-Uploads: multipart y Base64, límite `MAX_UPLOAD_MB`, validación de MIME.
+## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
+
+- `{kind}` solo admite `UploadKind` (`plano`, `referencia`, `captura_sketchup`): los renders
+  solo los genera la IA (otro valor → 422).
+- Tipo real por magic bytes (`detect_mime`), nunca por extensión/`Content-Type`. Planos: PNG,
+  JPEG, WebP, PDF; referencias/capturas: PNG, JPEG, WebP → si no, 415.
+- Imágenes decodificadas por completo con Pillow (corruptas → 415) y límite de 80 MP
+  (`DecompressionBombWarning` convertido en error → 413). Se guardan `width_px`/`height_px`.
+- Tamaño: `MAX_UPLOAD_MB` por archivo (multipart por bloques; Base64 estimado antes de
+  decodificar) → 413. `BodySizeLimitMiddleware` corta cualquier cuerpo > 4/3·límite + 1 MiB
+  (por `Content-Length` o contando bytes si es chunked) **respondiendo él mismo el 413**
+  (FastAPI convertiría una excepción al leer el cuerpo en un 400).
+- Duplicados por `sha256` en el proyecto → 409 `{"detail", "existing_asset_id"}`;
+  `?allow_duplicate=true` para forzar.
+- `original_name` saneado (`clean_original_name`: sin rutas, controles ni comillas).
+
+## Errores (`app/api/errors.py`)
+
+`ProjectNotFoundError`/`AssetNotFoundError` → 404 · `InvalidPathError` → 422 ·
+`CorruptDataError` → 500 genérico (detalle solo en logs) · `UploadError` → su código.
+Formato siempre `{"detail": "<mensaje en español>"}`.
+
+## Notas de FastAPI 0.143
+
+Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrupadas sin
+`methods`); para inspeccionar rutas usar `/openapi.json`.
+
+## Tests
+
+`backend/tests/conftest.py`: `clean_env` (autouse), `make_api(max_upload_mb=None)`, `api`,
+`image_bytes()`. Es el único `conftest.py` del repo (pytest en modo de importación por defecto).

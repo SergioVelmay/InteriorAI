@@ -19,6 +19,7 @@ TRASH_DIR = ".papelera"
 LOCKS_DIR = ".locks"
 
 _SAFE_EXTENSION = re.compile(r"^[a-z0-9]{1,8}$")
+_UNSAFE_NAME_CHARS = re.compile(r'[\x00-\x1f\x7f"]')
 
 
 class InvalidPathError(ValueError):
@@ -48,6 +49,13 @@ def stored_asset_name(asset_id: UUID, original_name: str) -> str:
     suffix = PurePath(original_name.replace("\\", "/")).suffix.lower().lstrip(".")
     ext = suffix if _SAFE_EXTENSION.fullmatch(suffix) else "bin"
     return f"{asset_id}.{ext}"
+
+
+def clean_original_name(original_name: str) -> str:
+    """Nombre original para mostrar: sin directorios, controles ni comillas (va en cabeceras)."""
+    name = PurePath(original_name.replace("\\", "/")).name
+    name = _UNSAFE_NAME_CHARS.sub("_", name).strip()
+    return name[:255] or "archivo"
 
 
 class ProjectPaths:

@@ -70,7 +70,7 @@ El proyecto de prueba creado en `./data` durante la validación se eliminó al t
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-04`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-04`, PR #3 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

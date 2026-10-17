@@ -57,7 +57,7 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 | `backend/app/` | FastAPI: `api/`, `core/`, `storage/`, `foundry/`, `telemetry/`, `pipelines/`, `hitl/` |
 | `frontend/ui/` | Gradio: `app.py`, `theme.py`, `api_client.py`, `tabs/` |
 | `config/pricing.yaml` | Precios por despliegue (sin secretos) |
-| `postman/` | Colección y entorno para Postman CLI |
+| `postman/` | Colección (flujo completo de la API v1), entorno local y `fixtures/` |
 | `data/` | Volumen de proyectos (gitignored): `proyectos.json`, `{id}/...` |
 | `docs/agent/` | Contexto técnico por materia (leer solo cuando aplique) |
 | `docs/pasos/` | Bitácora de pasos y backlog |

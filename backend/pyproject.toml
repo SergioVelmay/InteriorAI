@@ -9,6 +9,8 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "anyio>=4.4",
     "filelock>=3.16",
+    "pillow>=11.0",
+    "python-multipart>=0.0.12",
 ]
 
 [tool.uv.sources]

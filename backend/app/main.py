@@ -10,12 +10,16 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi import FastAPI, Response, status
 from pydantic import BaseModel
 
 from app import __version__
+from app.api import v1
+from app.api.deps import SettingsDep
+from app.api.errors import register_exception_handlers
+from app.api.limits import BodySizeLimitMiddleware, max_body_bytes
 from app.storage import CorruptDataError, ProjectRepository
 from shared import ProviderMode, Settings, get_settings
 
@@ -27,20 +31,6 @@ class HealthResponse(BaseModel):
     version: str
     mode: ProviderMode
     data_dir_writable: bool
-
-
-def get_app_settings(request: Request) -> Settings:
-    return request.app.state.settings
-
-
-SettingsDep = Annotated[Settings, Depends(get_app_settings)]
-
-
-def get_repository(request: Request) -> ProjectRepository:
-    return request.app.state.repository
-
-
-RepositoryDep = Annotated[ProjectRepository, Depends(get_repository)]
 
 
 def _data_dir_writable(path: Path) -> bool:
@@ -76,6 +66,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings = settings or get_settings()
     app.state.repository = ProjectRepository(settings.storage.data_dir)
+
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_body_bytes=max_body_bytes(settings.storage.max_upload_bytes),
+    )
+    register_exception_handlers(app)
+    app.include_router(v1.router)
 
     @app.get("/health", response_model=HealthResponse, tags=["sistema"])
     async def health(settings: SettingsDep, response: Response) -> HealthResponse:
