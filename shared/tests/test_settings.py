@@ -209,3 +209,9 @@ def test_settings_are_immutable() -> None:
     s = Settings.load(env_file=None)
     with pytest.raises(ValidationError):
         s.app = s.app  # type: ignore[misc]
+
+
+def test_auditor_defaults_medium_effort_and_own_timeout() -> None:
+    s = Settings.load(env_file=None)
+    assert s.auditor.reasoning_effort == "medium"
+    assert s.auditor.timeout_s == 900

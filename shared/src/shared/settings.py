@@ -158,8 +158,11 @@ class DeploymentSettings(BaseSettings):
 class AuditorSettings(BaseSettings):
     model_config = _config("GEOMETRIC_AUDITOR_")
 
-    # Valor aceptado por el despliegue pendiente de verificar (BACKLOG B-001).
-    reasoning_effort: str = Field(default="max", min_length=1)
+    # `max` verificado en el Paso 6 (B-001); el usuario lo fija en `medium` (Paso 10): la
+    # auditoría es opcional y `max` dispara latencia y coste.
+    reasoning_effort: str = Field(default="medium", min_length=1)
+    # Timeout propio: las auditorías con razonamiento tardan minutos (120 s no bastan).
+    timeout_s: float = Field(default=900, gt=0)
 
     @field_validator("reasoning_effort", mode="before")
     @classmethod
@@ -302,7 +305,8 @@ def render_report(s: Settings) -> str:
         )
     lines += [
         "",
-        f"  Auditor reasoning_effort: {s.auditor.reasoning_effort}",
+        f"  Auditor: reasoning_effort {s.auditor.reasoning_effort} "
+        f"| timeout {s.auditor.timeout_s:g}s",
         f"  Datos: {s.storage.data_dir.as_posix()} | precios: {s.storage.pricing_file.as_posix()} "
         f"| upload máx: {s.storage.max_upload_mb} MB",
         f"  Backend: {s.network.backend_host}:{s.network.backend_port} "

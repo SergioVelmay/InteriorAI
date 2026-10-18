@@ -15,8 +15,10 @@ from app.foundry import (
     FoundryAuthError,
     FoundryBadRequestError,
     FoundryContentFilterError,
+    FoundryError,
     FoundryIncompleteError,
     FoundryRateLimitError,
+    FoundryTimeoutError,
     ImageEditRequest,
     ImageRequest,
     InputImage,
@@ -359,3 +361,103 @@ async def test_renderer_api_version_is_configurable(make_client) -> None:
     )
     await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert seen[0].url.params["api-version"] == "2026-01-01"
+
+
+# --- Política de reintentos (Paso 10): nunca reintentar un timeout ------------------------------
+
+
+def openai_only_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, handler, **extra: str
+) -> AzureFoundryClient:
+    return AzureFoundryClient(
+        settings(tmp_path, monkeypatch, **extra),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(500))),
+        openai_http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    )
+
+
+async def test_openai_timeout_is_never_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = []
+
+    def timeout(request: httpx2.Request) -> httpx2.Response:
+        calls.append(request)
+        raise httpx2.ReadTimeout("timeout simulado", request=request)
+
+    client = openai_only_client(tmp_path, monkeypatch, timeout, AZURE_FOUNDRY_MAX_RETRIES="3")
+    with pytest.raises(FoundryTimeoutError):
+        await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
+    assert len(calls) == 1  # un único intento aunque MAX_RETRIES=3
+
+
+async def test_openai_429_is_retried(make_client) -> None:
+    responses = iter(
+        [
+            httpx.Response(429, headers={"retry-after": "0"}, json={"error": {"message": "slow"}}),
+            httpx.Response(200, json=responses_body("ok")),
+        ]
+    )
+    client, seen = make_client(lambda r: next(responses), AZURE_FOUNDRY_MAX_RETRIES="2")
+    result = await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    assert result.text == "ok"
+    assert len(seen) == 2
+
+
+async def test_openai_500_is_not_retried(make_client) -> None:
+    client, seen = make_client(
+        lambda r: httpx.Response(500, json={"error": {"message": "boom"}}),
+        AZURE_FOUNDRY_MAX_RETRIES="3",
+    )
+    with pytest.raises(FoundryError):
+        await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    assert len(seen) == 1
+
+
+async def test_auditor_uses_its_own_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    timeouts = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = json.loads(request.read())
+        timeouts[body["model"]] = request.extensions["timeout"]["read"]
+        return httpx2.Response(200, json=responses_body())
+
+    client = openai_only_client(
+        tmp_path, monkeypatch, handler,
+        AZURE_FOUNDRY_TIMEOUT_S="120", GEOMETRIC_AUDITOR_TIMEOUT_S="900",
+    )  # fmt: skip
+    await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
+    await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    assert timeouts == {"dep-geometric_auditor": 900, "dep-prompt_engineer": 120}
+
+
+async def test_renderer_timeout_is_never_retried(make_client) -> None:
+    calls = []
+
+    def timeout(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        raise httpx.ReadTimeout("timeout simulado", request=request)
+
+    client, _ = make_client(timeout, AZURE_FOUNDRY_MAX_RETRIES="3")
+    with pytest.raises(FoundryTimeoutError):
+        await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    assert len(calls) == 1
+
+
+async def test_renderer_503_is_retried_but_500_is_not(make_client) -> None:
+    responses = iter(
+        [
+            httpx.Response(503, headers={"retry-after": "0"}),
+            httpx.Response(200, json={"data": [{"b64_json": PNG_B64}]}),
+        ]
+    )
+    client, seen = make_client(lambda r: next(responses), AZURE_FOUNDRY_MAX_RETRIES="2")
+    await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    assert len(seen) == 2
+
+    client, seen = make_client(lambda r: httpx.Response(500), AZURE_FOUNDRY_MAX_RETRIES="2")
+    with pytest.raises(FoundryError):
+        await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    assert len(seen) == 1
