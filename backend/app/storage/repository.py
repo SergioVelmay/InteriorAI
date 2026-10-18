@@ -44,6 +44,7 @@ from shared.models import (
     ProjectMetadata,
     ProjectSummary,
     ProjectUpdate,
+    RenderRecord,
     TelemetryLog,
     TelemetryRecord,
     utc_now,
@@ -303,11 +304,16 @@ class ProjectRepository:
             if asset is None:
                 raise AssetNotFoundError(str(asset_uuid))
             trash = safe_join(self.data_dir, TRASH_DIR, str(paths.project_id))
-            target = trash / f"{_trash_stamp()}-{asset.stored_name}"
+            stamp = _trash_stamp()
+            target = trash / f"{stamp}-{asset.stored_name}"
             await self._run(self._move_to_trash, paths.asset(asset.kind, asset.stored_name), target)
+            if asset.kind is AssetKind.RENDER:  # su JSON de trazabilidad va con la imagen
+                sidecar = paths.asset(asset.kind, f"{asset.id}.json")
+                await self._run(self._move_to_trash, sidecar, trash / f"{stamp}-{asset.id}.json")
             updated = metadata.model_copy(
                 update={
                     "assets": [a for a in metadata.assets if a.id != asset_uuid],
+                    "renders": [r for r in metadata.renders if r.id != asset_uuid],
                     "updated_at": utc_now(),
                 }
             )
@@ -315,6 +321,51 @@ class ProjectRepository:
             async with self._locks.hold(INDEX_KEY):
                 await self._run(self._upsert_index, updated.summary())
         return target
+
+    async def add_render(
+        self,
+        project_id: str | UUID,
+        record: RenderRecord,
+        content: bytes,
+        mime_type: str,
+        width_px: int,
+        height_px: int,
+    ) -> Asset:
+        """Guarda un render: imagen y JSON de trazabilidad en `renders_historico/`, el asset
+        y su `RenderRecord` en `metadatos.json` (todo bajo el bloqueo del proyecto)."""
+        paths = self._paths(project_id)
+        ext = "jpeg" if mime_type == "image/jpeg" else "png"
+        asset = Asset(
+            id=record.id,
+            kind=AssetKind.RENDER,
+            stored_name=f"{record.id}.{ext}",
+            original_name=f"{record.stage.value}-{record.id.hex[:8]}.{ext}",
+            mime_type=mime_type,
+            size_bytes=len(content),
+            sha256=hashlib.sha256(content).hexdigest(),
+            width_px=width_px,
+            height_px=height_px,
+            description=f"{record.stage.label} (brief v{record.brief_version})",
+        )
+        async with self._locks.hold(str(paths.project_id)):
+            metadata = await self._run(self._read_metadata, paths)
+            await self._run(
+                write_bytes_atomic, paths.asset(AssetKind.RENDER, asset.stored_name), content
+            )
+            await self._run(
+                write_json_atomic, paths.asset(AssetKind.RENDER, f"{record.id}.json"), record
+            )
+            updated = metadata.model_copy(
+                update={
+                    "assets": [*metadata.assets, asset],
+                    "renders": [*metadata.renders, record],
+                    "updated_at": utc_now(),
+                }
+            )
+            await self._run(write_json_atomic, paths.metadata, updated)
+            async with self._locks.hold(INDEX_KEY):
+                await self._run(self._upsert_index, updated.summary())
+        return asset
 
     @staticmethod
     def _move_to_trash(source: Path, target: Path) -> None:
