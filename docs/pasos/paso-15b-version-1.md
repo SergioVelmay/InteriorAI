@@ -56,3 +56,5 @@ Cerrar el proyecto: endurecer los contenedores, permitir cualquier usuario en ho
 
 Quedan en el backlog, para cuando haya datos de facturación de Azure (decisión del usuario):
 B-008, B-011, B-012, B-015, B-016, B-017, B-020, B-021 y B-022.
+- B-023 (decisión del usuario): capturas en el README con un caso de uso de demostración sin
+  marcas registradas; el README de la 1.0.0 va sin capturas.
