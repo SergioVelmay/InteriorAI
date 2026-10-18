@@ -54,7 +54,7 @@ Costes titulaba «Costes de IA de el proyecto» (el nombre salía de los registr
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-15a`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-15a`, PR #15 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

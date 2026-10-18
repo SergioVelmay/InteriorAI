@@ -4,14 +4,30 @@
 #   docker compose down               parar (los datos en ./data se conservan)
 name: interiorai
 
+# Endurecimiento común de los servicios de la aplicación: usuario sin privilegios (APP_UID/GID,
+# 1000 por defecto; B-005), sin capacidades, sin escalada de privilegios, sistema de archivos de
+# solo lectura (escriben solo en data/ y en /tmp en memoria) y límites de recursos.
+x-hardening: &hardening
+  user: "${APP_UID:-1000}:${APP_GID:-1000}"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+
 services:
-  # Ajusta el propietario del volumen al usuario sin privilegios (uid 1000) de las imágenes.
-  # Necesario en Docker Desktop (Windows/macOS), donde el bind mount aparece como root.
+  # Ajusta el propietario del volumen al usuario sin privilegios (APP_UID:APP_GID) de los
+  # servicios. Necesario en Docker Desktop (Windows/macOS), donde el bind mount aparece como root.
+  # Única excepción a root: solo con la capacidad CHOWN y sin red.
   data-init:
     image: interiorai-backend:dev   # la construye el servicio backend
     pull_policy: never
     user: "0:0"
-    entrypoint: ["chown", "1000:1000", "/app/data"]
+    entrypoint: ["chown", "${APP_UID:-1000}:${APP_GID:-1000}", "/app/data"]
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    security_opt: ["no-new-privileges:true"]
+    network_mode: none
     volumes:
       - studio_shared_data:/app/data
     restart: "no"
@@ -21,9 +37,15 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     image: interiorai-backend:dev
+    <<: *hardening
     env_file: .env
     environment:
       DATA_DIR: /app/data
+      HOME: /tmp   # el usuario puede no existir en la imagen (APP_UID distinto de 1000)
+    tmpfs:
+      - /tmp:size=256m
+    mem_limit: 2g
+    cpus: 2
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     volumes:
@@ -44,13 +66,19 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     image: interiorai-frontend:dev
+    <<: *hardening
     # Sin env_file: el frontend no recibe credenciales de Azure (mínimo privilegio).
     environment:
+      HOME: /tmp
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATA_DIR: /app/data
       BACKEND_URL: http://backend:${BACKEND_PORT:-8000}
       FRONTEND_PORT: ${FRONTEND_PORT:-7860}
+    tmpfs:
+      - /tmp:size=1g   # subidas y descargas temporales de Gradio (GRADIO_TEMP_DIR=/tmp/gradio)
+    mem_limit: 2g
+    cpus: 2
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-7860}:${FRONTEND_PORT:-7860}"
     volumes:
