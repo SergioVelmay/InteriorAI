@@ -1142,7 +1142,7 @@
                   "  pm.expect(b.currency).to.eql(\"EUR\");",
                   "  pm.expect(b.estimated).to.be.true;",
                   "  pm.expect(b.totals).to.have.property(\"cost_eur\");",
-                  "  pm.expect(b).to.have.keys(\"project_id\", \"currency\", \"estimated\", \"includes_simulated\", \"totals\", \"by_role\", \"by_day\", \"by_deployment\", \"records\");",
+                  "  pm.expect(b).to.have.keys(\"project_id\", \"currency\", \"estimated\", \"includes_simulated\", \"simulated_excluded\", \"totals\", \"by_role\", \"by_day\", \"by_deployment\", \"by_project\", \"records\");",
                   "});",
                   "pm.test(\"X-Request-ID en la respuesta\", () => {",
                   "  pm.expect(pm.response.headers.get(\"X-Request-ID\")).to.match(/^[A-Za-z0-9._-]{1,64}$/);",
@@ -1155,6 +1155,80 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/costs"
+          }
+        },
+        {
+          "name": "Costes del proyecto sin simulación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"las llamadas simuladas quedan fuera\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.includes_simulated).to.be.false;",
+                  "  pm.expect(b.simulated_excluded).to.be.above(0);",
+                  "  pm.expect(b.totals.calls).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/costs?include_simulated=false"
+          }
+        },
+        {
+          "name": "Costes de todos los proyectos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"resumen global con desglose por proyecto\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.project_id).to.be.null;",
+                  "  pm.expect(b.by_project.map(g => g.key)).to.include(pm.collectionVariables.get(\"projectId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/costs"
+          }
+        },
+        {
+          "name": "Coste acumulado del render final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"cadena: brief, boceto, composición, final y su auditoría (simulados)\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.renders).to.eql(3);",
+                  "  pm.expect(b.briefs).to.eql(1);",
+                  "  pm.expect(b.simulated_calls).to.eql(5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/cost"
           }
         },
         {

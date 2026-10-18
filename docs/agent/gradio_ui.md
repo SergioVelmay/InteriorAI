@@ -1,6 +1,6 @@
 # Gradio — interfaz de usuario
 
-> Estado: **Proyectos, Assets y Estudio implementados** (Pasos 11-13b). Falta Costes (Paso 14).
+> Estado: **las cuatro pestañas implementadas** (Pasos 11-14).
 
 ## Estructura y arranque (Gradio 6)
 
@@ -64,4 +64,4 @@ visible («Backend conectado»): Gradio mantiene una conexión abierta (`network
 | Assets | Subpestañas Capturas · Planos · Referencias: subir (solo imágenes), ver, nota, papelera; indexar (manual) y validar fichas | 12 ✅ |
 | Estudio | Página única: ① brief (versiones, prompts editables, aprobar/rechazar; se pliega al aprobarlo) → ② bocetos → ③ composición → ④ render final, y un visor común (seleccionar, descartar, rechazar con comentarios, auditar) | 13a ✅ |
 | Estudio: retoques | «Retocar zona» en el visor (composición y final): pincel, instrucción y coste; bajo el visor, salida en bruto, guía y máscara del retoque, y «Usar salida en bruto» | 13b ✅ |
-| Costes | KPIs, coste por rol y temporal, tabla detallada | 14 |
+| Costes | Alcance (proyecto activo / todos), «Incluir simulación» (desmarcada), indicadores, coste por rol, por día (apilado por rol) y por proyecto (`gr.BarPlot`, colores por rol, eje Y desde 0), registro de llamadas con filtros y CSV (`;`), precios vigentes. En el visor del Estudio, coste acumulado de la cadena | 14 ✅ |

@@ -523,3 +523,22 @@ def test_use_raw_output_as_a_new_image(api: TestClient, spy: SpyClient, project:
     [again] = response.json()["new_renders"]
     assert again["inpaint"]["source_render_id"] == final["id"]
     assert again["previous_attempt_id"] == raw["id"]
+
+
+def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> None:
+    drafts = run(api, project, "drafts", n=2)["renders"]
+    select(api, project, drafts[0]["id"])
+    composition = run(api, project, "compositions", draft_id=drafts[0]["id"])["renders"][0]
+    select(api, project, composition["id"])
+    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
+    other = run(api, project, "drafts", n=1)  # otra rama: no cuenta
+
+    cost = api.get(f"{project['url']}/renders/{final['id']}/cost").json()
+    assert cost["renders"] == 3 and cost["briefs"] == 1
+    assert cost["totals"]["calls"] == 0  # en simulación todo va aparte
+    assert cost["simulated_calls"] == 4  # brief + lote de 2 bocetos + composición + final
+    records = api.get(f"{project['url']}/costs").json()["records"]
+    expected = sum(r["cost_eur"] or 0 for r in records if r["request_id"] != other["request_id"])
+    assert cost["simulated_cost_eur"] == pytest.approx(expected, abs=1e-6)
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert api.get(f"{project['url']}/renders/{missing}/cost").status_code == 404

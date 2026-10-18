@@ -69,7 +69,9 @@ data/
 | GET | `/projects/{id}/assets?kind=` | `[Asset]` | 5 ✅ |
 | GET/DELETE | `/projects/{id}/assets/{asset_id}` | `Asset` / 204 (borrado suave) | 5 ✅ |
 | GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
-| GET | `/projects/{id}/costs?limit=50` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, últimos registros | 7 ✅ |
+| GET | `/projects/{id}/costs?limit=50&include_simulated=true` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, `by_project`, últimos registros (con proyecto) y `simulated_excluded` | 7 · 14 ✅ |
+| GET | `/costs?limit=50&include_simulated=true` | Igual para **todos los proyectos** (`project_id: null`, desglose `by_project`) | 14 ✅ |
+| GET | `/projects/{id}/renders/{render_id}/cost` | `RenderChainCost`: coste acumulado de la cadena que lleva al render (sin simulación; la simulada aparte) | 14 ✅ |
 | GET | `/pricing` | `PricingTable` (404 si no hay tabla) | 7 ✅ |
 | PATCH | `/projects/{id}/assets/{asset_id}` | `{description}` → `Asset` | 8 ✅ |
 | POST | `/projects/{id}/references/index` | `{asset_ids?, force?}` → `{indexed, skipped, failed, cost_eur, request_id}` | 8 ✅ |

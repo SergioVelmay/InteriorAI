@@ -130,6 +130,29 @@ class BackendClient:
         )
         return response.json()
 
+    async def costs(
+        self, project_id: UUID | str | None, include_simulated: bool = False, limit: int = 1000
+    ) -> dict[str, Any]:
+        """Resumen de costes de un proyecto (o de todos si `project_id` es None)."""
+        path = f"/api/v1/projects/{project_id}/costs" if project_id else "/api/v1/costs"
+        params = {"limit": limit, "include_simulated": include_simulated}
+        return (await self._request("GET", path, params=params)).json()
+
+    async def pricing(self) -> dict[str, Any] | None:
+        try:
+            return (await self._request("GET", "/api/v1/pricing")).json()
+        except ApiError as exc:
+            if exc.status_code == 404:  # sin tabla de precios
+                return None
+            raise
+
+    async def render_cost(self, project_id: UUID | str, render_id: UUID | str) -> dict[str, Any]:
+        """Coste acumulado de la cadena que lleva a un render."""
+        response = await self._request(
+            "GET", f"/api/v1/projects/{project_id}/renders/{render_id}/cost"
+        )
+        return response.json()
+
     # --- Assets ---------------------------------------------------------------------------
 
     async def list_assets(

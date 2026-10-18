@@ -20,8 +20,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 11 | [UI: shell, tema y proyectos](paso-11-ui-proyectos.md) | `feat/paso-11` | ✅ Cerrado |
 | 12 | [UI: assets](paso-12-ui-assets.md) | `feat/paso-12` | ✅ Cerrado |
 | 13a | [UI: Estudio (ciclo HITL)](paso-13a-ui-estudio.md) | `feat/paso-13a` | ✅ Cerrado |
-| 13b | [UI: Estudio (retoques e inpainting)](paso-13b-retoques.md) | `feat/paso-13b` | 🧪 En validación |
-| 14 | UI: dashboard de costes | — | ⏳ Pendiente |
+| 13b | [UI: Estudio (retoques e inpainting)](paso-13b-retoques.md) | `feat/paso-13b` | ✅ Cerrado |
+| 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | 🧪 En validación |
 | 15 | Hardening, CI y release | — | ⏳ Pendiente |
 
 ## Plantilla de documento de paso

@@ -216,6 +216,7 @@ class DesignBrief(_Model):
     reference_asset_ids: list[UUID] = Field(default_factory=list)  # fichas incluidas
     warnings: list[str] = Field(default_factory=list)
     prompt_version: str | None = None
+    request_id: str | None = None  # petición que lo generó (coste en la telemetría)
     edited_by_user: bool = False
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
