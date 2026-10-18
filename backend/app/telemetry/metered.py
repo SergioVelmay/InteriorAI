@@ -28,7 +28,7 @@ from app.foundry.types import (
 )
 from app.telemetry.context import current_project_id, current_request_id
 from app.telemetry.pricing import PricingTable, estimate_cost, megapixels
-from shared.models import AiOperation, TelemetryRecord
+from shared.models import AiOperation, TelemetryLog, TelemetryRecord
 from shared.roles import Role
 
 logger = logging.getLogger("interiorai.telemetry")
@@ -38,6 +38,10 @@ R = TypeVar("R", TextResult, ImageResult)
 
 class TelemetrySink(Protocol):
     async def append_telemetry(self, project_id: UUID, record: TelemetryRecord) -> None: ...
+
+
+class TelemetryReader(Protocol):
+    async def read_telemetry(self, project_id: UUID) -> TelemetryLog: ...
 
 
 class MeteredFoundryClient(FoundryClient):
