@@ -101,3 +101,15 @@ la zona de la máscara (B-009).
   escritura atómica bajo el bloqueo del proyecto).
 - CLI (solo mock): `python -m app.telemetry simular <id> [--llamadas N]`.
 - **Coste estimado** con precios de lista: la cifra real está en Azure Cost Management.
+
+## Costes observados en generación de imagen (Paso 9, proyecto real)
+
+| Llamada | Tokens / MP | Coste |
+|---------|-------------|-------|
+| GPT-image `low` 1536×1024 × 2, editando una captura 1920×1080 | 222 texto + 3.016 imagen entrada; 315 salida | 0,0305 € |
+| GPT-image `medium` 1536×1024, 2 imágenes de entrada | 207 texto + 3.044 imagen entrada; 343 salida | 0,0314 € |
+| FLUX.2-pro 1920×1280 con 2 referencias | 2,46 MP salida + 3,53 MP referencias | 0,0923 € |
+
+- En GPT-image dominan los **tokens de imagen de entrada**, y no crecen linealmente con el
+  número de imágenes (2 imágenes ≈ 1 imagen en este caso).
+- En FLUX, las **referencias cuestan tanto como la salida**: reducirlas es la palanca principal (B-015).

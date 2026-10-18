@@ -62,6 +62,23 @@ class MeteredFoundryClient(FoundryClient):
     async def aclose(self) -> None:
         await self.inner.aclose()
 
+    def deployment_name(self, role: Role) -> str:
+        """Despliegue configurado del rol (el que se registra en la telemetría)."""
+        return self._deployment_for(role)
+
+    def estimate(
+        self,
+        role: Role,
+        usage: Usage,
+        images_out: list[tuple[int, int]] | None = None,
+        references: list[tuple[int, int]] | None = None,
+    ) -> float | None:
+        """Coste estimado (EUR) de un resultado, con la misma tabla que la telemetría."""
+        cost = estimate_cost(
+            self.pricing, self._deployment_for(role), usage, images_out, references
+        )
+        return cost.total if cost else None
+
     async def _complete_text(self, role: Role, request: TextRequest) -> TextResult:
         return await self._measure(
             role, "complete_text", lambda: self.inner.complete_text(role, request), []

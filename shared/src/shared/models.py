@@ -222,6 +222,50 @@ class DesignBrief(_Model):
     decided_at: datetime | None = None
 
 
+# --- Renders (pipelines de imagen) ------------------------------------------------------
+
+
+class RenderStage(StrEnum):
+    DRAFT = "boceto"  # FAST_DRAFT
+    COMPOSITION = "composicion"  # STRUCTURAL_COMPOSER
+    FINAL = "render_final"  # PHOTOREALISTIC_RENDERER
+
+    @property
+    def label(self) -> str:
+        return {"boceto": "Boceto", "composicion": "Composición", "render_final": "Render final"}[
+            self.value
+        ]
+
+
+class RenderStatus(StrEnum):
+    GENERATED = "generado"
+    SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
+    DISCARDED = "descartado"
+
+
+class RenderRecord(_Model):
+    """Trazabilidad de una imagen generada. `id` coincide con el del asset `render`."""
+
+    id: UUID
+    stage: RenderStage
+    status: RenderStatus = RenderStatus.GENERATED
+    role: Role
+    deployment: str
+    brief_id: UUID
+    brief_version: int
+    prompt: str  # prompt exacto enviado al modelo
+    input_asset_ids: list[UUID]  # imagen base y referencias, en orden
+    parent_render_id: UUID | None = None  # render de la etapa anterior del que deriva
+    batch_id: UUID  # renders generados en la misma llamada
+    size: str
+    quality: str | None = None
+    seed: int | None = None
+    request_id: str | None = None
+    cost_eur: float | None = None  # coste estimado de la llamada repartido entre sus imágenes
+    created_at: datetime = Field(default_factory=utc_now)
+    decided_at: datetime | None = None
+
+
 class ProjectFields(_Model):
     """Campos editables por el usuario."""
 
@@ -279,6 +323,7 @@ class ProjectMetadata(ProjectFields):
     updated_at: datetime
     assets: list[Asset] = Field(default_factory=list)
     briefs: list[DesignBrief] = Field(default_factory=list)
+    renders: list[RenderRecord] = Field(default_factory=list)
 
     def summary(self) -> ProjectSummary:
         return ProjectSummary(

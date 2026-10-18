@@ -666,6 +666,220 @@
               }
             }
           }
+        },
+        {
+          "name": "Generar boceto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().renders[0];",
+                  "pm.collectionVariables.set(\"draftId\", r.id);",
+                  "pm.test(\"boceto generado sobre la imagen base\", () => {",
+                  "  pm.expect(r.stage).to.eql(\"boceto\");",
+                  "  pm.expect(r.status).to.eql(\"generado\");",
+                  "  pm.expect(r.input_asset_ids).to.have.lengthOf(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/drafts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"n\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Seleccionar boceto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"seleccionado\", () => pm.expect(pm.response.json().status).to.eql(\"seleccionado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/select"
+          }
+        },
+        {
+          "name": "Generar composición",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().renders[0];",
+                  "pm.collectionVariables.set(\"compositionId\", r.id);",
+                  "pm.test(\"deriva del boceto\", () => {",
+                  "  pm.expect(r.parent_render_id).to.eql(pm.collectionVariables.get(\"draftId\"));",
+                  "  pm.expect(r.quality).to.eql(\"medium\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/compositions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"draft_id\": \"{{draftId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Render final sin seleccionar composición (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/final",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"composition_id\": \"{{compositionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Seleccionar composición",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{compositionId}}/select"
+          }
+        },
+        {
+          "name": "Generar render final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().renders[0];",
+                  "pm.collectionVariables.set(\"finalId\", r.id);",
+                  "pm.test(\"render final con composición + referencia\", () => {",
+                  "  pm.expect(r.stage).to.eql(\"render_final\");",
+                  "  pm.expect(r.input_asset_ids).to.have.lengthOf(2);",
+                  "  pm.expect(r.size).to.eql(\"1920x1280\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/final",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"composition_id\": \"{{compositionId}}\",\n  \"reference_ids\": [\n    \"{{pipelineRefId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar render final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"JPEG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{finalId}}/content"
+          }
+        },
+        {
+          "name": "Historial de renders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"3 etapas\", () => {",
+                  "  const stages = pm.response.json().map(r => r.stage);",
+                  "  pm.expect(stages).to.eql([\"render_final\", \"composicion\", \"boceto\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders"
+          }
         }
       ]
     },
@@ -797,6 +1011,18 @@
     },
     {
       "key": "briefId",
+      "value": ""
+    },
+    {
+      "key": "draftId",
+      "value": ""
+    },
+    {
+      "key": "compositionId",
+      "value": ""
+    },
+    {
+      "key": "finalId",
       "value": ""
     }
   ]

@@ -14,8 +14,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 5 | [API REST de proyectos y assets](paso-05-api.md) | `feat/paso-05` | ✅ Cerrado |
 | 6 | [Abstracción Azure AI Foundry](paso-06-foundry.md) | `feat/paso-06` | ✅ Cerrado |
 | 7 | [Telemetría y costes](paso-07-telemetria.md) | `feat/paso-07` | ✅ Cerrado |
-| 8 | [Pipelines de texto](paso-08-pipelines-texto.md) | `feat/paso-08` | 🧪 En validación |
-| 9 | Pipelines de imagen | — | ⏳ Pendiente |
+| 8 | [Pipelines de texto](paso-08-pipelines-texto.md) | `feat/paso-08` | ✅ Cerrado |
+| 9 | [Pipelines de imagen](paso-09-pipelines-imagen.md) | `feat/paso-09` | 🧪 En validación |
 | 10 | Auditor geométrico + HITL | — | ⏳ Pendiente |
 | 11 | UI: shell, tema y proyectos | — | ⏳ Pendiente |
 | 12 | UI: assets | — | ⏳ Pendiente |

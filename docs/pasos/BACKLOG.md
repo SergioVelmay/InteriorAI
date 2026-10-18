@@ -18,3 +18,4 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-012 | `costes_telemetria.json` se reescribe entero en cada registro: valorar rotación o JSONL si un proyecto acumula miles de llamadas | [Paso 7](paso-07-telemetria.md) | Paso 15 | ⏳ Abierto |
 | B-013 | Enviar planos PDF al PROMPT_ENGINEER con `input_file` (Responses API) tras verificarlo en Azure | [Paso 8](paso-08-pipelines-texto.md) | Paso 9-10 | ⏳ Abierto |
 | B-014 | Generar el brief tarda ~40 s: indicador de progreso o tarea en segundo plano en la UI | [Paso 8](paso-08-pipelines-texto.md) | Paso 13 | ⏳ Abierto |
+| B-015 | Escalado automático previo de las imágenes de entrada (sobre todo las referencias del renderizador, que cuestan tanto como la salida) si el coste lo hace necesario | [Paso 9](paso-09-pipelines-imagen.md) | Cuando el usuario lo considere necesario | ⏳ Abierto |
