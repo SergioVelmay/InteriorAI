@@ -50,7 +50,7 @@ Sin llamadas reales a la IA: coste 0 €. Proyectos de prueba eliminados (tambi�
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-13a`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-13a`, PR #12 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

@@ -1,3 +1,4 @@
+import io
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -6,6 +7,7 @@ from uuid import uuid4
 import gradio as gr
 import httpx
 import pytest
+from PIL import Image
 
 from shared.models import (
     AuditCheck,
@@ -19,6 +21,7 @@ from shared.models import (
     ImagePrompts,
     ProjectMetadata,
     RenderAudit,
+    RenderInpaint,
     RenderRecord,
     RenderStage,
     RenderStatus,
@@ -31,8 +34,12 @@ from ui.studio_views import (
     audit_markdown,
     brief_choices,
     brief_markdown,
+    can_use_raw,
     cost_hint,
+    editor_mask,
     euros,
+    inpaint_file_captions,
+    inpaint_hint,
     latest_brief,
     needs_confirmation,
     render_caption,
@@ -116,6 +123,8 @@ def test_costs_and_confirmation_threshold() -> None:
         ({"kind": "boceto", "n": 3}, 0.045),
         ({"kind": "render_final"}, 0.095),
         ({"kind": "reject_render", "stage": "composicion"}, 0.035),
+        ({"kind": "inpaint", "stage": "composicion"}, 0.035),
+        ({"kind": "inpaint", "stage": "render_final"}, 0.09),
     ],
 )
 def test_action_estimates(action: dict, cost: float) -> None:
@@ -284,7 +293,121 @@ async def test_studio_tab_with_approved_brief_and_final(tmp_path: Path) -> None:
     result = await studio_tab(p, tmp_path).refresh_all(str(p.id))
     assert accordion_open(result) is False  # el brief aprobado se pliega
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
-    galleries = [v for k, v in result.items() if isinstance(k, gr.Gallery)]
+    galleries = [by_id(result, f"iai-{s}") for s in ("drafts", "compositions", "finals")]
     assert [len(g["value"]) for g in galleries] == [1, 0, 1]
+    assert by_id(result, "iai-inpaint-files")["visible"] is False  # no es un retoque
     # El visor abre el render final seleccionado, con su auditoría.
     assert any(isinstance(v, str) and "82/100" in v and "Auditoría" in v for v in result.values())
+
+
+# --- Retoque (Paso 13b) ----------------------------------------------------------------------
+
+
+def test_editor_mask_merges_painted_layers() -> None:
+    assert editor_mask(None) is None
+    assert editor_mask({"background": None, "layers": [], "composite": None}) is None
+    blank = Image.new("RGBA", (300, 200), (0, 0, 0, 0))
+    assert editor_mask({"layers": [blank]}) is None  # sin trazos
+
+    stroke = blank.copy()
+    stroke.paste((239, 68, 68, 153), (10, 10, 50, 50))  # pincel semitransparente
+    with Image.open(io.BytesIO(editor_mask({"layers": [stroke]}))) as mask:
+        assert mask.size == (300, 200) and mask.mode == "RGBA"
+        assert mask.getpixel((20, 20))[3] == 255 and mask.getpixel((100, 100))[3] == 0
+
+
+def test_retouch_caption_and_detail() -> None:
+    source = render(RenderStage.FINAL)
+    retouch = render(
+        RenderStage.FINAL,
+        input_asset_ids=[source.id],
+        inpaint=RenderInpaint(
+            source_render_id=source.id, instruction="Cojines <mostaza>",
+            mask_file="x-mascara.png", raw_file="x-bruto.png", guide_file="x-guia.jpeg",
+            coverage=0.042, feather_px=12, method="regeneracion",
+        ),
+    )  # fmt: skip
+    assert render_caption(retouch) == "○ generado · retoque · 0.0105 €"
+    text = render_detail_md(project(renders=[source, retouch]), retouch)
+    assert f"**Retoque de** `{source.id.hex[:8]}`" in text
+    assert "Cojines &lt;mostaza&gt;" in text and "zona 4%" in text
+    files = inpaint_file_captions(retouch)
+    assert [name for name, _ in files] == ["x-bruto.png", "x-guia.jpeg", "x-mascara.png"]
+    assert "en bruto" in files[0][1]
+    assert inpaint_file_captions(source) == [] and inpaint_file_captions(None) == []
+
+
+async def test_inpaint_client_request() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json={"renders": [], "cost_eur": 0, "request_id": None})
+
+    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
+    pid, rid = uuid4(), uuid4()
+    await client.inpaint_render(pid, rid, b"\x89PNG mask", "Cojines en mostaza")
+    [request] = seen
+    assert request.url.path == f"/api/v1/projects/{pid}/renders/{rid}/inpaint"
+    assert b'name="mask"; filename="mascara.png"' in request.content
+    assert b"Cojines en mostaza" in request.content
+    assert request.extensions["timeout"]["read"] == AI_TIMEOUT_S
+
+
+@pytest.mark.parametrize(
+    ("stage", "mode", "hint"),
+    [
+        (None, "azure", None),
+        (RenderStage.DRAFT, "azure", None),
+        (RenderStage.COMPOSITION, "azure", "Azure: ≈ 0.035 €"),
+        (RenderStage.FINAL, "azure", "Azure: ≈ 0.090 €"),
+        (RenderStage.FINAL, "mock", "Simulación: sin coste"),
+    ],
+)
+def test_inpaint_hint(stage: RenderStage | None, mode: str, hint: str | None) -> None:
+    assert inpaint_hint(stage, mode) == hint
+
+
+async def test_show_render_opens_any_stage_in_the_viewer(tmp_path: Path) -> None:
+    composition = render(RenderStage.COMPOSITION)
+    p = project(briefs=[brief(1, BriefStatus.APPROVED)], renders=[composition])
+    tab = studio_tab(p, tmp_path)
+    result = await tab.show_render(str(p.id), str(composition.id))
+    assert any(isinstance(v, str) and f"`{composition.id.hex[:8]}`" in v for v in result.values())
+
+
+def test_raw_output_helpers() -> None:
+    source = render(RenderStage.FINAL)
+    retouch = render(
+        RenderStage.FINAL,
+        inpaint=RenderInpaint(
+            source_render_id=source.id, instruction="Alfombra", mask_file="m.png",
+            raw_file="b.png", coverage=0.1, feather_px=12, method="regeneracion",
+        ),
+    )  # fmt: skip
+    p = project(renders=[source, retouch])
+    assert can_use_raw(p, retouch) and not can_use_raw(p, source) and not can_use_raw(p, None)
+
+    raw = render(RenderStage.FINAL, raw_of_render_id=retouch.id)
+    p = project(renders=[source, retouch, raw])
+    assert not can_use_raw(p, retouch)  # ya usada
+    assert render_caption(raw) == "○ generado · bruto · 0.0105 €"
+    assert f"**Salida en bruto del retoque** `{retouch.id.hex[:8]}`" in render_detail_md(p, raw)
+
+
+async def test_use_raw_output_client_request() -> None:
+    seen: list[httpx.Request] = []
+    body = render(RenderStage.FINAL).model_dump(mode="json")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json=body)
+
+    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
+    pid, rid = uuid4(), uuid4()
+    record = await client.use_raw_output(pid, rid)
+    assert record.id.hex == body["id"].replace("-", "")
+    assert (seen[0].method, seen[0].url.path) == (
+        "POST",
+        f"/api/v1/projects/{pid}/renders/{rid}/raw",
+    )

@@ -288,6 +288,24 @@ class RenderAudit(_Model):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class RenderInpaint(_Model):
+    """Retoque de una zona: la imagen es `source_render_id` con solo la zona pintada cambiada."""
+
+    source_render_id: UUID  # imagen retocada (no cambia)
+    instruction: str  # cambio pedido por el usuario
+    mask_file: str  # máscara normalizada junto al render (blanco = zona editada)
+    raw_file: str | None = None  # salida del modelo tal cual, antes de recomponer
+    guide_file: str | None = None  # imagen guía enviada al renderizador (zona en rojo)
+    coverage: float = Field(ge=0, le=1)  # fracción de la imagen pintada
+    feather_px: int = Field(ge=0)  # suavizado del borde al recomponer
+    method: Literal["mascara", "regeneracion"]  # máscara nativa o imagen completa + recorte
+
+    @property
+    def files(self) -> list[str]:
+        """Archivos del retoque guardados junto al render en `renders_historico/`."""
+        return [f for f in (self.mask_file, self.raw_file, self.guide_file) if f]
+
+
 class RenderRecord(_Model):
     """Trazabilidad de una imagen generada. `id` coincide con el del asset `render`."""
 
@@ -310,6 +328,8 @@ class RenderRecord(_Model):
     audits: list[RenderAudit] = Field(default_factory=list)  # a demanda; la última es la vigente
     feedback: str | None = None  # comentarios del usuario al rechazar
     previous_attempt_id: UUID | None = None  # render rechazado que esta imagen sustituye
+    inpaint: RenderInpaint | None = None  # solo si es un retoque de zona (Paso 13b)
+    raw_of_render_id: UUID | None = None  # salida en bruto de ese retoque, como imagen propia
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
 

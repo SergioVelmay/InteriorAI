@@ -817,7 +817,7 @@
                   "pm.test(\"render final con composición + referencia\", () => {",
                   "  pm.expect(r.stage).to.eql(\"render_final\");",
                   "  pm.expect(r.input_asset_ids).to.have.lengthOf(2);",
-                  "  pm.expect(r.size).to.eql(\"1920x1280\");",
+                  "  pm.expect(r.size).to.eql(\"1920x1440\"); // proporción del plano (4:3)",
                   "});"
                 ]
               }
@@ -979,6 +979,148 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders"
+          }
+        },
+        {
+          "name": "Retocar zona de la composición",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().renders[0];",
+                  "pm.collectionVariables.set(\"retouchId\", r.id);",
+                  "pm.test(\"retoque con máscara nativa, sin seleccionar\", () => {",
+                  "  pm.expect(r.stage).to.eql(\"composicion\");",
+                  "  pm.expect(r.status).to.eql(\"generado\");",
+                  "  pm.expect(r.inpaint.source_render_id).to.eql(pm.collectionVariables.get(\"compositionId\"));",
+                  "  pm.expect(r.inpaint.method).to.eql(\"mascara\");",
+                  "  pm.expect(r.inpaint.coverage).to.be.within(0.05, 0.1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{compositionId}}/inpaint",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mask",
+                  "type": "file",
+                  "src": "fixtures/mascara.png"
+                },
+                {
+                  "key": "instruction",
+                  "type": "text",
+                  "value": "Cojines en mostaza"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar salida en bruto del retoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"imagen PNG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"image/png\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/inpaint/bruto"
+          }
+        },
+        {
+          "name": "Usar salida en bruto como imagen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"imagen nueva enlazada al retoque, sin coste\", () => {",
+                  "  pm.expect(r.raw_of_render_id).to.eql(pm.collectionVariables.get(\"retouchId\"));",
+                  "  pm.expect(r.status).to.eql(\"generado\");",
+                  "  pm.expect(r.cost_eur).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
+          }
+        },
+        {
+          "name": "Usar salida en bruto dos veces (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
+          }
+        },
+        {
+          "name": "Retocar boceto (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"solo composición y render final\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/inpaint",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mask",
+                  "type": "file",
+                  "src": "fixtures/mascara.png"
+                },
+                {
+                  "key": "instruction",
+                  "type": "text",
+                  "value": "Cojines en mostaza"
+                }
+              ]
+            }
           }
         }
       ]

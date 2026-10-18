@@ -12,7 +12,7 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-006 | Detectar assets duplicados por `sha256` al subir (avisar al usuario) | [Paso 4](paso-04-almacenamiento.md) | Paso 5 | ✅ Resuelto en [Paso 5](paso-05-api.md) (409 + `allow_duplicate`) |
 | B-007 | Comando para listar/restaurar/vaciar `.papelera/` (siempre con confirmación) | [Paso 4](paso-04-almacenamiento.md) | Paso 15 | ⏳ Abierto |
 | B-008 | Actualizar Postman CLI (instalada 1.73.0, disponible 1.75.0) | [Paso 5](paso-05-api.md) | Cuando el usuario lo decida | ⏳ Abierto |
-| B-009 | La máscara de GPT-image es orientativa: recomponer en local solo la zona enmascarada para inpainting exacto | [Paso 6](paso-06-foundry.md) | Paso 13b | ⏳ Abierto |
+| B-009 | La máscara de GPT-image es orientativa: recomponer en local solo la zona enmascarada para inpainting exacto | [Paso 6](paso-06-foundry.md) | Paso 13b | ✅ Resuelto en [Paso 13b](paso-13b-retoques.md): recomposición local de la zona; se guarda también la salida en bruto |
 | B-010 | Precios reales de los 6 despliegues para `config/pricing.yaml` (los aporta el usuario) | [Paso 6](paso-06-foundry.md) | Paso 7 | ✅ Resuelto en [Paso 7](paso-07-telemetria.md) |
 | B-011 | Contrastar en Azure Cost Management el redondeo de megapíxeles del renderizador (`exact` vs `ceil`) y, en general, el coste estimado frente al real | [Paso 7](paso-07-telemetria.md) | Cuando haya facturación de las llamadas reales | ⏳ Abierto |
 | B-012 | `costes_telemetria.json` se reescribe entero en cada registro: valorar rotación o JSONL si un proyecto acumula miles de llamadas | [Paso 7](paso-07-telemetria.md) | Paso 15 | ⏳ Abierto |
@@ -21,5 +21,6 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-015 | Escalado automático previo de las imágenes de entrada (sobre todo las referencias del renderizador, que cuestan tanto como la salida) si el coste lo hace necesario | [Paso 9](paso-09-pipelines-imagen.md) | Cuando el usuario lo considere necesario | ⏳ Abierto |
 | B-016 | Revisar en Azure Cost Management lo facturado por los 4 intentos (timeout) de la primera auditoría con `max` (2026-10-18) | [Paso 10](paso-10-auditor-hitl.md) | Cuando haya datos de facturación | ⏳ Abierto |
 | B-017 | *Background mode* de la Responses API para llamadas de minutos (exige `store=true`) | [Paso 10](paso-10-auditor-hitl.md) | Cuando el usuario lo decida | ⏳ Abierto |
-| B-018 | Render final con la misma proporción que la captura (16:9 → 1920×1088 en el renderizador) | [Paso 10](paso-10-auditor-hitl.md) | Paso 13b | ⏳ Abierto |
+| B-018 | Render final con la misma proporción que la captura (16:9 → 1920×1080) | [Paso 10](paso-10-auditor-hitl.md) | Paso 13b | ✅ Resuelto en [Paso 13b](paso-13b-retoques.md): 1920×1080 exacto (se genera a 1920×1088 y se recorta al centro) |
 | B-019 | Incorporar las pruebas de interfaz con Playwright (Edge/Chromium) al repositorio y a la CI | [Paso 11](paso-11-ui-proyectos.md) | Paso 15 | ⏳ Abierto |
+| B-020 | Comprobar con una llamada real si el renderizador acepta tamaños no múltiplos de 16 (p. ej. 1920×1080 directo); hoy se pide el múltiplo superior y se recorta al centro (≈ 0,09 €) | [Paso 13b](paso-13b-retoques.md) | Cuando el usuario lo decida | ⏳ Abierto |

@@ -86,6 +86,9 @@ data/
 | POST | `/projects/{id}/renders/{render_id}/select` · `/discard` | `RenderRecord` | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{render, audit, cost_eur, request_id}` (solo composición/final) | 10 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/reject` | `{feedback, regenerate=true, apply_audit_suggestions=true}` → `{rejected, new_renders, cost_eur}` | 10 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`] → 201 `{renders, cost_eur}` (solo composición/final) | 13b ✅ |
+| GET | `/projects/{id}/renders/{render_id}/inpaint/{mascara\|bruto\|guia}` | Archivos del retoque: máscara, salida en bruto del modelo y guía del renderizador | 13b ✅ |
+| POST | `/projects/{id}/renders/{render_id}/raw` | Salida en bruto de un retoque como imagen nueva de la etapa (sin coste; 409 si ya existe) → 201 `RenderRecord` | 13b ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
 
@@ -148,7 +151,17 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
   primera captura/plano en imagen del brief; cada etapa exige el render anterior
   `seleccionado` (409) y de la etapa correcta (422).
 - Entradas preparadas a ≤ 2.048 px (`INPUT_MAX_SIDE_PX`). Tamaños: GPT-image 1536×1024 /
-  1024×1536 / 1024×1024; renderizador múltiplos de 16 y ≤ 4 MP (por defecto según orientación).
+  1024×1536 / 1024×1024. Render final: por defecto, lado largo 1920 px con la **proporción
+  exacta de la captura** (16:9 → 1920×1080); se admite cualquier tamaño ≤ 4 MP. El renderizador
+  trabaja en múltiplos de 16 px: se le pide el múltiplo superior (`generation_size`, 1920×1088)
+  y se **recorta al centro** al tamaño exacto, sin escalar (`masks.fit`).
+- **Un único render final seleccionado**: seleccionar uno descarta el anterior. Bocetos y
+  composiciones admiten varios seleccionados (se elige cuál alimenta la etapa siguiente).
+- Retoques (`inpaint_render`, Paso 13b): composición con máscara nativa (`STRUCTURAL_COMPOSER`);
+  render final regenerando la imagen con una guía (zona en rojo) y la posición en el prompt. Se
+  recompone en local solo la zona (`masks.recompose`, borde suavizado hacia fuera) y se guardan
+  junto al render `{id}-mascara.png`, `{id}-bruto.png` (salida del modelo) y `{id}-guia.jpeg`
+  (`RenderInpaint`). Rechazar un retoque (o su salida en bruto) lo repite con la misma máscara.
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
 - Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado | descartado` (reversibles) y
