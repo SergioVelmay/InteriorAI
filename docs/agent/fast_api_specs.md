@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **API de proyectos, assets, costes y pipelines de texto** (Pasos 5, 7 y 8).
+> Estado: **API de proyectos, assets, costes y pipelines de texto e imagen** (Pasos 5 y 7-9).
 
 ## Estructura y arranque
 
@@ -79,7 +79,11 @@ data/
 | PATCH | `/projects/{id}/briefs/{brief_id}` | `BriefContentUpdate` (solo `propuesto`; si no, 409) | 8 ✅ |
 | POST | `/projects/{id}/briefs/{brief_id}/approve` | `DesignBrief` (el aprobado anterior → `reemplazado`) | 8 ✅ |
 | POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
-| POST | `/projects/{id}/pipelines/...` (imágenes) | — | 9 |
+| POST | `/projects/{id}/renders/drafts` | `{n=2, quality=low, size?, brief_id?, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}` | 9 ✅ |
+| POST | `/projects/{id}/renders/compositions` | `{draft_id?, n=1, quality=medium, ...}` (boceto seleccionado) → 201 | 9 ✅ |
+| POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
+| GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/select` · `/discard` | `RenderRecord` | 9 ✅ |
 | POST | `/projects/{id}/iterations/{it}/{approve\|reject}` | — | 10 |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
@@ -136,3 +140,14 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 - Escrituras de fichas y briefs con `ProjectRepository.mutate(project_id, change)`.
 - Pruebas manuales desde Git Bash: no usar `curl -d` con tildes (cp1252); usar Swagger,
   Postman o un script Python.
+
+## Renders (Paso 9)
+
+- `app/pipelines/renders.py`: el brief debe estar `aprobado` (409); la imagen base es la
+  primera captura/plano en imagen del brief; cada etapa exige el render anterior
+  `seleccionado` (409) y de la etapa correcta (422).
+- Entradas preparadas a ≤ 2.048 px (`INPUT_MAX_SIDE_PX`). Tamaños: GPT-image 1536×1024 /
+  1024×1536 / 1024×1024; renderizador múltiplos de 16 y ≤ 4 MP (por defecto según orientación).
+- `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
+  `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
+- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado | descartado`, reversibles.

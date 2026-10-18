@@ -110,10 +110,11 @@ Problemas detectados y resueltos durante el paso:
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-08`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-08`, PR #7 revisada y mergeada por el usuario. Tras el merge, el
+usuario delegó la revisión del brief v1: fichas validadas (pana de canalé ancho; 87 cm con
+reposacabezas), brief editado (tres reposacabezas separados) y aprobado por el usuario.
 
 ## 6. Pendiente / futuro
 
 - B-013: enviar planos PDF al PROMPT_ENGINEER (`input_file` de la Responses API) tras verificarlo en Azure.
 - B-014: el brief tarda ~40 s; en la UI (Paso 13) hará falta un indicador de progreso o tareas en segundo plano.
-- Revisión del brief v1 real por el usuario (validar fichas, responder la pregunta abierta, aprobar o rechazar).
