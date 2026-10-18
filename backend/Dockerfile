@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Contexto de build: raíz del repo (necesita uv.lock y shared/).
 
-FROM ghcr.io/astral-sh/uv:0.12 AS uv
+FROM ghcr.io/astral-sh/uv:0.13 AS uv
 
 # --- builder: resuelve dependencias desde uv.lock --------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package interiorai-backend --no-editable
 
 # --- runtime: solo el venv, usuario sin privilegios -------------------------------
-FROM python:3.11-slim AS runtime
+FROM python:3.14-slim AS runtime
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app \
     && mkdir -p /app/data && chown app:app /app/data
 COPY --from=builder /opt/venv /opt/venv
