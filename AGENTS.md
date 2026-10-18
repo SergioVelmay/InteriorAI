@@ -26,7 +26,8 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano.
 4. **Toda llamada a IA pasa por `FoundryClient`** (`backend/app/foundry/`, dependencia `FoundryDep`)
    para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía. Las llamadas
-   hechas por un proyecto van dentro de `with telemetry_scope(project_id):`.
+   hechas por un proyecto van dentro de `with telemetry_scope(project_id):`. **Nunca reintentar
+   un timeout** (pudo facturarse); solo 429/503.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
    Las llamadas reales (script `python -m app.foundry.smoke` o la API en modo `azure`) solo
    cuando el usuario active el modo `azure`, anunciando antes cada llamada y su coste estimado.

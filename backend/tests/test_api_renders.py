@@ -228,10 +228,10 @@ def test_final_render_uses_composition_and_references(
     assert final["cost_eur"] > 0
     role, request = spy.edits[-1]
     assert role is Role.PHOTOREALISTIC_RENDERER
-    assert request.output_format == "jpeg"
+    assert request.output_format == "png"
     assert len(request.images) == 3
     content = api.get(f"{project['url']}/assets/{final['id']}/content")
-    assert content.headers["content-type"] == "image/jpeg"
+    assert content.headers["content-type"] == "image/png"
 
 
 def test_final_render_with_explicit_references(

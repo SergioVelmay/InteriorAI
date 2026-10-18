@@ -50,10 +50,12 @@ RENDER_TRANSITIONS = {
     # REJECTED es terminal: se sustituye por una nueva imagen (previous_attempt_id)
 }
 
-_STAGE_ROLES = {
+# Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
+# a petición del usuario (Paso 10); el renderizador cobra por MP, no por formato.
+_STAGE_ROLES: dict[RenderStage, tuple[Role, Literal["png", "jpeg"]]] = {
     RenderStage.DRAFT: (Role.FAST_DRAFT, "png"),
     RenderStage.COMPOSITION: (Role.STRUCTURAL_COMPOSER, "png"),
-    RenderStage.FINAL: (Role.PHOTOREALISTIC_RENDERER, "jpeg"),
+    RenderStage.FINAL: (Role.PHOTOREALISTIC_RENDERER, "png"),
 }
 
 
@@ -257,7 +259,8 @@ async def generate_drafts(
     return await _run_stage(
         repo, client, project, brief, RenderStage.DRAFT, Role.FAST_DRAFT, [base.id], None,
         brief.content.image_prompts.fast_draft,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "low"}), "png",
+        RenderOptions(**{**options.__dict__, "quality": options.quality or "low"}),
+        _STAGE_ROLES[RenderStage.DRAFT][1],
     )  # fmt: skip
 
 
@@ -277,7 +280,8 @@ async def generate_composition(
     return await _run_stage(
         repo, client, project, brief, RenderStage.COMPOSITION, Role.STRUCTURAL_COMPOSER, inputs,
         draft, brief.content.image_prompts.structural_composer,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"}), "png",
+        RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"}),
+        _STAGE_ROLES[RenderStage.COMPOSITION][1],
     )  # fmt: skip
 
 
@@ -306,7 +310,8 @@ async def generate_final(
     return await _run_stage(
         repo, client, project, brief, RenderStage.FINAL, Role.PHOTOREALISTIC_RENDERER,
         [composition.id, *references], composition,
-        brief.content.image_prompts.photorealistic_renderer, options, "jpeg",
+        brief.content.image_prompts.photorealistic_renderer, options,
+        _STAGE_ROLES[RenderStage.FINAL][1],
     )  # fmt: skip
 
 

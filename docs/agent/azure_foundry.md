@@ -63,7 +63,8 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 | `AZURE_FOUNDRY_RENDERER_PATH` | Ruta de la API del renderizador |
 | `AZURE_FOUNDRY_RENDERER_API_VERSION` | `preview` (obligatoria para la API del proveedor) |
 | `AZURE_FOUNDRY_TIMEOUT_S`, `AZURE_FOUNDRY_MAX_RETRIES` | Resiliencia |
-| `GEOMETRIC_AUDITOR_REASONING_EFFORT` | `max` (verificado, B-001) |
+| `GEOMETRIC_AUDITOR_REASONING_EFFORT` | `medium` (decisión del usuario, Paso 10; `max` también es válido) |
+| `GEOMETRIC_AUDITOR_TIMEOUT_S` | 900 s (el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
 
 ## Comportamiento verificado contra Azure (Paso 6, 2026-10-17)
 
@@ -113,3 +114,18 @@ la zona de la máscara (B-009).
 - En GPT-image dominan los **tokens de imagen de entrada**, y no crecen linealmente con el
   número de imágenes (2 imágenes ≈ 1 imagen en este caso).
 - En FLUX, las **referencias cuestan tanto como la salida**: reducirlas es la palanca principal (B-015).
+
+## Política de reintentos (Paso 10) — importante para el coste
+
+- **Un timeout NUNCA se reintenta**: Azure pudo completar y facturar el trabajo aunque la
+  respuesta no llegue. Incidente: una auditoría `max` con timeout de 120 s se reintentó 3 veces
+  (484 s, B-016).
+- El SDK `openai` se crea con `max_retries=0`; `_openai_call` reintenta solo **429 y 503**
+  (Azure no procesó la petición), hasta `AZURE_FOUNDRY_MAX_RETRIES`, respetando `Retry-After`.
+  El renderizador sigue la misma regla.
+- El auditor usa `GEOMETRIC_AUDITOR_TIMEOUT_S` (`with_options(timeout=...)`).
+
+## Auditoría observada (Paso 10)
+
+`medium`, 2 imágenes ≤ 1.536 px: 43 s, 5.895 tokens de entrada (Azure los informó casi todos como
+`cache_write_tokens`, a 11 €/M), 1.875 de salida (506 de razonamiento): **0,147 €**.

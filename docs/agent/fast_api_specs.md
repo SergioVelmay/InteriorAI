@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **API de proyectos, assets, costes y pipelines de texto e imagen** (Pasos 5 y 7-9).
+> Estado: **backend completo**: proyectos, assets, costes, pipelines de texto e imagen, auditoría y HITL (Pasos 5 y 7-10).
 
 ## Estructura y arranque
 
@@ -84,7 +84,8 @@ data/
 | POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/select` · `/discard` | `RenderRecord` | 9 ✅ |
-| POST | `/projects/{id}/iterations/{it}/{approve\|reject}` | — | 10 |
+| POST | `/projects/{id}/renders/{render_id}/audit` | `{render, audit, cost_eur, request_id}` (solo composición/final) | 10 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/reject` | `{feedback, regenerate=true, apply_audit_suggestions=true}` → `{rejected, new_renders, cost_eur}` | 10 ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
 
@@ -150,4 +151,8 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
   1024×1536 / 1024×1024; renderizador múltiplos de 16 y ≤ 4 MP (por defecto según orientación).
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
-- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado | descartado`, reversibles.
+- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado | descartado` (reversibles) y
+  `→ rechazado` (terminal; la regeneración crea otra imagen con `previous_attempt_id`).
+- Formato de salida por etapa en `_STAGE_ROLES` (todo PNG).
+- Auditoría (`app/pipelines/auditor.py`): compara con la captura de origen (sigue la cadena de
+  renders); a demanda y opcional; historial en `RenderRecord.audits`.
