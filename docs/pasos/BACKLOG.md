@@ -16,3 +16,5 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-010 | Precios reales de los 6 despliegues para `config/pricing.yaml` (los aporta el usuario) | [Paso 6](paso-06-foundry.md) | Paso 7 | ✅ Resuelto en [Paso 7](paso-07-telemetria.md) |
 | B-011 | Contrastar en Azure Cost Management el redondeo de megapíxeles del renderizador (`exact` vs `ceil`) y, en general, el coste estimado frente al real | [Paso 7](paso-07-telemetria.md) | Cuando haya facturación de las llamadas reales | ⏳ Abierto |
 | B-012 | `costes_telemetria.json` se reescribe entero en cada registro: valorar rotación o JSONL si un proyecto acumula miles de llamadas | [Paso 7](paso-07-telemetria.md) | Paso 15 | ⏳ Abierto |
+| B-013 | Enviar planos PDF al PROMPT_ENGINEER con `input_file` (Responses API) tras verificarlo en Azure | [Paso 8](paso-08-pipelines-texto.md) | Paso 9-10 | ⏳ Abierto |
+| B-014 | Generar el brief tarda ~40 s: indicador de progreso o tarea en segundo plano en la UI | [Paso 8](paso-08-pipelines-texto.md) | Paso 13 | ⏳ Abierto |

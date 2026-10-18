@@ -21,7 +21,8 @@
                   "  const b = pm.response.json();",
                   "  pm.expect(b.status).to.eql(\"ok\");",
                   "  pm.expect(b.mode).to.eql(\"mock\");",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set(\"aiMode\", pm.response.json().mode);"
                 ]
               }
             }
@@ -476,7 +477,200 @@
       ]
     },
     {
-      "name": "04 Costes",
+      "name": "04 Pipelines (solo mock)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Seguro de costes: fuera de AI_PROVIDER_MODE=mock estas peticiones no se envían.",
+              "if (pm.collectionVariables.get(\"aiMode\") !== \"mock\") {",
+              "  console.warn(\"Backend fuera de mock: se omiten los pipelines (tendrían coste)\");",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Subir referencia para indexar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"pipelineRefId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"sofa.png\",\n  \"data_base64\": \"iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAAJ0lEQVR42mPsjvnGQEvAxEBjMGrBqAWjFoxaMGrBqAWjFoxaQB0AANHqAg034bUdAAAAAElFTkSuQmCC\",\n  \"description\": \"Sofá 285 x 160 x 87 cm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Indexar referencias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ficha propuesta\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.indexed).to.have.lengthOf(1);",
+                  "  pm.expect(b.indexed[0].analysis.status).to.eql(\"proposed\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/references/index",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Generar brief",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json().brief;",
+                  "pm.collectionVariables.set(\"briefId\", b.id);",
+                  "pm.test(\"v1 propuesto\", () => {",
+                  "  pm.expect(b.version).to.eql(1);",
+                  "  pm.expect(b.status).to.eql(\"propuesto\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"instructions\": \"Prueba de Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Editar prompt del brief",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"editado por el usuario\", () => pm.expect(pm.response.json().edited_by_user).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_prompts\": {\n    \"fast_draft\": \"Olive green corduroy modular sofa\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aprobar brief",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"aprobado\", () => pm.expect(pm.response.json().status).to.eql(\"aprobado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}/approve"
+          }
+        },
+        {
+          "name": "Editar brief aprobado (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Otro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Costes",
       "item": [
         {
           "name": "Costes del proyecto",
@@ -534,7 +728,7 @@
       ]
     },
     {
-      "name": "05 Limpieza",
+      "name": "06 Limpieza",
       "item": [
         {
           "name": "Borrar proyecto (papelera)",
@@ -591,6 +785,18 @@
     },
     {
       "key": "referenciaId",
+      "value": ""
+    },
+    {
+      "key": "aiMode",
+      "value": ""
+    },
+    {
+      "key": "pipelineRefId",
+      "value": ""
+    },
+    {
+      "key": "briefId",
       "value": ""
     }
   ]
