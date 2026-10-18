@@ -241,6 +241,51 @@ class RenderStatus(StrEnum):
     GENERATED = "generado"
     SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
     DISCARDED = "descartado"
+    REJECTED = "rechazado"  # rechazado con comentarios (puede regenerarse)
+
+
+# --- Auditoría geométrica (GEOMETRIC_AUDITOR) --------------------------------------------
+
+
+class AuditCheck(_Model):
+    aspect: Literal[
+        "encuadre", "proporciones", "mobiliario", "elementos_fijos", "materiales_color",
+        "iluminacion",
+    ]  # fmt: skip
+    status: Literal["ok", "aviso", "fallo"]
+    finding: str = Field(description="Hallazgo concreto, en español")
+
+
+class AuditDeviation(_Model):
+    element: str
+    expected: str = Field(description="Lo que indica la captura o el brief, en español")
+    observed: str = Field(description="Lo que se ve en la imagen auditada, en español")
+    severity: Literal["baja", "media", "alta"]
+
+
+class AuditReport(_Model):
+    """Salida estructurada del GEOMETRIC_AUDITOR."""
+
+    verdict: Literal["conforme", "conforme_con_observaciones", "no_conforme"]
+    score: int = Field(ge=0, le=100, description="Fidelidad global a la captura y al brief")
+    checks: list[AuditCheck]
+    deviations: list[AuditDeviation]
+    suggested_prompt_adjustments: str = Field(
+        description="Correcciones para la siguiente iteración, EN INGLÉS; vacío si no hacen falta"
+    )
+    summary: str = Field(description="Resumen en español")
+
+
+class RenderAudit(_Model):
+    id: UUID = Field(default_factory=uuid4)
+    report: AuditReport
+    reference_asset_id: UUID  # captura/plano con la que se comparó
+    deployment: str
+    reasoning_effort: str
+    prompt_version: str
+    request_id: str | None = None
+    cost_eur: float | None = None
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class RenderRecord(_Model):
@@ -262,6 +307,9 @@ class RenderRecord(_Model):
     seed: int | None = None
     request_id: str | None = None
     cost_eur: float | None = None  # coste estimado de la llamada repartido entre sus imágenes
+    audits: list[RenderAudit] = Field(default_factory=list)  # a demanda; la última es la vigente
+    feedback: str | None = None  # comentarios del usuario al rechazar
+    previous_attempt_id: UUID | None = None  # render rechazado que esta imagen sustituye
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
 
