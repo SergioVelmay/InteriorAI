@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Contexto de build: raíz del repo (necesita uv.lock y shared/).
 
-FROM ghcr.io/astral-sh/uv:0.12 AS uv
+FROM ghcr.io/astral-sh/uv:0.13 AS uv
 
 # --- builder: resuelve dependencias desde uv.lock --------------------------------
 FROM python:3.11-slim AS builder
