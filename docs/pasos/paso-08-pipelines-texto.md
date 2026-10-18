@@ -65,6 +65,8 @@ brief no aprobado por el usuario.
 | `uv run ruff check .` / `ruff format --check` | ✅ |
 | `docker compose build` (con carga de prompts) | ✅ |
 | Flujo completo en Docker (mock) con las imágenes del usuario: subida, indexación, brief, aprobación | ✅ |
+| Postman CLI (mock) | ✅ 27 peticiones, 48 asserts, 0 fallos |
+| Seguro de costes de Postman (copia con `aiMode = azure` simulado) | ✅ Las 6 peticiones de pipelines se omiten (21 enviadas) y el backend no registra llamadas a la IA |
 
 Cubierto por tests: reglas del esquema estricto (y regresión de la propiedad `title`); salida
 del mock válida; reducción de imágenes; prompts versionados; indexación (solo referencias,
