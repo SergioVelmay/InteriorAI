@@ -52,7 +52,7 @@ navegador de pruebas (inglés) aparecen en inglés.
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-12`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-12`, PR #11 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

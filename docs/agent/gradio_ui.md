@@ -1,6 +1,7 @@
 # Gradio — interfaz de usuario
 
-> Estado: **Proyectos y Assets implementados** (Pasos 11-12). Faltan Estudio y Costes (Pasos 13-14).
+> Estado: **Proyectos, Assets y Estudio implementados** (Pasos 11-13a). Faltan el editor de
+> máscaras (Paso 13b) y Costes (Paso 14).
 
 ## Estructura y arranque (Gradio 6)
 
@@ -9,7 +10,7 @@
   `python -m ui` lanza la app.
 - `frontend/ui/api_client.py`: `BackendClient` (async, tipado con `shared.models`;
   `X-Request-ID` `ui-…`; errores → `ApiError(status_code, detail)`).
-- `frontend/ui/views.py` y `covers.py`: presentación pura (cabecera, resumen, formulario,
+- `frontend/ui/views.py`, `studio_views.py` y `covers.py`: presentación pura (cabecera, resumen, formulario,
   portadas) testeable sin Gradio. `frontend/ui/tabs/<pestaña>.py`: construcción y eventos.
 - Manejadores: devuelven `dict` {componente: valor}; errores con `gr.Warning`, éxitos con `gr.Info`.
   **Nunca devolver `{}`** (Gradio lo toma como un único valor y el evento falla): usar
@@ -17,7 +18,8 @@
 - Pestañas que dependen del proyecto activo se recargan al entrar (`Tab.select`).
 - Lectura de archivos en manejadores asíncronos con `anyio.Path` (no bloquear el bucle).
 - Proyecto activo: `gr.BrowserState(storage_key="interiorai.active_project")`.
-- `elem_id` estables (`iai-new-name`, `iai-project-name`, `iai-project-description`) para pruebas.
+- `elem_id` estables con prefijo `iai-` (`iai-new-name`, `iai-gen-brief`, `iai-drafts`,
+  `iai-select`…) para las pruebas: no renombrarlos sin actualizar las pruebas de Playwright.
 - **En Gradio 6 `theme`, `css` y `js` se pasan a `launch()`**, no a `gr.Blocks()`.
 - Analytics de Gradio desactivados (`GRADIO_ANALYTICS_ENABLED=False`, `analytics_enabled=False`).
 
@@ -42,8 +44,12 @@ visible («Backend conectado»): Gradio mantiene una conexión abierta (`network
 - Puede **leer** imágenes directamente del volumen compartido para previsualizar rápido.
   El volumen se monta **read-only** en el contenedor del frontend (lo garantiza Docker).
 - El frontend **no recibe credenciales** de Azure (en compose no usa `env_file`).
-- El proyecto activo vive en `gr.State`.
+- El proyecto activo vive en `gr.BrowserState` (sobrevive a recargas).
 - Ninguna acción de IA avanza de etapa sin un clic explícito de aprobación (HITL).
+- Cada acción de IA muestra su coste estimado (`studio_views.COST_*`, límite alto de lo
+  observado); en modo `azure` las de más de 0,05 € piden un **segundo clic** de confirmación.
+- Progreso de las llamadas largas: `gr.Info` al empezar y al terminar (con el coste real) y el
+  temporizador propio de Gradio en los componentes afectados.
 
 ## Pestañas previstas
 
@@ -51,5 +57,6 @@ visible («Backend conectado»): Gradio mantiene una conexión abierta (`network
 |---------|-----------|------|
 | Proyectos | Galería con portadas, ficha editable, crear, activar, borrar (papelera) | 11 ✅ |
 | Assets | Subpestañas Capturas · Planos · Referencias: subir (solo imágenes), ver, nota, papelera; indexar (manual) y validar fichas | 12 ✅ |
-| Estudio | Notas → prompt → bocetos → composición → auditoría → aprobación → render; `gr.ImageEditor` para máscaras | 13 |
+| Estudio | Página única: ① brief (versiones, prompts editables, aprobar/rechazar; se pliega al aprobarlo) → ② bocetos → ③ composición → ④ render final, y un visor común (seleccionar, descartar, rechazar con comentarios, auditar) | 13a ✅ |
+| Estudio: máscaras | `gr.ImageEditor` para inpainting con recomposición local exacta | 13b |
 | Costes | KPIs, coste por rol y temporal, tabla detallada | 14 |
