@@ -3,21 +3,26 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Query, status
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import FoundryDep, RepositoryDep, SettingsDep
+from app.api.uploads import inspect_upload, read_upload
 from app.pipelines.auditor import audit_render
 from app.pipelines.renders import (
+    RenderNotFoundError,
     RenderOptions,
     decide_render,
     generate_composition,
     generate_drafts,
     generate_final,
+    inpaint_render,
     reject_render,
+    use_raw_output,
 )
 from app.telemetry import current_request_id, request_cost, telemetry_scope
-from shared.models import RenderAudit, RenderRecord, RenderStage, RenderStatus
+from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage, RenderStatus
 
 router = APIRouter(prefix="/projects/{project_id}/renders", tags=["renders"])
 
@@ -214,3 +219,65 @@ async def reject(
         cost_eur=await request_cost(repo, project_id),
         request_id=current_request_id(),
     )
+
+
+@router.post(
+    "/{render_id}/inpaint", status_code=status.HTTP_201_CREATED, response_model=RenderRunResponse
+)
+async def inpaint(
+    project_id: UUID,
+    render_id: UUID,
+    mask: Annotated[
+        UploadFile,
+        File(description="Imagen con la proporción del render; lo pintado es la zona a editar"),
+    ],
+    instruction: Annotated[str, Form(min_length=1, max_length=2_000)],
+    repo: RepositoryDep,
+    foundry: FoundryDep,
+    settings: SettingsDep,
+    quality: Annotated[Literal["low", "medium", "high", "auto"] | None, Form()] = None,
+) -> RenderRunResponse:
+    """Retoque de una zona de una composición o render final (multipart).
+
+    Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se regenera con la
+    instrucción; el resto queda idéntico al original (recomposición local). Crea una imagen
+    nueva de la misma etapa, sin seleccionar; la original no cambia.
+    """
+    content = await read_upload(mask, settings.storage.max_upload_bytes)
+    await inspect_upload(content, AssetKind.RENDER)  # imagen real y sin daños
+    with telemetry_scope(project_id):
+        record = await inpaint_render(
+            repo, foundry, project_id, render_id, content, instruction, quality=quality
+        )
+    return await _response(repo, project_id, [record])
+
+
+InpaintFile = Literal["mascara", "bruto", "guia"]
+
+
+@router.get("/{render_id}/inpaint/{file}", response_class=FileResponse)
+async def inpaint_file(
+    project_id: UUID, render_id: UUID, file: InpaintFile, repo: RepositoryDep
+) -> FileResponse:
+    """Archivos de un retoque: la máscara (blanco = zona), la salida **en bruto** del modelo
+    (antes de recomponer) y la guía enviada al renderizador (solo en el render final)."""
+    project = await repo.get(project_id)
+    render = next((r for r in project.renders if r.id == render_id), None)
+    if render is None:
+        raise RenderNotFoundError(str(render_id))
+    info = render.inpaint
+    name = None
+    if info is not None:
+        name = {"mascara": info.mask_file, "bruto": info.raw_file, "guia": info.guide_file}[file]
+    if name is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Este render no tiene ese archivo")
+    path = repo.render_file_path(project_id, name)
+    media_type = "image/jpeg" if name.endswith(".jpeg") else "image/png"
+    return FileResponse(path, media_type=media_type, filename=name)
+
+
+@router.post("/{render_id}/raw", status_code=status.HTTP_201_CREATED, response_model=RenderRecord)
+async def use_raw(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
+    """Usa la salida en bruto de un retoque (la imagen completa del modelo, sin recomponer) como
+    imagen nueva de la etapa, sin seleccionar. Sin coste."""
+    return await use_raw_output(repo, project_id, render_id)

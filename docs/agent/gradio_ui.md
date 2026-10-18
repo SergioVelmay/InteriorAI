@@ -1,7 +1,6 @@
 # Gradio — interfaz de usuario
 
-> Estado: **Proyectos, Assets y Estudio implementados** (Pasos 11-13a). Faltan el editor de
-> máscaras (Paso 13b) y Costes (Paso 14).
+> Estado: **Proyectos, Assets y Estudio implementados** (Pasos 11-13b). Falta Costes (Paso 14).
 
 ## Estructura y arranque (Gradio 6)
 
@@ -21,6 +20,12 @@
 - `elem_id` estables con prefijo `iai-` (`iai-new-name`, `iai-gen-brief`, `iai-drafts`,
   `iai-select`…) para las pruebas: no renombrarlos sin actualizar las pruebas de Playwright.
 - **En Gradio 6 `theme`, `css` y `js` se pasan a `launch()`**, no a `gr.Blocks()`.
+- **`gr.ImageEditor`: no cambiar su valor por código** con el editor ya montado (una vez sí y
+  otra no llega sin la capa de trazos). Se crea uno nuevo por imagen con `gr.render`
+  (`triggers=[shown_render.change]`, `concurrency_limit=1` para no duplicar la `key`).
+- Pruebas de Playwright con el editor: desplazar el lienzo a la vista antes de pintar (los
+  eventos de ratón fuera de la ventana se pierden). En Windows sin Docker, la caché de subidas de
+  Gradio puede leer a medias un fondo idéntico subido varias veces: probar el editor en Docker.
 - Analytics de Gradio desactivados (`GRADIO_ANALYTICS_ENABLED=False`, `analytics_enabled=False`).
 
 ## Tema (decisión D5)
@@ -58,5 +63,5 @@ visible («Backend conectado»): Gradio mantiene una conexión abierta (`network
 | Proyectos | Galería con portadas, ficha editable, crear, activar, borrar (papelera) | 11 ✅ |
 | Assets | Subpestañas Capturas · Planos · Referencias: subir (solo imágenes), ver, nota, papelera; indexar (manual) y validar fichas | 12 ✅ |
 | Estudio | Página única: ① brief (versiones, prompts editables, aprobar/rechazar; se pliega al aprobarlo) → ② bocetos → ③ composición → ④ render final, y un visor común (seleccionar, descartar, rechazar con comentarios, auditar) | 13a ✅ |
-| Estudio: máscaras | `gr.ImageEditor` para inpainting con recomposición local exacta | 13b |
+| Estudio: retoques | «Retocar zona» en el visor (composición y final): pincel, instrucción y coste; bajo el visor, salida en bruto, guía y máscara del retoque, y «Usar salida en bruto» | 13b ✅ |
 | Costes | KPIs, coste por rol y temporal, tabla detallada | 14 |

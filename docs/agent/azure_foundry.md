@@ -79,7 +79,14 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 
 Implicaciones: dejar margen en `max_output_tokens` (incluye el razonamiento); el auditor es
 lento y con coste dominado por razonamiento; para inpainting exacto, recomponer en local solo
-la zona de la máscara (B-009).
+la zona de la máscara (B-009, resuelto en el Paso 13b).
+
+Retoque del render final (Paso 13b, prueba real): el renderizador **regenera la imagen entera**
+y no se limita a la zona aunque se le marque en rojo y en texto (puso la alfombra bajo el
+chaise longue); el resto cambia sutilmente (≈ 17 % de píxeles: textura de la pana más blanda,
+geometría desplazada). Por eso se guarda también la salida en bruto y el usuario elige. Para
+**añadir objetos**, mejor retocar la composición y regenerar el final a partir de ella.
+Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €.
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 

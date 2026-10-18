@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import html
+import io
+from typing import Any
+
+from PIL import Image, ImageChops
 
 from shared.models import (
     AssetKind,
@@ -22,6 +26,9 @@ COST_PER_IMAGE = {
     RenderStage.COMPOSITION: 0.035,
     RenderStage.FINAL: 0.095,
 }
+# Retoque: la composición edita con máscara; el final regenera la imagen (+ guía de ~0,7 MP).
+COST_INPAINT = {RenderStage.COMPOSITION: 0.035, RenderStage.FINAL: 0.09}
+INPAINT_STAGES = frozenset(COST_INPAINT)
 COST_BRIEF = 0.05
 COST_AUDIT = 0.25
 CONFIRM_THRESHOLD_EUR = 0.05  # en modo azure, por encima se pide un segundo clic
@@ -52,6 +59,13 @@ def cost_hint(estimated_eur: float, mode: str | None) -> str:
     if mode != "azure":
         return "Simulación: sin coste"
     return f"Azure: ≈ {estimated_eur:.3f} €"
+
+
+def inpaint_hint(stage: RenderStage | None, mode: str | None) -> str | None:
+    """Coste del retoque de una imagen de esta etapa, o None si la etapa no admite retoques."""
+    if stage not in INPAINT_STAGES:
+        return None
+    return cost_hint(COST_INPAINT[stage], mode)
 
 
 # --- Brief ----------------------------------------------------------------------------------
@@ -129,7 +143,10 @@ def render_caption(render: RenderRecord) -> str:
     audit = ""
     if render.audits:
         audit = f" · auditoría {render.audits[-1].report.score}/100"
-    return f"{STATUS_ICONS[render.status]} {render.status}{audit} · {euros(render.cost_eur)}"
+    retouch = " · retoque" if render.inpaint else " · bruto" if render.raw_of_render_id else ""
+    return (
+        f"{STATUS_ICONS[render.status]} {render.status}{retouch}{audit} · {euros(render.cost_eur)}"
+    )
 
 
 def selected_choices(project: ProjectMetadata, stage: RenderStage) -> list[tuple[str, str]]:
@@ -156,6 +173,19 @@ def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> s
         f"coste {euros(render.cost_eur)} · {render.created_at:%d/%m/%Y %H:%M} UTC",
         f"**Entradas:** {html.escape(inputs)}",
     ]
+    if render.inpaint:
+        info = render.inpaint
+        method = "máscara" if info.method == "mascara" else "imagen regenerada y recortada"
+        source = info.source_render_id.hex[:8]
+        lines.append(
+            f"**Retoque de** `{source}`: «{html.escape(info.instruction)}» · "
+            f"zona {info.coverage:.0%} · {method}"
+        )
+    if render.raw_of_render_id:
+        lines.append(
+            f"**Salida en bruto del retoque** `{render.raw_of_render_id.hex[:8]}`: la imagen "
+            "completa que generó el modelo, sin recomponer (coste ya contado en el retoque)"
+        )
     if render.previous_attempt_id:
         lines.append(f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado)")
     if render.feedback:
@@ -196,3 +226,46 @@ def audit_markdown(audit: RenderAudit | None) -> str:
             f"```\n{r.suggested_prompt_adjustments}\n```\n</details>"
         )
     return "\n\n".join(parts)
+
+
+# --- Retoque ---------------------------------------------------------------------------------
+
+
+def editor_mask(value: dict[str, Any] | None) -> bytes | None:
+    """Capas pintadas del editor → PNG RGBA (opaco = zona a editar), o None si no hay trazos."""
+    layers = [layer for layer in (value or {}).get("layers") or [] if layer is not None]
+    if not layers:
+        return None
+    size = layers[0].size
+    alpha = Image.new("L", size, 0)
+    for layer in layers:
+        channel = layer.convert("RGBA").getchannel("A")
+        alpha = ImageChops.lighter(alpha, channel if channel.size == size else channel.resize(size))
+    alpha = alpha.point(lambda v: 255 if v else 0)
+    if alpha.getbbox() is None:
+        return None
+    mask = Image.new("RGBA", size, (255, 255, 255, 0))
+    mask.putalpha(alpha)
+    buffer = io.BytesIO()
+    mask.save(buffer, "PNG", optimize=True)
+    return buffer.getvalue()
+
+
+def inpaint_file_captions(render: RenderRecord | None) -> list[tuple[str, str]]:
+    """Archivos de un retoque para el visor: (nombre en `renders_historico/`, pie)."""
+    info = render.inpaint if render else None
+    if info is None:
+        return []
+    files = [
+        (info.raw_file, "Salida en bruto del modelo (antes de recomponer)"),
+        (info.guide_file, "Guía enviada al renderizador (zona en rojo)"),
+        (info.mask_file, "Máscara (blanco = zona retocada)"),
+    ]
+    return [(name, caption) for name, caption in files if name]
+
+
+def can_use_raw(project: ProjectMetadata, render: RenderRecord | None) -> bool:
+    """Retoque con salida en bruto guardada que aún no se ha usado como imagen propia."""
+    if render is None or render.inpaint is None or render.inpaint.raw_file is None:
+        return False
+    return not any(r.raw_of_render_id == render.id for r in project.renders)

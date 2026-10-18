@@ -272,6 +272,13 @@ class ProjectRepository:
         path = await self.asset_path(project_id, asset_id)
         return await self._run(path.read_bytes)
 
+    def render_file_path(self, project_id: str | UUID, name: str) -> Path:
+        """Ruta de un archivo auxiliar de un render en `renders_historico/` (p. ej. su máscara)."""
+        return self._paths(project_id).asset(AssetKind.RENDER, name)
+
+    async def read_render_file(self, project_id: str | UUID, name: str) -> bytes:
+        return await self._run(self.render_file_path(project_id, name).read_bytes)
+
     async def mutate(
         self,
         project_id: str | UUID,
@@ -307,9 +314,17 @@ class ProjectRepository:
             stamp = _trash_stamp()
             target = trash / f"{stamp}-{asset.stored_name}"
             await self._run(self._move_to_trash, paths.asset(asset.kind, asset.stored_name), target)
-            if asset.kind is AssetKind.RENDER:  # su JSON de trazabilidad va con la imagen
-                sidecar = paths.asset(asset.kind, f"{asset.id}.json")
-                await self._run(self._move_to_trash, sidecar, trash / f"{stamp}-{asset.id}.json")
+            if asset.kind is AssetKind.RENDER:  # su JSON (y archivos del retoque) van con ella
+                record = next((r for r in metadata.renders if r.id == asset_uuid), None)
+                sidecars = [f"{asset.id}.json"]
+                if record is not None and record.inpaint is not None:
+                    sidecars += record.inpaint.files
+                for name in sidecars:
+                    await self._run(
+                        self._move_to_trash,
+                        paths.asset(asset.kind, name),
+                        trash / f"{stamp}-{name}",
+                    )
             updated = metadata.model_copy(
                 update={
                     "assets": [a for a in metadata.assets if a.id != asset_uuid],
@@ -330,9 +345,14 @@ class ProjectRepository:
         mime_type: str,
         width_px: int,
         height_px: int,
+        sidecars: dict[str, bytes] | None = None,
     ) -> Asset:
         """Guarda un render: imagen y JSON de trazabilidad en `renders_historico/`, el asset
-        y su `RenderRecord` en `metadatos.json` (todo bajo el bloqueo del proyecto)."""
+        y su `RenderRecord` en `metadatos.json` (todo bajo el bloqueo del proyecto).
+
+        `sidecars` ({nombre: contenido}): archivos auxiliares junto a la imagen (p. ej. la
+        máscara, la salida en bruto y la guía de un retoque).
+        """
         paths = self._paths(project_id)
         ext = "jpeg" if mime_type == "image/jpeg" else "png"
         asset = Asset(
@@ -355,6 +375,8 @@ class ProjectRepository:
             await self._run(
                 write_json_atomic, paths.asset(AssetKind.RENDER, f"{record.id}.json"), record
             )
+            for name, data in (sidecars or {}).items():
+                await self._run(write_bytes_atomic, paths.asset(AssetKind.RENDER, name), data)
             updated = metadata.model_copy(
                 update={
                     "assets": [*metadata.assets, asset],

@@ -1,9 +1,9 @@
 """Pestaña Estudio: ciclo Human-in-the-Loop completo del proyecto activo.
 
 ① Brief (generar, editar prompts, aprobar, rechazar) → ② Bocetos → ③ Composición →
-④ Render final, con un visor común para seleccionar, descartar, rechazar con comentarios
-y auditar. Las acciones de IA muestran su coste; en modo Azure, las de más de 0,05 € piden
-un segundo clic de confirmación.
+④ Render final, con un visor común para seleccionar, descartar, rechazar con comentarios,
+auditar y retocar una zona pintada (composición y render final). Las acciones de IA muestran
+su coste; en modo Azure, las de más de 0,05 € piden un segundo clic de confirmación.
 """
 
 from __future__ import annotations
@@ -16,19 +16,24 @@ from typing import Any
 
 import gradio as gr
 
-from shared.models import BriefStatus, ProjectMetadata, RenderStage, RenderStatus
+from shared.models import AssetKind, BriefStatus, ProjectMetadata, RenderStage, RenderStatus
 from ui.api_client import ApiError, BackendClient
 from ui.covers import asset_path, placeholder
 from ui.studio_views import (
     COST_AUDIT,
     COST_BRIEF,
+    COST_INPAINT,
     COST_PER_IMAGE,
     approved_brief,
     audit_markdown,
     brief_choices,
     brief_markdown,
+    can_use_raw,
     cost_hint,
+    editor_mask,
     euros,
+    inpaint_file_captions,
+    inpaint_hint,
     latest_brief,
     needs_confirmation,
     reference_choices,
@@ -47,6 +52,7 @@ STAGES = (RenderStage.DRAFT, RenderStage.COMPOSITION, RenderStage.FINAL)
 class StudioTab:
     refresh_all: Callable[[str | None], Awaitable[dict]]
     all_outputs: list[gr.components.Component]
+    show_render: Callable[[str | None, str | None], Awaitable[dict]]  # vista con un render
 
 
 def estimate(action: dict[str, Any]) -> float:
@@ -57,6 +63,8 @@ def estimate(action: dict[str, Any]) -> float:
         return COST_AUDIT
     if kind == "reject_render":
         return COST_PER_IMAGE[RenderStage(action["stage"])]
+    if kind == "inpaint":
+        return COST_INPAINT[RenderStage(action["stage"])]
     return COST_PER_IMAGE[RenderStage(kind)] * action.get("n", 1)
 
 
@@ -66,6 +74,7 @@ def describe(action: dict[str, Any]) -> str:
         "reject_brief": "rechazar el brief y generar una nueva versión",
         "audit": "auditar la imagen (GEOMETRIC_AUDITOR)",
         "reject_render": "rechazar la imagen y regenerarla",
+        "inpaint": "retocar la zona pintada",
         RenderStage.DRAFT.value: f"generar {action.get('n', 1)} boceto(s)",
         RenderStage.COMPOSITION.value: "generar la composición",
         RenderStage.FINAL.value: "generar el render final",
@@ -73,6 +82,11 @@ def describe(action: dict[str, Any]) -> str:
 
 
 def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTab:
+    # Etapa de cada render (para estimar el coste de rechazar y regenerar) e imagen del render
+    # mostrado (para el editor de retoques); los rellena view().
+    stages_by_render: dict[str, str] = {}
+    shown_images: dict[str, Any] = {}
+
     mode = gr.State(None)
     shown_brief = gr.State(None)
     shown_render = gr.State(None)
@@ -187,9 +201,55 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                     audit_btn = gr.Button("Auditar", variant="secondary", elem_id="iai-audit")
                     audit_cost = gr.Markdown()
         audit_md = gr.Markdown()
+        # Si la imagen es un retoque: lo que hizo el modelo frente a lo que conservamos.
+        inpaint_files = gr.Gallery(
+            label="Retoque: salida en bruto del modelo, guía enviada y máscara", columns=3,
+            height="auto", object_fit="contain", visible=False, elem_classes="iai-gallery",
+            elem_id="iai-inpaint-files",
+        )  # fmt: skip
+        use_raw_btn = gr.Button(
+            "Usar salida en bruto como imagen nueva (sin coste)", variant="secondary",
+            visible=False, elem_id="iai-use-raw",
+        )  # fmt: skip
+        with gr.Accordion("Retocar zona (composición y render final)", open=False):
+            gr.Markdown(
+                "Pinta la zona que quieres cambiar y describe el cambio; si añades un objeto, "
+                "pinta **algo más grande que el objeto** (lo que se salga de la zona se corta). "
+                "Fuera de lo pintado la imagen queda **idéntica**; el retoque es una imagen nueva "
+                "de la misma etapa que puedes seleccionar, descartar o rechazar (se repite con la "
+                "misma zona). La salida en bruto del modelo también se guarda."
+            )
 
-    # Etapa de cada render (para estimar el coste de rechazar y regenerar); lo rellena view().
-    stages_by_render: dict[str, str] = {}
+            # Un editor nuevo por imagen: cambiar por código el valor de un ImageEditor ya
+            # montado lo deja (una vez sí y otra no) sin la capa de trazos (Gradio 6). Solo se
+            # rehace al cambiar la imagen y de uno en uno (si no, choca la `key` del editor).
+            @gr.render(
+                inputs=[shown_render, mode], triggers=[shown_render.change], concurrency_limit=1
+            )
+            def inpaint_area(render_id: str | None, current_mode: str | None) -> None:
+                stage = stages_by_render.get(render_id or "")
+                hint = inpaint_hint(RenderStage(stage) if stage else None, current_mode)
+                image = shown_images.get(render_id or "")
+                if hint is None or image is None:
+                    gr.Markdown("_Elige en el visor una composición o un render final._")
+                    return
+                editor = gr.ImageEditor(
+                    value={"background": image, "layers": [], "composite": None},
+                    type="pil", format="png", sources=(), transforms=(), layers=False,
+                    brush=gr.Brush(colors=[("#ef4444", 0.6)], color_mode="fixed",
+                                   default_size=40),
+                    eraser=gr.Eraser(default_size=40), show_label=False, height=560,
+                    interactive=True, key=f"iai-editor-{render_id}",
+                    elem_id="iai-inpaint-editor",
+                )  # fmt: skip
+                instruction = gr.Textbox(
+                    label="Cambio en la zona pintada", lines=2,
+                    key=f"iai-instruction-{render_id}", elem_id="iai-inpaint-instruction",
+                )  # fmt: skip
+                with gr.Row(equal_height=True):
+                    button = gr.Button("Retocar zona", variant="primary", elem_id="iai-inpaint")
+                    gr.Markdown(hint)
+                wire(button, build_inpaint, editor, instruction)
 
     def stage_of(render_id: str | None) -> str:
         return stages_by_render.get(render_id or "", RenderStage.FINAL.value)
@@ -214,6 +274,8 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             heading: NO_PROJECT, mode: None, shown_brief: None, shown_render: None,
             brief_select: gr.update(choices=[], value=None), brief_md: "",
             viewer: None, viewer_md: "", audit_md: "",
+            inpaint_files: gr.update(value=[], visible=False),
+            use_raw_btn: gr.update(visible=False),
         }  # fmt: skip
         for gallery, ids in galleries.values():
             updates |= {gallery: [], ids: []}
@@ -295,6 +357,14 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             viewer: image_of(project, render_id) if render else None,
             viewer_md: render_detail_md(project, render),
             audit_md: audit_markdown(render.audits[-1] if render and render.audits else None),
+            inpaint_files: gr.update(
+                value=[
+                    (str(data_dir / str(project.id) / AssetKind.RENDER.folder / name), caption)
+                    for name, caption in inpaint_file_captions(render)
+                ],
+                visible=bool(render and render.inpaint),
+            ),
+            use_raw_btn: gr.update(visible=can_use_raw(project, render)),
             select_btn: gr.update(
                 interactive=bool(render)
                 and render.status in {RenderStatus.GENERATED, RenderStatus.DISCARDED}
@@ -311,6 +381,8 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             ),
             audit_btn: gr.update(interactive=bool(render) and render.stage in AUDITABLE),
         }
+        if render:
+            shown_images[str(render.id)] = updates[viewer]
         for stage, (gallery, ids) in galleries.items():
             items = renders_of(project, stage)
             updates[gallery] = gr.update(
@@ -361,6 +433,11 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             )
             new = body["new_renders"][0]["id"] if body["new_renders"] else None
             return f"Imagen rechazada y regenerada · {euros(body['cost_eur'])}", None, new
+        if kind == "inpaint":
+            body = await client.inpaint_render(
+                active_id, action["render_id"], action["mask"], action["instruction"]
+            )
+            return f"Retoque generado · {euros(body['cost_eur'])}", None, body["renders"][0]["id"]
         stage = RenderStage(kind)
         body = await client.generate_renders(active_id, stage, action["body"])
         first = body["renders"][0]["id"] if body["renders"] else None
@@ -428,7 +505,8 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         generate_composition,
         composition_cost, composition_choice, references, generate_final, final_cost, viewer,
         viewer_md, audit_md, select_btn, discard_btn, reject_regenerate, reject_only, audit_btn,
-        audit_cost, *(c for pair in galleries.values() for c in pair),
+        audit_cost, inpaint_files, use_raw_btn,
+        *(c for pair in galleries.values() for c in pair),
     ]  # fmt: skip
 
     def on_ai(build: Callable[..., dict[str, Any]], *inputs: gr.components.Component):
@@ -495,6 +573,17 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         render_feedback, apply_audit,
     )  # fmt: skip
 
+    def build_inpaint(b, r, value, text) -> dict[str, Any]:
+        mask = editor_mask(value)
+        if mask is None:
+            return {"error": "Pinta en la imagen la zona que quieres cambiar"}
+        if not (text or "").strip():
+            return {"error": "Describe el cambio que quieres en la zona pintada"}
+        return {
+            "kind": "inpaint", "render_id": r, "stage": stage_of(r), "mask": mask,
+            "instruction": text.strip(),
+        }  # fmt: skip
+
     confirm_btn.click(
         on_confirm, inputs=[pending, active, shown_brief, shown_render], outputs=outputs
     )
@@ -520,7 +609,9 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     async def on_decide(select: bool, active_id, current_mode, brief_id, render_id):
         return await guarded(
             lambda: client.decide_render(active_id, render_id, select),
-            "Imagen seleccionada" if select else "Imagen descartada",
+            ("Imagen seleccionada" if select else "Imagen descartada")
+            + (" (el render final anterior pasa a descartado)"
+               if select and stage_of(render_id) == RenderStage.FINAL.value else ""),
             active_id, brief_id, render_id,
         )  # fmt: skip
 
@@ -549,6 +640,17 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     approve.click(on_approve, inputs=common, outputs=outputs)
     select_btn.click(partial(on_decide, True), inputs=common, outputs=outputs)
     discard_btn.click(partial(on_decide, False), inputs=common, outputs=outputs)
+
+    async def on_use_raw(active_id, current_mode, brief_id, render_id):
+        try:
+            record = await client.use_raw_output(active_id, render_id)
+        except ApiError as exc:
+            gr.Warning(exc.detail)
+            return await view(active_id, brief_id, render_id)
+        gr.Info("Salida en bruto añadida como imagen nueva (sin coste)")
+        return await view(active_id, brief_id, str(record.id))
+
+    use_raw_btn.click(on_use_raw, inputs=common, outputs=outputs)
     reject_only.click(on_reject_only, inputs=[*common, render_feedback], outputs=outputs)
     brief_select.input(on_brief_change, inputs=[*common, brief_select], outputs=outputs)
     for stage, (gallery, ids) in galleries.items():
@@ -557,4 +659,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     async def refresh_all(active_id: str | None) -> dict:
         return {**await view(active_id, None, None), **hide_confirm()}
 
-    return StudioTab(refresh_all, outputs)
+    async def show_render(active_id: str | None, render_id: str | None) -> dict:
+        return await view(active_id, None, render_id)
+
+    return StudioTab(refresh_all, outputs, show_render)
