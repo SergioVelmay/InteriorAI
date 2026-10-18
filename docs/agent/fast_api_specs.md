@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **API de proyectos, assets y costes implementada** (Pasos 5 y 7).
+> Estado: **API de proyectos, assets, costes y pipelines de texto** (Pasos 5, 7 y 8).
 
 ## Estructura y arranque
 
@@ -71,7 +71,15 @@ data/
 | GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
 | GET | `/projects/{id}/costs?limit=50` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, últimos registros | 7 ✅ |
 | GET | `/pricing` | `PricingTable` (404 si no hay tabla) | 7 ✅ |
-| POST | `/projects/{id}/pipelines/...` | — | 8–9 |
+| PATCH | `/projects/{id}/assets/{asset_id}` | `{description}` → `Asset` | 8 ✅ |
+| POST | `/projects/{id}/references/index` | `{asset_ids?, force?}` → `{indexed, skipped, failed, cost_eur, request_id}` | 8 ✅ |
+| PUT | `/projects/{id}/assets/{asset_id}/analysis` | `ReferenceAnalysis` → `Asset` (ficha `validated`) | 8 ✅ |
+| POST | `/projects/{id}/briefs` | `{instructions?}` → 201 `{brief, cost_eur, request_id}` | 8 ✅ |
+| GET | `/projects/{id}/briefs` · `/briefs/{brief_id}` | `[DesignBrief]` (versión desc.) · `DesignBrief` | 8 ✅ |
+| PATCH | `/projects/{id}/briefs/{brief_id}` | `BriefContentUpdate` (solo `propuesto`; si no, 409) | 8 ✅ |
+| POST | `/projects/{id}/briefs/{brief_id}/approve` | `DesignBrief` (el aprobado anterior → `reemplazado`) | 8 ✅ |
+| POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
+| POST | `/projects/{id}/pipelines/...` (imágenes) | — | 9 |
 | POST | `/projects/{id}/iterations/{it}/{approve\|reject}` | — | 10 |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
@@ -100,7 +108,10 @@ data/
 ## Errores (`app/api/errors.py`)
 
 `ProjectNotFoundError`/`AssetNotFoundError` → 404 · `InvalidPathError` → 422 ·
-`CorruptDataError` → 500 genérico (detalle solo en logs) · `UploadError` → su código.
+`CorruptDataError` → 500 genérico (detalle solo en logs) · `UploadError` → su código ·
+`BriefNotFoundError` → 404 · `TransitionError` → 409 · `PipelineInputError` → 422 ·
+`PipelineError` → 502 · `FoundryUnsupportedError` → 400 · `FoundryContentFilterError` → 422 ·
+`FoundryRateLimitError` → 429 · `FoundryTimeoutError` → 504 · otros `FoundryError` → 502.
 Formato siempre `{"detail": "<mensaje en español>"}`.
 
 ## Notas de FastAPI 0.143
@@ -112,3 +123,16 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 
 `backend/tests/conftest.py`: `clean_env` (autouse), `make_api(max_upload_mb=None)`, `api`,
 `image_bytes()`. Es el único `conftest.py` del repo (pytest en modo de importación por defecto).
+
+## Pipelines y HITL (Paso 8)
+
+- `app/pipelines/`: `context_manager.py` (fichas de referencias), `prompt_engineer.py` (brief),
+  `schemas.py` (`strict_schema`), `images.py` (`prepare_image`, 1.024 px JPEG),
+  `prompts/*.md` (prompts de sistema; `load_prompt(name).version` = hash).
+- `app/hitl/`: `ensure_transition` + tablas de transiciones; `briefs.py` (`edit_brief`,
+  `approve_brief`, `reject_brief`, `find_brief`). Las transiciones solo las dispara el usuario.
+- Los endpoints que llaman a la IA envuelven el trabajo en `telemetry_scope(project_id)` y
+  devuelven `cost_eur` (`request_cost`) y `request_id`.
+- Escrituras de fichas y briefs con `ProjectRepository.mutate(project_id, change)`.
+- Pruebas manuales desde Git Bash: no usar `curl -d` con tildes (cp1252); usar Swagger,
+  Postman o un script Python.

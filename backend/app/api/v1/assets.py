@@ -4,14 +4,14 @@ import hashlib
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import RepositoryDep, SettingsDep
 from app.api.uploads import UploadError, UploadKind, decode_base64, inspect_upload, read_upload
-from app.storage import ProjectRepository
-from shared.models import Asset, AssetKind
+from app.storage import AssetNotFoundError, ProjectRepository
+from shared.models import Asset, AssetKind, ProjectMetadata
 
 router = APIRouter(prefix="/projects/{project_id}/assets", tags=["assets"])
 
@@ -28,6 +28,13 @@ class Base64Upload(BaseModel):
         min_length=1,
         description="Contenido en Base64; admite el prefijo `data:<mime>;base64,`",
     )
+    description: str = Field(default="", max_length=2_000, examples=["Sofá 285 x 160 x 87 cm"])
+
+
+class AssetUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    description: str = Field(max_length=2_000, description="Nota del usuario (p. ej. medidas)")
 
 
 async def _store(
@@ -37,6 +44,7 @@ async def _store(
     content: bytes,
     filename: str,
     allow_duplicate: bool,
+    description: str = "",
 ) -> Asset:
     existing = await repo.list_assets(project_id)  # 404 antes de procesar si no existe
     inspected = await inspect_upload(content, kind.asset_kind)
@@ -57,6 +65,7 @@ async def _store(
         inspected.mime_type,
         inspected.width_px,
         inspected.height_px,
+        description,
     )
 
 
@@ -76,11 +85,12 @@ async def upload_asset(
     request: Request,
     response: Response,
     allow_duplicate: AllowDuplicate = False,
+    description: Annotated[str, Form(max_length=2_000)] = "",
 ) -> Asset:
     """Subida multipart. El tipo real se detecta por el contenido, no por la extensión."""
     content = await read_upload(file, settings.storage.max_upload_bytes)
     asset = await _store(
-        repo, project_id, kind, content, file.filename or "archivo", allow_duplicate
+        repo, project_id, kind, content, file.filename or "archivo", allow_duplicate, description
     )
     _set_location(request, response, project_id, asset)
     return asset
@@ -99,7 +109,9 @@ async def upload_asset_base64(
 ) -> Asset:
     """Subida en JSON con el contenido en Base64."""
     content = decode_base64(body.data_base64, settings.storage.max_upload_bytes)
-    asset = await _store(repo, project_id, kind, content, body.filename, allow_duplicate)
+    asset = await _store(
+        repo, project_id, kind, content, body.filename, allow_duplicate, body.description
+    )
     _set_location(request, response, project_id, asset)
     return asset
 
@@ -126,6 +138,23 @@ async def download_asset(project_id: UUID, asset_id: UUID, repo: RepositoryDep) 
         content_disposition_type="inline",
         headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600"},
     )
+
+
+@router.patch("/{asset_id}", response_model=Asset)
+async def update_asset(
+    project_id: UUID, asset_id: UUID, body: AssetUpdate, repo: RepositoryDep
+) -> Asset:
+    """Actualiza la nota del usuario sobre el asset (se usa al indexar y en el brief)."""
+
+    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, Asset]:
+        assets = list(metadata.assets)
+        for i, asset in enumerate(assets):
+            if asset.id == asset_id:
+                assets[i] = asset.model_copy(update={"description": body.description.strip()})
+                return metadata.model_copy(update={"assets": assets}), assets[i]
+        raise AssetNotFoundError(str(asset_id))
+
+    return await repo.mutate(project_id, change)
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)

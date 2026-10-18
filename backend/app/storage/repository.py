@@ -223,6 +223,7 @@ class ProjectRepository:
         mime_type: str,
         width_px: int | None = None,
         height_px: int | None = None,
+        description: str = "",
     ) -> Asset:
         paths = self._paths(project_id)
         asset_id = uuid4()
@@ -236,6 +237,7 @@ class ProjectRepository:
             sha256=hashlib.sha256(content).hexdigest(),
             width_px=width_px,
             height_px=height_px,
+            description=description.strip(),
         )
         async with self._locks.hold(str(paths.project_id)):
             metadata = await self._run(self._read_metadata, paths)
@@ -264,6 +266,32 @@ class ProjectRepository:
     async def asset_path(self, project_id: str | UUID, asset_id: str | UUID) -> Path:
         asset = await self.get_asset(project_id, asset_id)
         return self._paths(project_id).asset(asset.kind, asset.stored_name)
+
+    async def read_asset_bytes(self, project_id: str | UUID, asset_id: str | UUID) -> bytes:
+        path = await self.asset_path(project_id, asset_id)
+        return await self._run(path.read_bytes)
+
+    async def mutate(
+        self,
+        project_id: str | UUID,
+        change: Callable[[ProjectMetadata], tuple[ProjectMetadata, T]],
+    ) -> T:
+        """Lee, modifica y guarda `metadatos.json` bajo el bloqueo del proyecto.
+
+        `change` recibe los metadatos actuales y devuelve (nuevos metadatos, resultado); puede
+        lanzar excepciones para abortar sin escribir nada. `updated_at` se actualiza solo.
+        """
+        paths = self._paths(project_id)
+        async with self._locks.hold(str(paths.project_id)):
+            current = await self._run(self._read_metadata, paths)
+            updated, result = change(current)
+            updated = ProjectMetadata.model_validate(
+                updated.model_dump() | {"updated_at": utc_now()}
+            )
+            await self._run(write_json_atomic, paths.metadata, updated)
+            async with self._locks.hold(INDEX_KEY):
+                await self._run(self._upsert_index, updated.summary())
+        return result
 
     async def remove_asset(self, project_id: str | UUID, asset_id: str | UUID) -> Path:
         """Borrado suave: mueve el archivo a `.papelera/{proyecto}/`. Devuelve la ruta destino."""

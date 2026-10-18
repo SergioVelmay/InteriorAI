@@ -28,9 +28,11 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía. Las llamadas
    hechas por un proyecto van dentro de `with telemetry_scope(project_id):`.
 5. **Todo debe funcionar en `AI_PROVIDER_MODE=mock`** sin credenciales; los tests usan mock.
-   Las llamadas reales solo con el script `python -m app.foundry.smoke`, con el modo `azure`
-   activado por el usuario y anunciando cada llamada.
-6. **Human-in-the-Loop**: las transiciones de estado de una iteración solo ocurren por acción del usuario.
+   Las llamadas reales (script `python -m app.foundry.smoke` o la API en modo `azure`) solo
+   cuando el usuario active el modo `azure`, anunciando antes cada llamada y su coste estimado.
+6. **Human-in-the-Loop**: las transiciones de estado (briefs, iteraciones) solo ocurren por
+   acción del usuario, a través de `app/hitl/` (`ensure_transition`). Nunca se inventan medidas:
+   lo que no conste va a `null` y, si hay dudas, a `open_questions`.
 7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación
    (el borrado de la app es suave: mueve a `data/.papelera/`).
 8. **Mínimo privilegio en contenedores**: usuario sin privilegios (uid 1000), puertos publicados

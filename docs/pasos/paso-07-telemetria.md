@@ -90,7 +90,7 @@ correcto es 0,0483472 €.
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-07`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-07`, PR #6 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

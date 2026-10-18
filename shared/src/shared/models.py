@@ -92,6 +92,60 @@ class Dimensions(_Model):
     height_m: float | None = Field(default=None, gt=0, le=20)
 
 
+# --- Ficha de una referencia (CONTEXT_MANAGER) ------------------------------------------
+
+
+class ReferenceCategory(StrEnum):
+    SOFA = "sofa"
+    MESA = "mesa"
+    SILLA = "silla"
+    CAMA = "cama"
+    ALMACENAJE = "almacenaje"
+    LAMPARA = "lampara"
+    ALFOMBRA = "alfombra"
+    TEXTIL = "textil"
+    DECORACION = "decoracion"
+    REVESTIMIENTO = "revestimiento"
+    AMBIENTE = "ambiente"  # inspiración de un ambiente completo
+    OTRO = "otro"
+
+
+class DimensionsCm(_Model):
+    """Medidas en cm; `None` si no se conocen (nunca se inventan)."""
+
+    width_cm: float | None = Field(ge=0, le=2_000)
+    depth_cm: float | None = Field(ge=0, le=2_000)
+    height_cm: float | None = Field(ge=0, le=2_000)
+
+
+class ReferenceAnalysis(_Model):
+    """Salida estructurada del CONTEXT_MANAGER para una referencia (Ikea, Pinterest...)."""
+
+    category: ReferenceCategory
+    item_name: str = Field(
+        description="Qué es, en español (p. ej. 'Sofá modular con chaiselongue')"
+    )
+    brand: str | None = Field(description="Marca si se conoce por la nota o la imagen")
+    product_name: str | None = Field(description="Nombre comercial del producto si se conoce")
+    style_tags: list[str] = Field(description="Estilos, en español")
+    colors: list[str] = Field(description="Colores, en español")
+    materials: list[str] = Field(description="Materiales y acabados, en español")
+    dimensions_cm: DimensionsCm
+    dimensions_source: Literal["nota_usuario", "imagen", "desconocido"]
+    summary: str = Field(description="Descripción breve en español")
+    design_relevance: str = Field(
+        description="Qué aporta al diseño (forma y medidas, textura, color, ambiente...)"
+    )
+
+
+class AssetAnalysis(_Model):
+    result: ReferenceAnalysis
+    status: Literal["proposed", "validated"] = "proposed"  # validated = revisado por el usuario
+    prompt_version: str | None = None
+    analyzed_at: datetime = Field(default_factory=utc_now)
+    validated_at: datetime | None = None
+
+
 class Asset(_Model):
     id: UUID = Field(default_factory=uuid4)
     kind: AssetKind
@@ -102,7 +156,70 @@ class Asset(_Model):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     width_px: int | None = Field(default=None, gt=0)
     height_px: int | None = Field(default=None, gt=0)
+    description: str = Field(default="", max_length=2_000)  # nota del usuario (p. ej. medidas)
+    analysis: AssetAnalysis | None = None  # solo referencias indexadas
     created_at: datetime = Field(default_factory=utc_now)
+
+
+# --- Brief de diseño (PROMPT_ENGINEER) -----------------------------------------------
+
+
+class FurnitureItem(_Model):
+    name: str
+    reference_asset_id: str | None = Field(
+        description="id de la referencia de la que procede, o null"
+    )
+    dimensions_cm: DimensionsCm
+    placement: str = Field(description="Ubicación en la estancia, en español")
+    keep_exact: bool = Field(description="True si forma y medidas deben respetarse con exactitud")
+
+
+class ImagePrompts(_Model):
+    """Prompts para los modelos de imagen, en inglés."""
+
+    fast_draft: str
+    structural_composer: str
+    photorealistic_renderer: str
+
+
+class DesignBriefContent(_Model):
+    """Salida estructurada del PROMPT_ENGINEER (editable por el usuario)."""
+
+    title: str
+    summary: str = Field(description="Resumen del diseño, en español")
+    spatial_constraints: list[str] = Field(description="Cotas, huecos y pasos libres, en español")
+    furniture: list[FurnitureItem]
+    palette: list[str]
+    materials: list[str]
+    lighting: str
+    camera: str = Field(description="Punto de vista propuesto, en español")
+    image_prompts: ImagePrompts
+    open_questions: list[str] = Field(description="Dudas para el usuario, en español")
+
+
+class BriefStatus(StrEnum):
+    PROPOSED = "propuesto"
+    APPROVED = "aprobado"
+    REJECTED = "rechazado"
+    SUPERSEDED = "reemplazado"  # había sido aprobado y se aprobó una versión posterior
+
+
+class DesignBrief(_Model):
+    id: UUID = Field(default_factory=uuid4)
+    version: int = Field(ge=1)
+    status: BriefStatus = BriefStatus.PROPOSED
+    content: DesignBriefContent
+    instructions: str = ""  # indicaciones del usuario para esta versión
+    feedback: str | None = None  # motivo del rechazo (alimenta la siguiente versión)
+    parent_id: UUID | None = None
+    source_asset_ids: list[UUID] = Field(default_factory=list)  # planos/capturas enviados
+    reference_asset_ids: list[UUID] = Field(default_factory=list)  # fichas incluidas
+    warnings: list[str] = Field(default_factory=list)
+    prompt_version: str | None = None
+    edited_by_user: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    decided_at: datetime | None = None
 
 
 class ProjectFields(_Model):
@@ -161,6 +278,7 @@ class ProjectMetadata(ProjectFields):
     created_at: datetime
     updated_at: datetime
     assets: list[Asset] = Field(default_factory=list)
+    briefs: list[DesignBrief] = Field(default_factory=list)
 
     def summary(self) -> ProjectSummary:
         return ProjectSummary(
