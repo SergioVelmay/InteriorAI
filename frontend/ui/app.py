@@ -5,65 +5,42 @@ python -m ui
 
 from __future__ import annotations
 
-import html
-from typing import Any, Literal
+from typing import Any
 
 import gradio as gr
-import httpx
 
 from shared import Settings, get_settings
+from ui.api_client import BackendClient
+from ui.tabs.projects import build_projects_tab
 from ui.theme import CSS, FORCE_DARK_JS, build_theme
+from ui.views import header_html
 
-BadgeLevel = Literal["ok", "warn", "error", "pending"]
+ACTIVE_PROJECT_KEY = "interiorai.active_project"
 
-HEADER_HTML = """
-<div class="iai-header">
-  <h1>InteriorAI</h1>
-  <p>Estudio de interiorismo asistido por IA · supervisión humana en cada etapa</p>
-</div>
-"""
-
-
-def badge(level: BadgeLevel, text: str) -> str:
-    return (
-        f'<span class="iai-badge iai-{level}"><span class="iai-dot"></span>'
-        f"{html.escape(text)}</span>"
-    )
+COMING_SOON = {
+    "Assets": "Planos, capturas de SketchUp y referencias con sus fichas — **Paso 12**.",
+    "Estudio": (
+        "Brief, bocetos, composición, render final y auditoría con revisión humana — **Paso 13**."
+    ),
+    "Costes": "Dashboard de costes de IA por rol, día y despliegue — **Paso 14**.",
+}
 
 
-async def fetch_backend_status(
-    base_url: str, transport: httpx.AsyncBaseTransport | None = None
-) -> str:
-    """Consulta `/health` del backend y devuelve un badge HTML."""
-    try:
-        async with httpx.AsyncClient(base_url=base_url, timeout=5, transport=transport) as client:
-            response = await client.get("/health")
-        body = response.json()
-    except (httpx.HTTPError, ValueError):
-        return badge("error", "Backend no disponible")
-    mode = body.get("mode", "?")
-    if response.status_code == 200 and body.get("status") == "ok":
-        return badge("ok", f"Backend conectado · modo {mode}")
-    return badge("warn", f"Backend degradado · almacenamiento no disponible · modo {mode}")
-
-
-def build_app(settings: Settings) -> gr.Blocks:
-    backend_url = settings.network.backend_url
-
-    async def check_backend() -> str:
-        return await fetch_backend_status(backend_url)
+def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blocks:
+    client = client or BackendClient(settings.network.backend_url)
+    data_dir = settings.storage.data_dir
 
     with gr.Blocks(title="InteriorAI", analytics_enabled=False) as demo:
-        gr.HTML(HEADER_HTML)
-        with gr.Row(equal_height=True):
-            status = gr.HTML(badge("pending", "Comprobando backend…"))
-            refresh = gr.Button("Comprobar conexión", variant="secondary", size="sm", scale=0)
-        gr.Markdown(
-            "Esqueleto de la interfaz. Las pestañas de **Proyectos**, **Assets**, "
-            "**Estudio** y **Costes** se añadirán en los Pasos 11 a 14."
-        )
-        demo.load(check_backend, outputs=status)
-        refresh.click(check_backend, outputs=status)
+        active = gr.BrowserState(None, storage_key=ACTIVE_PROJECT_KEY)
+        header = gr.HTML(header_html(None, None))
+        with gr.Tabs():
+            with gr.Tab("Proyectos"):
+                projects = build_projects_tab(client, data_dir, active, header)
+            for title, text in COMING_SOON.items():
+                with gr.Tab(title):
+                    gr.Markdown(f"Disponible próximamente. {text}", elem_classes="iai-soon")
+
+        demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
     return demo
 
 
@@ -74,6 +51,9 @@ def launch_kwargs(settings: Settings) -> dict[str, Any]:
         "theme": build_theme(),
         "css": CSS,
         "js": FORCE_DARK_JS,
+        # Las portadas se leen del volumen compartido (montado en solo lectura).
+        "allowed_paths": [str(settings.storage.data_dir)],
+        "footer_links": [],  # sin el pie de Gradio («Use via API», «Built with Gradio»)
     }
 
 

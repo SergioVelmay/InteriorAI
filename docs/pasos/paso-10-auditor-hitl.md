@@ -84,7 +84,7 @@ render final v1 rechazado sin regenerar («Sustituido por la v2 tras la auditor�
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-10`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-10`, PR #9 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

@@ -22,3 +22,4 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-016 | Revisar en Azure Cost Management lo facturado por los 4 intentos (timeout) de la primera auditoría con `max` (2026-10-18) | [Paso 10](paso-10-auditor-hitl.md) | Cuando haya datos de facturación | ⏳ Abierto |
 | B-017 | *Background mode* de la Responses API para llamadas de minutos (exige `store=true`) | [Paso 10](paso-10-auditor-hitl.md) | Cuando el usuario lo decida | ⏳ Abierto |
 | B-018 | Render final con la misma proporción que la captura (16:9 → 1920×1088 en el renderizador) | [Paso 10](paso-10-auditor-hitl.md) | Paso 13 o antes | ⏳ Abierto |
+| B-019 | Incorporar las pruebas de interfaz con Playwright (Edge/Chromium) al repositorio y a la CI | [Paso 11](paso-11-ui-proyectos.md) | Paso 15 | ⏳ Abierto |
