@@ -44,7 +44,8 @@ Cerrar el proyecto: endurecer los contenedores, permitir cualquier usuario en ho
 | newman y Playwright con los contenedores endurecidos | ✅ 47 peticiones / 83 comprobaciones; 5/5; sin errores de permisos en los logs |
 | Imágenes con uid 1234, solo lectura y sin capacidades | ✅ el backend crea un proyecto en `data/`; el frontend responde (HTTP 200) |
 | `papelera` dentro del contenedor | ✅ lista; sin terminal se niega a vaciar; con `--si` vacía (restos de pruebas, 0,9 MB); el proyecto real, intacto |
-| CI en la PR | (se completa con el resultado) |
+| CI en la PR #17 | ✅ `Lint y tests` 53 s · `gitleaks` 6 s · `Docker y extremo a extremo` 3 min 46 s |
+| Primera PR de Dependabot (#16) | ⚠️ Proponía Python 3.11 → 3.14 en las imágenes; la CI la rechazó. Dependabot ignora ahora las versiones menor y mayor de la imagen de Python |
 
 ## 5. Estado final
 
