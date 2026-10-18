@@ -24,3 +24,5 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-018 | Render final con la misma proporción que la captura (16:9 → 1920×1080) | [Paso 10](paso-10-auditor-hitl.md) | Paso 13b | ✅ Resuelto en [Paso 13b](paso-13b-retoques.md): 1920×1080 exacto (se genera a 1920×1088 y se recorta al centro) |
 | B-019 | Incorporar las pruebas de interfaz con Playwright (Edge/Chromium) al repositorio y a la CI | [Paso 11](paso-11-ui-proyectos.md) | Paso 15 | ⏳ Abierto |
 | B-020 | Comprobar con una llamada real si el renderizador acepta tamaños no múltiplos de 16 (p. ej. 1920×1080 directo); hoy se pide el múltiplo superior y se recorta al centro (≈ 0,09 €) | [Paso 13b](paso-13b-retoques.md) | Cuando el usuario lo decida | ⏳ Abierto |
+| B-021 | Alerta de gasto de IA por proyecto (umbral configurable) | [Paso 14](paso-14-ui-costes.md) | Cuando el usuario lo considere necesario (hoy son céntimos) | ⏳ Abierto |
+| B-022 | Incluir la indexación de referencias (`CONTEXT_MANAGER`) en el coste de la cadena de un render (guardar su `request_id` en la ficha) | [Paso 14](paso-14-ui-costes.md) | Cuando el usuario lo decida (≈ 0,0008 €) | ⏳ Abierto |

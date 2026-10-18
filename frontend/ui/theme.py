@@ -32,7 +32,17 @@ CSS = f"""
 .iai-error {{ border-color: #7f1d1d; color: #fca5a5; }}
 .iai-error .iai-dot {{ background: #ef4444; }}
 .iai-pending .iai-dot, .iai-neutral .iai-dot {{ background: #71717a; }}
-.iai-soon {{ color: #a1a1aa; padding: 2rem 0; text-align: center; }}
+/* Indicadores de la pestaña Costes. */
+.iai-kpis {{
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem;
+}}
+.iai-kpi {{
+    display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem;
+    border: 1px solid {BORDER}; border-radius: 0.75rem; background: {SURFACE};
+}}
+.iai-kpi span {{ color: #a1a1aa; font-size: 0.8rem; }}
+.iai-kpi strong {{ font-size: 1.35rem; font-weight: 600; }}
+.iai-muted {{ color: #a1a1aa; font-size: 0.875rem; }}
 /* Galería de proyectos: tarjetas 3:2 de ancho fijo mínimo y pie siempre visible. */
 .iai-gallery .grid-container {{
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;

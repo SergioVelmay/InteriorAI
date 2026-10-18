@@ -18,6 +18,7 @@ import gradio as gr
 
 from shared.models import AssetKind, BriefStatus, ProjectMetadata, RenderStage, RenderStatus
 from ui.api_client import ApiError, BackendClient
+from ui.cost_views import chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.studio_views import (
     COST_AUDIT,
@@ -309,6 +310,13 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             ]
             render_id = str(finals[0].id) if finals else None
         render = renders.get(render_id or "")
+        chain_line = ""
+        if render is not None:
+            try:  # lo que ha costado llegar a esta imagen
+                cost = await client.render_cost(project.id, render.id)
+                chain_line = "\n\n" + chain_cost_md(cost)
+            except ApiError:
+                chain_line = ""
         drafts_selected = selected_choices(project, RenderStage.DRAFT)
         compositions_selected = selected_choices(project, RenderStage.COMPOSITION)
 
@@ -355,7 +363,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             final_cost: cost_hint(COST_PER_IMAGE[RenderStage.FINAL], current_mode),
             audit_cost: cost_hint(COST_AUDIT, current_mode),
             viewer: image_of(project, render_id) if render else None,
-            viewer_md: render_detail_md(project, render),
+            viewer_md: render_detail_md(project, render) + chain_line,
             audit_md: audit_markdown(render.audits[-1] if render and render.audits else None),
             inpaint_files: gr.update(
                 value=[

@@ -14,6 +14,7 @@ from app.pipelines.images import VISION_MIME_TYPES, prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
 from app.storage import ProjectRepository
+from app.telemetry import current_request_id
 from shared.models import (
     Asset,
     AssetKind,
@@ -183,6 +184,7 @@ async def create_brief(
             reference_asset_ids=context.reference_ids,
             warnings=context.warnings,
             prompt_version=prompt.version,
+            request_id=current_request_id(),
         )
         return metadata.model_copy(update={"briefs": [*metadata.briefs, brief]}), brief
 

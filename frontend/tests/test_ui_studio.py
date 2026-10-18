@@ -244,12 +244,20 @@ async def test_studio_client_requests() -> None:
 # --- Pestaña --------------------------------------------------------------------------------
 
 
+CHAIN_COST = {
+    "render_id": str(uuid4()), "renders": 3, "briefs": 1, "by_role": [],
+    "totals": {"calls": 5, "cost_eur": 0.2969}, "simulated_calls": 0, "simulated_cost_eur": 0,
+}  # fmt: skip
+
+
 def studio_tab(p: ProjectMetadata, tmp_path: Path, mode: str = "mock"):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/health":
             return httpx.Response(200, json={
                 "status": "ok", "version": "0.1.0", "mode": mode, "data_dir_writable": True,
             })  # fmt: skip
+        if request.url.path.endswith("/cost"):
+            return httpx.Response(200, json=CHAIN_COST)
         return httpx.Response(200, json=p.model_dump(mode="json"))
 
     client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
@@ -373,7 +381,10 @@ async def test_show_render_opens_any_stage_in_the_viewer(tmp_path: Path) -> None
     p = project(briefs=[brief(1, BriefStatus.APPROVED)], renders=[composition])
     tab = studio_tab(p, tmp_path)
     result = await tab.show_render(str(p.id), str(composition.id))
-    assert any(isinstance(v, str) and f"`{composition.id.hex[:8]}`" in v for v in result.values())
+    detail = next(
+        v for v in result.values() if isinstance(v, str) and "`" + composition.id.hex[:8] in v
+    )
+    assert "**Coste acumulado de la cadena:** 0.2969 € · 5 llamada(s)" in detail
 
 
 def test_raw_output_helpers() -> None:

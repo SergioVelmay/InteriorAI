@@ -90,6 +90,14 @@ Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €.
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 
+Paso 14: `summary.py` filtra las llamadas simuladas (`include_simulated`; la API las incluye
+por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el coste de la
+cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,
+intentos rechazados que sustituye, retoques y su salida en bruto), sus auditorías y el brief
+con sus versiones previas (`DesignBrief.request_id`; los briefs anteriores se emparejan por
+hora con su llamada de `PROMPT_ENGINEER`, ±10 s). Sin ramas descartadas ni la indexación de
+referencias.
+
 - `app.state.foundry` es un **`MeteredFoundryClient`** que envuelve al cliente mock/Azure
   (`create_metered_client`). Mide latencia (con reintentos), tokens (entrada, caché, escritura
   en caché, texto/imagen, salida, razonamiento), imágenes y megapíxeles, y estima el coste.

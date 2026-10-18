@@ -55,7 +55,7 @@ cuando importa más la coherencia de la escena que conservar cada píxel.
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-13b`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-13b`, PR #13 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

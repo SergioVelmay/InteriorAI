@@ -1,4 +1,5 @@
-"""Agregados de telemetría para el dashboard de costes (totales, por rol, día y despliegue)."""
+"""Agregados de telemetría para el dashboard de costes: totales y desgloses por rol, día,
+despliegue y proyecto, de un proyecto o de todos, con o sin las llamadas simuladas."""
 
 from __future__ import annotations
 
@@ -26,18 +27,28 @@ class CostTotals(BaseModel):
 
 class GroupTotals(CostTotals):
     key: str
+    label: str | None = None  # nombre legible (p. ej. del proyecto)
+
+
+class CostRecord(TelemetryRecord):
+    """Registro de telemetría con el proyecto al que pertenece."""
+
+    project_id: UUID | None = None
+    project_name: str | None = None
 
 
 class CostSummary(BaseModel):
-    project_id: UUID
+    project_id: UUID | None  # None = todos los proyectos
     currency: str
     estimated: bool = True  # precios de lista; la cifra real está en Azure Cost Management
-    includes_simulated: bool
+    includes_simulated: bool  # hay llamadas simuladas en los totales
+    simulated_excluded: int = 0  # llamadas simuladas que se han dejado fuera
     totals: CostTotals
     by_role: list[GroupTotals]
     by_day: list[GroupTotals]
     by_deployment: list[GroupTotals]
-    records: list[TelemetryRecord]
+    by_project: list[GroupTotals] = []
+    records: list[CostRecord]
 
 
 def _accumulate(totals: CostTotals, record: TelemetryRecord) -> None:
@@ -64,29 +75,47 @@ def _rounded(totals: CostTotals) -> CostTotals:
 
 
 def _group(
-    records: Iterable[TelemetryRecord], key: Callable[[TelemetryRecord], str]
+    records: Iterable[CostRecord],
+    key: Callable[[CostRecord], str],
+    label: Callable[[CostRecord], str | None] = lambda r: None,
 ) -> list[GroupTotals]:
     groups: dict[str, GroupTotals] = {}
     for record in records:
         k = key(record)
-        _accumulate(groups.setdefault(k, GroupTotals(key=k)), record)
+        _accumulate(groups.setdefault(k, GroupTotals(key=k, label=label(record))), record)
     return sorted((_rounded(g) for g in groups.values()), key=lambda g: g.key)  # type: ignore[misc]
 
 
 def summarize(
-    project_id: UUID, records: list[TelemetryRecord], currency: str, limit: int
+    project_id: UUID | None,
+    records: list[CostRecord],
+    currency: str,
+    limit: int,
+    include_simulated: bool = True,
 ) -> CostSummary:
+    kept = [r for r in records if include_simulated or not r.simulated]
     totals = CostTotals()
-    for record in records:
+    for record in kept:
         _accumulate(totals, record)
-    latest = sorted(records, key=lambda r: r.timestamp, reverse=True)[:limit]
+    latest = sorted(kept, key=lambda r: r.timestamp, reverse=True)[:limit]
     return CostSummary(
         project_id=project_id,
         currency=currency,
-        includes_simulated=any(r.simulated for r in records),
+        includes_simulated=any(r.simulated for r in kept),
+        simulated_excluded=len(records) - len(kept),
         totals=_rounded(totals),
-        by_role=_group(records, lambda r: r.role.value),
-        by_day=_group(records, lambda r: r.timestamp.date().isoformat()),
-        by_deployment=_group(records, lambda r: r.deployment),
+        by_role=_group(kept, lambda r: r.role.value),
+        by_day=_group(kept, lambda r: r.timestamp.date().isoformat()),
+        by_deployment=_group(kept, lambda r: r.deployment),
+        by_project=_group(kept, lambda r: str(r.project_id), lambda r: r.project_name),
         records=latest,
     )
+
+
+def with_project(
+    records: Iterable[TelemetryRecord], project_id: UUID, project_name: str
+) -> list[CostRecord]:
+    return [
+        CostRecord(**r.model_dump(), project_id=project_id, project_name=project_name)
+        for r in records
+    ]

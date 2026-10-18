@@ -119,6 +119,83 @@ def test_costs_for_missing_project(api: TestClient) -> None:
     assert api.get(f"/api/v1/projects/{uuid4()}/costs").status_code == 404
 
 
+def _real_record(cost: float, role: Role = Role.FAST_DRAFT, **extra) -> TelemetryRecord:
+    return TelemetryRecord(
+        role=role, deployment="d", operation="generate_image", status="ok", latency_s=1.0,
+        cost_eur=cost, simulated=False, **extra,
+    )  # fmt: skip
+
+
+def test_costs_without_simulated_calls_and_for_all_projects(api: TestClient) -> None:
+    repo: ProjectRepository = api.app.state.repository
+    first = create_project(api)
+    second = api.post("/api/v1/projects", json={"name": "Dormitorio", "space_type": "otro"})
+    second = second.json()["id"]
+    api.portal.call(_simulate_calls, api, first)  # 3 llamadas simuladas
+    api.portal.call(repo.append_telemetry, first, _real_record(0.1))
+    api.portal.call(repo.append_telemetry, second, _real_record(0.2))
+
+    url = f"/api/v1/projects/{first}/costs"
+    assert api.get(url).json()["totals"]["calls"] == 4  # por defecto, todo (compatibilidad)
+    real = api.get(url, params={"include_simulated": False}).json()
+    assert real["totals"]["calls"] == 1 and real["totals"]["cost_eur"] == 0.1
+    assert real["simulated_excluded"] == 3 and real["includes_simulated"] is False
+    assert real["records"][0]["project_name"] == "x"
+
+    everything = api.get("/api/v1/costs", params={"include_simulated": False}).json()
+    assert everything["project_id"] is None
+    assert everything["totals"]["calls"] == 2
+    assert everything["totals"]["cost_eur"] == pytest.approx(0.3)
+    assert {g["label"]: g["cost_eur"] for g in everything["by_project"]} == {
+        "x": 0.1, "Dormitorio": 0.2,
+    }  # fmt: skip
+    assert api.get("/api/v1/costs").json()["totals"]["calls"] == 5
+
+
+def test_chain_cost_matches_legacy_briefs_by_time() -> None:
+    from datetime import timedelta
+
+    from app.telemetry.chain import chain_cost
+    from shared.models import (
+        DesignBrief,
+        DesignBriefContent,
+        ImagePrompts,
+        ProjectMetadata,
+        RenderRecord,
+        utc_now,
+    )  # fmt: skip
+
+    content = DesignBriefContent(
+        title="t", summary="s", spatial_constraints=[], furniture=[], palette=[], materials=[],
+        lighting="l", camera="c", open_questions=[],
+        image_prompts=ImagePrompts(fast_draft="f", structural_composer="s",
+                                   photorealistic_renderer="p"),
+    )  # fmt: skip
+    brief = DesignBrief(version=1, content=content)  # anterior al Paso 14: sin request_id
+    draft = RenderRecord(
+        id=uuid4(), stage="boceto", role=Role.FAST_DRAFT, deployment="d", brief_id=brief.id,
+        brief_version=1, prompt="p", input_asset_ids=[], batch_id=uuid4(), size="1536x1024",
+        request_id="r-draft",
+    )  # fmt: skip
+    now = utc_now()
+    project = ProjectMetadata(
+        id=uuid4(), name="x", space_type="otro", created_at=now, updated_at=now,
+        briefs=[brief], renders=[draft],
+    )  # fmt: skip
+    records = [
+        _real_record(0.02, Role.PROMPT_ENGINEER, request_id="r-brief",
+                     timestamp=brief.created_at - timedelta(seconds=1)),
+        _real_record(0.5, Role.PROMPT_ENGINEER, request_id="r-other",
+                     timestamp=brief.created_at - timedelta(hours=1)),  # otro brief
+        _real_record(0.03, request_id="r-draft"),
+        _real_record(0.03, request_id="r-sibling"),  # otra llamada: fuera de la cadena
+    ]  # fmt: skip
+    result = chain_cost(project, records, draft.id)
+    assert result is not None and result.renders == 1 and result.briefs == 1
+    assert result.totals.calls == 2 and result.totals.cost_eur == pytest.approx(0.05)
+    assert chain_cost(project, records, uuid4()) is None
+
+
 def test_pricing_endpoint(api: TestClient) -> None:
     pricing = api.get("/api/v1/pricing").json()
     assert pricing["long_context_threshold_tokens"] == 272000
