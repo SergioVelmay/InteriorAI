@@ -65,6 +65,7 @@ jobs:
         run: |
           cp .env.example .env
           grep -q '^AI_PROVIDER_MODE=mock$' .env
+          mkdir -p data  # volumen studio_shared_data (en git solo existe en .gitignore)
       - name: Construir y levantar (las imágenes comprueban sus imports al construirse)
         run: docker compose up -d --build
       - name: Esperar a backend y frontend
