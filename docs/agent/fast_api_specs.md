@@ -147,6 +147,14 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 - Pruebas manuales desde Git Bash: no usar `curl -d` con tildes (cp1252); usar Swagger,
   Postman o un script Python.
 
+## Papelera (Paso 15b)
+
+`app/storage/trash.py` + `ProjectRepository.list_trash/restore_project/empty_trash` (bloqueo
+`papelera`). Proyecto borrado: `.papelera/{id}-{marca}`; asset borrado:
+`.papelera/{id}/{marca}-{archivo}`. Solo se restauran proyectos completos (nunca se
+sobrescribe uno existente); vaciar es definitivo, admite `--dias N` y la CLI pide escribir
+VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
+
 ## Renders (Paso 9)
 
 - `app/pipelines/renders.py`: el brief debe estar `aprobado` (409); la imagen base es la

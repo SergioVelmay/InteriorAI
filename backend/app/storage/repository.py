@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
+from app.storage import trash
 from app.storage.atomic import (
     CorruptDataError,
     read_json,
@@ -61,6 +62,9 @@ class ProjectNotFoundError(LookupError):
 
 class AssetNotFoundError(LookupError):
     pass
+
+
+TRASH_KEY = "papelera"  # bloqueo de las operaciones sobre la papelera
 
 
 def _trash_stamp() -> str:
@@ -402,6 +406,36 @@ class ProjectRepository:
         if not paths.telemetry.is_file():
             return TelemetryLog()
         return read_json(paths.telemetry, TelemetryLog)
+
+    # --- Papelera ---------------------------------------------------------------------
+
+    @property
+    def trash_dir(self) -> Path:
+        return self.data_dir / TRASH_DIR
+
+    async def list_trash(self) -> tuple[list[trash.TrashedProject], list[trash.TrashedFile]]:
+        return await self._run(trash.scan, self.trash_dir)
+
+    async def restore_project(self, entry: str) -> ProjectMetadata:
+        """Devuelve un proyecto borrado a `data/` y al índice."""
+        async with self._locks.hold(TRASH_KEY):
+            project_id = await self._run(
+                trash.restore_project, self.trash_dir, self.data_dir, entry
+            )
+        metadata = await self.get(project_id)
+        async with self._locks.hold(INDEX_KEY):
+            await self._run(self._upsert_index, metadata.summary())
+        logger.info("Proyecto %s restaurado desde la papelera", project_id)
+        return metadata
+
+    async def empty_trash(
+        self, projects: list[trash.TrashedProject], files: list[trash.TrashedFile]
+    ) -> int:
+        """Borrado **definitivo** de lo seleccionado (la CLI pide confirmación antes)."""
+        async with self._locks.hold(TRASH_KEY):
+            freed = await self._run(trash.empty, self.trash_dir, projects, files)
+        logger.info("Papelera: %d proyecto(s) y %d archivo(s) borrados", len(projects), len(files))
+        return freed
 
     async def read_telemetry(self, project_id: str | UUID) -> TelemetryLog:
         paths = self._paths(project_id)

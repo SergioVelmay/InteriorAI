@@ -28,6 +28,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      # El proyecto está fijado a Python 3.11 (requires-python <3.12): solo parches de 3.11.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       docker:
         patterns: ["*"]

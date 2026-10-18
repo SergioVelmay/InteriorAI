@@ -31,6 +31,10 @@ docker compose down
 docker compose exec backend python -m app.storage listar
 docker compose exec backend python -m app.storage crear "Nombre" --tipo dormitorio
 docker compose exec backend python -m app.storage reindexar
+# Papelera: vaciar es DEFINITIVO y pide escribir VACIAR (confirmar siempre con el usuario)
+docker compose exec backend python -m app.storage papelera listar
+docker compose exec backend python -m app.storage papelera restaurar <entrada>
+docker compose exec backend python -m app.storage papelera vaciar [--dias N]
 ```
 
 ```bash

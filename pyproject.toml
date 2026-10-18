@@ -1,6 +1,6 @@
 [project]
 name = "interiorai"
-version = "0.1.0"
+version = "1.0.0"
 description = "Estudio de interiorismo asistido por IA con Human-in-the-Loop"
 requires-python = ">=3.11,<3.12"
 dependencies = ["interiorai-shared", "interiorai-backend", "interiorai-frontend"]

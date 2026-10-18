@@ -363,7 +363,7 @@ wheels = [
 
 [[package]]
 name = "interiorai"
-version = "0.1.0"
+version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "interiorai-backend" },
@@ -404,7 +404,7 @@ e2e = [
 
 [[package]]
 name = "interiorai-backend"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "anyio" },
@@ -435,7 +435,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-frontend"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "frontend" }
 dependencies = [
     { name = "gradio" },
@@ -454,7 +454,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-shared"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "shared" }
 dependencies = [
     { name = "pydantic" },
