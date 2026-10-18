@@ -39,6 +39,7 @@ class CostRecord(TelemetryRecord):
 
 class CostSummary(BaseModel):
     project_id: UUID | None  # None = todos los proyectos
+    project_name: str | None = None
     currency: str
     estimated: bool = True  # precios de lista; la cifra real está en Azure Cost Management
     includes_simulated: bool  # hay llamadas simuladas en los totales
@@ -92,6 +93,7 @@ def summarize(
     currency: str,
     limit: int,
     include_simulated: bool = True,
+    project_name: str | None = None,
 ) -> CostSummary:
     kept = [r for r in records if include_simulated or not r.simulated]
     totals = CostTotals()
@@ -100,6 +102,7 @@ def summarize(
     latest = sorted(kept, key=lambda r: r.timestamp, reverse=True)[:limit]
     return CostSummary(
         project_id=project_id,
+        project_name=project_name,
         currency=currency,
         includes_simulated=any(r.simulated for r in kept),
         simulated_excluded=len(records) - len(kept),

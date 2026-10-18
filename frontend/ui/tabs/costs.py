@@ -125,7 +125,7 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         except ApiError as exc:
             gr.Warning(exc.detail)
             return empty(f"### Costes no disponibles\n{exc.detail}")
-        name = summary["records"][0]["project_name"] if summary["records"] else None
+        name = summary.get("project_name")
         title = (
             "todos los proyectos" if project_id is None else f"«{name}»" if name else "el proyecto"
         )

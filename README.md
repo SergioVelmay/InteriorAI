@@ -1,5 +1,7 @@
 # InteriorAI
 
+[![CI](https://github.com/SergioVelmay/InteriorAI/actions/workflows/ci.yml/badge.svg)](https://github.com/SergioVelmay/InteriorAI/actions/workflows/ci.yml)
+
 Estudio de interiorismo asistido por IA con supervisión humana (Human-in-the-Loop),
 construido con FastAPI, Gradio y Azure AI Foundry.
 
@@ -37,6 +39,18 @@ Prueba de extremo a extremo de la API con [Postman CLI](https://learning.postman
 postman collection run postman/interiorai.postman_collection.json \
   -e postman/local.postman_environment.json --working-dir postman
 ```
+
+Pruebas de la interfaz con [Playwright](https://playwright.dev/python/) (con la app levantada
+en modo mock; crean proyectos «E2E …» y los mueven a la papelera al terminar):
+
+```bash
+uv run --group e2e playwright install chromium   # una vez
+uv run --group e2e pytest e2e                    # o --browser-channel msedge con el Edge instalado
+```
+
+La CI (GitHub Actions) ejecuta en cada Pull Request lint, tests, gitleaks sobre todo el
+historial, la construcción de las imágenes, la colección de Postman (con newman) y las pruebas
+de Playwright, siempre en modo mock y sin secretos. Seguridad: [SECURITY.md](SECURITY.md).
 
 Los proyectos y renders se guardan en `./data` (volumen `studio_shared_data`), que nunca
 se sube a git. En Linux, crea antes la carpeta con `mkdir -p data`.

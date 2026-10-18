@@ -54,7 +54,7 @@ llama ahora «Salón con Sofá Jattebo de Ikea» (renombrado por el usuario).
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-14`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-14`, PR #14 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 

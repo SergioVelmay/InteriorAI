@@ -36,11 +36,19 @@ claro). Dark mode forzado con `FORCE_DARK_JS` (añade la clase `dark` a `<body>`
 propias con prefijo `iai-`. Campos y botones secundarios en zinc (`#18181b`), galería en
 tarjetas 3:2 con pie visible. Todo en `frontend/ui/theme.py`.
 
-## Validación visual
+## Validación visual y pruebas de extremo a extremo
 
-Playwright con el Edge instalado (`channel="msedge"`), esperando `wait_until="load"` y un texto
-visible («Backend conectado»): Gradio mantiene una conexión abierta (`networkidle` nunca llega) y
-`msedge --virtual-time-budget` congela la carga.
+Pruebas en `e2e/` (pytest-playwright, grupo `e2e`; fuera de `uv run pytest`): Proyectos, Assets,
+Estudio, retoques y Costes, con proyectos propios «E2E …» que se mueven a la papelera al terminar.
+Se niegan a ejecutarse si el backend no está en mock. En local, `--browser-channel msedge`; en la
+CI, Chromium. Claves:
+
+- Esperar `wait_until="load"` y un texto visible («Backend conectado»): Gradio mantiene una
+  conexión abierta (`networkidle` nunca llega).
+- `UI.activate` recarga la página: el proyecto pudo crearse por API después de abrirla.
+- Los avisos (`gr.Info`) aparecen **antes** de que la vista se actualice: esperar al estado nuevo
+  (p. ej. el valor de un desplegable) antes de interactuar.
+- `expect` con 30 s (Gradio tarda en actualizar tras cada evento).
 
 ## Reglas
 

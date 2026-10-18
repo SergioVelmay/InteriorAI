@@ -21,8 +21,9 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 12 | [UI: assets](paso-12-ui-assets.md) | `feat/paso-12` | ✅ Cerrado |
 | 13a | [UI: Estudio (ciclo HITL)](paso-13a-ui-estudio.md) | `feat/paso-13a` | ✅ Cerrado |
 | 13b | [UI: Estudio (retoques e inpainting)](paso-13b-retoques.md) | `feat/paso-13b` | ✅ Cerrado |
-| 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | 🧪 En validación |
-| 15 | Hardening, CI y release | — | ⏳ Pendiente |
+| 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | ✅ Cerrado |
+| 15a | [CI, Dependabot y seguridad del repositorio](paso-15a-ci-seguridad.md) | `feat/paso-15a` | 🧪 En validación |
+| 15b | Contenedores, papelera y versión 1.0.0 | — | ⏳ Pendiente |
 
 ## Plantilla de documento de paso
 
