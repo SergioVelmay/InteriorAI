@@ -43,8 +43,8 @@ RECORDS = [
 
 def summary(**extra) -> dict:
     return {
-        "project_id": PROJECT, "currency": "EUR", "estimated": True, "includes_simulated": False,
-        "simulated_excluded": 0,
+        "project_id": PROJECT, "project_name": "Salón", "currency": "EUR", "estimated": True,
+        "includes_simulated": False, "simulated_excluded": 0,
         "totals": {"calls": 3, "errors": 1, "unpriced_calls": 0, "cost_eur": 0.1178,
                    "images_out": 2, "megapixels_out": 4.9152, "latency_s": 37.02},
         "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.0305, "calls": 1},

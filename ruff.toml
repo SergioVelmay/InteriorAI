@@ -16,6 +16,7 @@ select = [
 
 [lint.per-file-ignores]
 "**/tests/**" = ["S101", "S105", "S106"]  # assert y credenciales falsas en tests
+"e2e/**" = ["S101"]  # assert en las pruebas de extremo a extremo
 
 [format]
 quote-style = "double"

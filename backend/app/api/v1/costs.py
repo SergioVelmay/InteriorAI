@@ -38,7 +38,9 @@ async def project_costs(
     project = await repo.get(project_id)
     log = await repo.read_telemetry(project_id)
     records = with_project(log.records, project.id, project.name)
-    return summarize(project_id, records, _currency(request), limit, include_simulated)
+    return summarize(
+        project_id, records, _currency(request), limit, include_simulated, project.name
+    )
 
 
 @router.get("/costs", response_model=CostSummary)

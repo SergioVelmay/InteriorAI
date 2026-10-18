@@ -1,0 +1,99 @@
+# CI de InteriorAI: todo en modo mock, sin secretos ni llamadas a Azure.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.12.17"
+
+jobs:
+  tests:
+    name: Lint y tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  secrets:
+    name: gitleaks (todo el historial)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # historial completo (B-002)
+          persist-credentials: false
+      - name: gitleaks v8.30.1
+        run: >
+          docker run --rm -v "$PWD:/repo" -w /repo
+          ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git /repo --config /repo/.gitleaks.toml --redact --verbose
+
+  e2e:
+    name: Docker y extremo a extremo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Configuración de ejemplo (AI_PROVIDER_MODE=mock, sin credenciales)
+        run: |
+          cp .env.example .env
+          grep -q '^AI_PROVIDER_MODE=mock$' .env
+          mkdir -p data  # volumen studio_shared_data (en git solo existe en .gitignore)
+      - name: Construir y levantar (las imágenes comprueban sus imports al construirse)
+        run: docker compose up -d --build
+      - name: Esperar a backend y frontend
+        run: |
+          for i in $(seq 60); do
+            curl -fsS http://127.0.0.1:8000/health && curl -fsS -o /dev/null http://127.0.0.1:7860/ && exit 0
+            sleep 2
+          done
+          docker compose ps; docker compose logs; exit 1
+      - name: API con la colección de Postman (newman)
+        run: >
+          npx --yes newman@6.2.3 run postman/interiorai.postman_collection.json
+          -e postman/local.postman_environment.json --working-dir postman
+      - name: Interfaz con Playwright (Chromium)
+        run: |
+          uv sync --locked --group e2e
+          uv run playwright install --with-deps chromium
+          uv run pytest e2e --tracing retain-on-failure --output e2e-results
+      - name: Trazas de Playwright si algo falla
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-results
+          path: e2e-results
+          retention-days: 7
+      - name: Logs de los contenedores
+        if: failure()
+        run: docker compose logs
+      - name: Parar
+        if: always()
+        run: docker compose down

@@ -49,3 +49,8 @@ echo s | docker compose exec -T backend python -m app.foundry.smoke --role FAST_
 postman collection run postman/interiorai.postman_collection.json \
   -e postman/local.postman_environment.json --working-dir postman
 ```
+
+```bash
+# Interfaz de extremo a extremo (Playwright; app levantada en mock; proyectos «E2E …»)
+uv run --group e2e pytest e2e --browser-channel msedge
+```

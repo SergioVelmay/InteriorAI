@@ -141,6 +141,7 @@ def test_costs_without_simulated_calls_and_for_all_projects(api: TestClient) -> 
     assert real["totals"]["calls"] == 1 and real["totals"]["cost_eur"] == 0.1
     assert real["simulated_excluded"] == 3 and real["includes_simulated"] is False
     assert real["records"][0]["project_name"] == "x"
+    assert real["project_name"] == "x"
 
     everything = api.get("/api/v1/costs", params={"include_simulated": False}).json()
     assert everything["project_id"] is None
