@@ -76,7 +76,7 @@ async def build_context(
     )
     for asset in sources:
         if asset.mime_type not in VISION_MIME_TYPES:
-            warnings.append(f"'{asset.original_name}' es un PDF y no se envía (solo imágenes)")
+            warnings.append(f"'{asset.original_name}' no es una imagen y no se envía")
     usable = [a for a in sources if a.mime_type in VISION_MIME_TYPES]
     if len(usable) > MAX_SOURCE_IMAGES:
         warnings.append(

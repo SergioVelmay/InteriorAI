@@ -1,6 +1,6 @@
 # Gradio — interfaz de usuario
 
-> Estado: **shell y pestaña de Proyectos implementados** (Paso 11). Faltan Assets, Estudio y Costes (Pasos 12-14).
+> Estado: **Proyectos y Assets implementados** (Pasos 11-12). Faltan Estudio y Costes (Pasos 13-14).
 
 ## Estructura y arranque (Gradio 6)
 
@@ -12,6 +12,10 @@
 - `frontend/ui/views.py` y `covers.py`: presentación pura (cabecera, resumen, formulario,
   portadas) testeable sin Gradio. `frontend/ui/tabs/<pestaña>.py`: construcción y eventos.
 - Manejadores: devuelven `dict` {componente: valor}; errores con `gr.Warning`, éxitos con `gr.Info`.
+  **Nunca devolver `{}`** (Gradio lo toma como un único valor y el evento falla): usar
+  `{componente: gr.skip()}` (`unchanged()` en cada pestaña; hay un test que lo vigila).
+- Pestañas que dependen del proyecto activo se recargan al entrar (`Tab.select`).
+- Lectura de archivos en manejadores asíncronos con `anyio.Path` (no bloquear el bucle).
 - Proyecto activo: `gr.BrowserState(storage_key="interiorai.active_project")`.
 - `elem_id` estables (`iai-new-name`, `iai-project-name`, `iai-project-description`) para pruebas.
 - **En Gradio 6 `theme`, `css` y `js` se pasan a `launch()`**, no a `gr.Blocks()`.
@@ -46,6 +50,6 @@ visible («Backend conectado»): Gradio mantiene una conexión abierta (`network
 | Pestaña | Contenido | Paso |
 |---------|-----------|------|
 | Proyectos | Galería con portadas, ficha editable, crear, activar, borrar (papelera) | 11 ✅ |
-| Assets | Planos, referencias, capturas SketchUp; indexado | 12 |
+| Assets | Subpestañas Capturas · Planos · Referencias: subir (solo imágenes), ver, nota, papelera; indexar (manual) y validar fichas | 12 ✅ |
 | Estudio | Notas → prompt → bocetos → composición → auditoría → aprobación → render; `gr.ImageEditor` para máscaras | 13 |
 | Costes | KPIs, coste por rol y temporal, tabla detallada | 14 |

@@ -104,6 +104,10 @@ def build_projects_tab(
 
     # --- Manejadores ---------------------------------------------------------------------
 
+    def unchanged() -> dict:
+        # Gradio interpreta `{}` como un único valor: para no cambiar nada se usa gr.skip().
+        return {header: gr.skip()}
+
     def detail(project: ProjectMetadata | None, costs: dict | None) -> dict:
         if project is None:
             return {
@@ -146,7 +150,7 @@ def build_projects_tab(
             costs = await client.project_costs(project_id)
         except ApiError as exc:
             gr.Warning(exc.detail)
-            return {}
+            return unchanged()
         return {
             active: project_id,
             header: header_html(await safe_health(client), project),
@@ -156,7 +160,7 @@ def build_projects_tab(
     async def on_create(name_v: str, type_v: str, description_v: str, notes_v: str) -> dict:
         if not (name_v or "").strip():
             gr.Warning("Ponle un nombre al proyecto")
-            return {}
+            return unchanged()
         try:
             data = ProjectCreate(
                 name=name_v, space_type=type_v, description=description_v or "",
@@ -165,7 +169,7 @@ def build_projects_tab(
             project = await client.create_project(data)
         except (ApiError, ValueError) as exc:
             gr.Warning(getattr(exc, "detail", str(exc)))
-            return {}
+            return unchanged()
         gr.Info(f"Proyecto «{project.name}» creado")
         return {
             **await refresh_all(str(project.id)),
@@ -176,12 +180,12 @@ def build_projects_tab(
 
     async def on_save(active_id: str | None, *values: Any) -> dict:
         if not active_id:
-            return {}
+            return unchanged()
         try:
             project = await client.update_project(active_id, parse_form(list(values)))
         except (ApiError, ValueError) as exc:
             gr.Warning(getattr(exc, "detail", str(exc)))
-            return {}
+            return unchanged()
         gr.Info(f"Cambios guardados en «{project.name}»")
         return await refresh_all(active_id)
 

@@ -91,8 +91,8 @@ data/
 
 - `{kind}` solo admite `UploadKind` (`plano`, `referencia`, `captura_sketchup`): los renders
   solo los genera la IA (otro valor → 422).
-- Tipo real por magic bytes (`detect_mime`), nunca por extensión/`Content-Type`. Planos: PNG,
-  JPEG, WebP, PDF; referencias/capturas: PNG, JPEG, WebP → si no, 415.
+- Tipo real por magic bytes (`detect_mime`), nunca por extensión/`Content-Type`. Todos los tipos
+  (planos incluidos, desde el Paso 12): PNG, JPEG, WebP → si no, 415.
 - Imágenes decodificadas por completo con Pillow (corruptas → 415) y límite de 80 MP
   (`DecompressionBombWarning` convertido en error → 413). Se guardan `width_px`/`height_px`.
 - Tamaño: `MAX_UPLOAD_MB` por archivo (multipart por bloques; Base64 estimado antes de

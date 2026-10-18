@@ -38,7 +38,9 @@ CSS = f"""
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
     grid-auto-rows: auto !important; gap: 1rem !important;
 }}
-.iai-gallery .grid-wrap {{ max-height: none !important; height: auto !important; }}
+.iai-gallery .grid-wrap {{
+    min-height: 0 !important; max-height: none !important; height: auto !important;
+}}
 .iai-gallery .thumbnail-item {{
     aspect-ratio: 3 / 2; height: auto !important; border: 1px solid {BORDER} !important;
     border-radius: 10px; overflow: hidden;
@@ -52,6 +54,16 @@ CSS = f"""
     font-size: 0.85rem !important; text-align: left !important;
 }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
+/* Barras de desplazamiento oscuras (la clara por defecto desentonaba). */
+* {{ scrollbar-color: #3f3f46 {BACKGROUND}; scrollbar-width: thin; }}
+::-webkit-scrollbar {{ width: 10px; height: 10px; }}
+::-webkit-scrollbar-track {{ background: {BACKGROUND}; }}
+::-webkit-scrollbar-thumb {{ background: #3f3f46; border-radius: 6px; }}
+::-webkit-scrollbar-thumb:hover {{ background: #52525b; }}
+/* Galerías sin hueco vacío bajo las tarjetas. */
+.iai-gallery, .iai-gallery .gallery-container {{
+    min-height: 0 !important; height: auto !important;
+}}
 """
 
 

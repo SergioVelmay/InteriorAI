@@ -17,8 +17,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 8 | [Pipelines de texto](paso-08-pipelines-texto.md) | `feat/paso-08` | ✅ Cerrado |
 | 9 | [Pipelines de imagen](paso-09-pipelines-imagen.md) | `feat/paso-09` | ✅ Cerrado |
 | 10 | [Auditor geométrico + HITL](paso-10-auditor-hitl.md) | `feat/paso-10` | ✅ Cerrado |
-| 11 | [UI: shell, tema y proyectos](paso-11-ui-proyectos.md) | `feat/paso-11` | 🧪 En validación |
-| 12 | UI: assets | — | ⏳ Pendiente |
+| 11 | [UI: shell, tema y proyectos](paso-11-ui-proyectos.md) | `feat/paso-11` | ✅ Cerrado |
+| 12 | [UI: assets](paso-12-ui-assets.md) | `feat/paso-12` | 🧪 En validación |
 | 13 | UI: Estudio (HITL) | — | ⏳ Pendiente |
 | 14 | UI: dashboard de costes | — | ⏳ Pendiente |
 | 15 | Hardening, CI y release | — | ⏳ Pendiente |

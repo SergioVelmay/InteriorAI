@@ -7,11 +7,14 @@ from collections import Counter
 from typing import Any, Literal
 
 from shared.models import (
+    Asset,
     AssetKind,
     Dimensions,
+    DimensionsCm,
     ProjectMetadata,
     ProjectSummary,
     ProjectUpdate,
+    ReferenceAnalysis,
     RenderStage,
     RenderStatus,
 )
@@ -132,4 +135,106 @@ def parse_form(values: list[Any]) -> ProjectUpdate:
         dimensions=dimensions,
         style=data["style"] or "",
         budget_eur=data["budget_eur"],
+    )
+
+
+# --- Assets (Paso 12) ---------------------------------------------------------------------
+
+ANALYSIS_LABELS = {None: "Sin indexar", "proposed": "Propuesta (IA)", "validated": "Validada ✓"}
+CATEGORY_CHOICES = [
+    ("Sofá", "sofa"), ("Mesa", "mesa"), ("Silla", "silla"), ("Cama", "cama"),
+    ("Almacenaje", "almacenaje"), ("Lámpara", "lampara"), ("Alfombra", "alfombra"),
+    ("Textil", "textil"), ("Decoración", "decoracion"), ("Revestimiento", "revestimiento"),
+    ("Ambiente (inspiración)", "ambiente"), ("Otro", "otro"),
+]  # fmt: skip
+DIMENSION_SOURCE_CHOICES = [
+    ("Nota del usuario", "nota_usuario"),
+    ("Leída en la imagen", "imagen"),
+    ("Desconocido", "desconocido"),
+]
+
+
+def analysis_status(asset: Asset) -> str:
+    return ANALYSIS_LABELS[asset.analysis.status if asset.analysis else None]
+
+
+def asset_caption(asset: Asset) -> str:
+    parts = [asset.original_name]
+    if asset.width_px and asset.height_px:
+        parts.append(f"{asset.width_px}x{asset.height_px}")
+    if asset.kind is AssetKind.REFERENCIA:
+        parts.append(analysis_status(asset))
+    return " · ".join(parts)
+
+
+def asset_info_md(asset: Asset) -> str:
+    size = (
+        f"{asset.size_bytes / 1_048_576:.2f} MB"
+        if asset.size_bytes >= 1_048_576
+        else (f"{asset.size_bytes / 1024:.0f} KB")
+    )
+    dims = f" · {asset.width_px}x{asset.height_px} px" if asset.width_px else ""
+    status = f" · ficha: **{analysis_status(asset)}**" if asset.kind is AssetKind.REFERENCIA else ""
+    return (
+        f"**{html.escape(asset.original_name)}**  \n"
+        f"{asset.kind.label} · {size}{dims} · "
+        f"subido el {asset.created_at:%d/%m/%Y %H:%M} UTC{status}"
+    )
+
+
+def _join(values: list[str]) -> str:
+    return ", ".join(values)
+
+
+def _split(text: str | None) -> list[str]:
+    seen: list[str] = []
+    for part in (text or "").split(","):
+        part = part.strip()
+        if part and part not in seen:
+            seen.append(part)
+    return seen
+
+
+ANALYSIS_FIELDS = (
+    "category", "item_name", "brand", "product_name", "style_tags", "colors", "materials",
+    "width_cm", "depth_cm", "height_cm", "dimensions_source", "summary", "design_relevance",
+)  # fmt: skip
+
+
+def analysis_form_values(asset: Asset) -> list[Any]:
+    """Ficha → valores del formulario (en el orden de `ANALYSIS_FIELDS`); vacío si no hay."""
+    if asset.analysis is None:
+        return ["otro", "", "", "", "", "", "", None, None, None, "desconocido", "", ""]
+    r = asset.analysis.result
+    d = r.dimensions_cm
+    return [
+        r.category.value, r.item_name, r.brand or "", r.product_name or "", _join(r.style_tags),
+        _join(r.colors), _join(r.materials), d.width_cm, d.depth_cm, d.height_cm,
+        r.dimensions_source, r.summary, r.design_relevance,
+    ]  # fmt: skip
+
+
+def parse_analysis_form(values: list[Any]) -> ReferenceAnalysis:
+    """Formulario → `ReferenceAnalysis`. Lanza `ValueError` con mensaje en español."""
+    data = dict(zip(ANALYSIS_FIELDS, values, strict=True))
+    if not (data["item_name"] or "").strip():
+        raise ValueError("La ficha necesita un nombre de objeto")
+    dims = {k: data.pop(k) for k in ("width_cm", "depth_cm", "height_cm")}
+    if any(v is not None and v < 0 for v in dims.values()):
+        raise ValueError("Las medidas no pueden ser negativas")
+    known = any(v is not None for v in dims.values())
+    if known and data["dimensions_source"] == "desconocido":
+        raise ValueError("Indica de dónde salen las medidas (nota del usuario o imagen)")
+    return ReferenceAnalysis(
+        category=data["category"],
+        item_name=data["item_name"],
+        brand=(data["brand"] or "").strip() or None,
+        product_name=(data["product_name"] or "").strip() or None,
+        style_tags=_split(data["style_tags"]),
+        colors=_split(data["colors"]),
+        materials=_split(data["materials"]),
+        dimensions_cm=DimensionsCm(**dims),
+        dimensions_source=data["dimensions_source"] if known else "desconocido",
+        summary=data["summary"] or "",
+        design_relevance=data["design_relevance"] or "",
     )

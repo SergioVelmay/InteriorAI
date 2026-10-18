@@ -95,3 +95,9 @@ async def test_refresh_drops_unknown_active_project(tmp_path: Path) -> None:
     assert result[active] is None
     assert "Sin proyecto activo" in result[header]
     assert "Ningún proyecto seleccionado" in result[tab.summary]
+
+
+def test_handlers_never_return_an_empty_dict() -> None:
+    """Regresión (Paso 12): Gradio trata `{}` como un único valor y el evento falla."""
+    for module in Path(__file__).resolve().parents[1].joinpath("ui", "tabs").glob("*.py"):
+        assert "return {}" not in module.read_text(encoding="utf-8"), module.name
