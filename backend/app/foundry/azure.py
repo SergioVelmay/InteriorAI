@@ -3,6 +3,10 @@
 - `RESPONSES` e `IMAGES`: SDK `openai` contra `{endpoint}/openai/v1/` (API v1, sin api-version).
 - `PROVIDER_IMAGES`: `httpx` contra `{renderer_endpoint}{renderer_path}?api-version=...`
   (API del proveedor: una imagen por petición; edición por imágenes de referencia).
+
+Política de reintentos (Paso 10): solo se reintenta cuando Azure NO ha procesado la petición
+(429 cuota, 503 no disponible). Un timeout NUNCA se reintenta: el trabajo pudo completarse y
+facturarse en Azure aunque la respuesta no llegue. El auditor tiene su propio timeout.
 """
 
 from __future__ import annotations
@@ -12,16 +16,16 @@ import base64
 import io
 import json
 import time
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, TypeVar
 
 import httpx
 import openai
 from openai import AsyncOpenAI
 from PIL import Image, UnidentifiedImageError
 
-from app.foundry.base import FoundryClient, log_call
+from app.foundry.base import FoundryClient, log_call, logger
 from app.foundry.errors import (
     FoundryAuthError,
     FoundryBadRequestError,
@@ -42,6 +46,9 @@ from app.foundry.types import (
 )
 from shared import Settings
 from shared.roles import ApiKind, Role
+
+T = TypeVar("T")
+RETRYABLE_STATUS = frozenset({429, 503})  # Azure no ha procesado la petición
 
 _CONTENT_FILTER_MARKERS = ("content_filter", "content_policy", "responsibleaipolicy", "moderation")
 MAX_RETRY_DELAY_S = 30.0
@@ -114,7 +121,7 @@ def _to_generated(data: bytes, role: Role) -> GeneratedImage:
     )
 
 
-def _retry_delay(response: httpx.Response | None, attempt: int) -> float:
+def _retry_delay(response: Any, attempt: int) -> float:
     if response is not None:
         retry_after = response.headers.get("retry-after")
         if retry_after:
@@ -154,7 +161,7 @@ class AzureFoundryClient(FoundryClient):
         self._openai = AsyncOpenAI(
             base_url=f"{foundry.endpoint}/openai/v1/",
             api_key=api_key,
-            max_retries=foundry.max_retries,
+            max_retries=0,  # reintentos propios: nunca ante timeouts (ver docstring)
             timeout=foundry.timeout_s,
             default_query={"api-version": foundry.api_version} if foundry.api_version else None,
             **openai_kwargs,
@@ -164,6 +171,28 @@ class AzureFoundryClient(FoundryClient):
             {"api-version": foundry.renderer_api_version} if foundry.renderer_api_version else {}
         )
         self._renderer_headers = {"Authorization": f"Bearer {api_key}"}
+
+    async def _openai_call(self, role: Role, call: Callable[[AsyncOpenAI], Awaitable[T]]) -> T:
+        """Ejecuta una llamada del SDK reintentando solo 429/503 (nunca timeouts)."""
+        client = (
+            self._openai.with_options(timeout=self._settings.auditor.timeout_s)
+            if role is Role.GEOMETRIC_AUDITOR
+            else self._openai
+        )
+        with _openai_errors(role):
+            for attempt in range(self._max_retries + 1):
+                try:
+                    return await call(client)
+                except openai.APIStatusError as exc:
+                    if exc.status_code not in RETRYABLE_STATUS or attempt == self._max_retries:
+                        raise
+                    delay = _retry_delay(exc.response, attempt)
+                    logger.warning(
+                        "IA %s: %d, reintento %d/%d en %.1fs",
+                        role.value, exc.status_code, attempt + 1, self._max_retries, delay,
+                    )  # fmt: skip
+                    await asyncio.sleep(delay)
+        raise AssertionError("inalcanzable")  # pragma: no cover
 
     async def aclose(self) -> None:
         await self._openai.close()
@@ -198,8 +227,7 @@ class AzureFoundryClient(FoundryClient):
             }
 
         start = time.perf_counter()
-        with _openai_errors(role):
-            response = await self._openai.responses.create(**kwargs)
+        response = await self._openai_call(role, lambda c: c.responses.create(**kwargs))
         latency = time.perf_counter() - start
 
         usage = Usage()
@@ -250,15 +278,17 @@ class AzureFoundryClient(FoundryClient):
             return await self._provider_images(role, request, references=[])
         deployment = self._settings.deployment_for(role)
         start = time.perf_counter()
-        with _openai_errors(role):
-            response = await self._openai.images.generate(
+        response = await self._openai_call(
+            role,
+            lambda c: c.images.generate(
                 model=deployment,
                 prompt=request.prompt,
                 size=request.size,  # type: ignore[arg-type]
                 n=request.n,
                 quality=request.quality,
                 output_format=request.output_format,
-            )
+            ),
+        )
         return await self._openai_image_result(role, deployment, response, start)
 
     async def _edit_image(self, role: Role, request: ImageEditRequest) -> ImageResult:
@@ -281,8 +311,7 @@ class AzureFoundryClient(FoundryClient):
         if request.mask is not None:
             kwargs["mask"] = ("mascara.png", request.mask.data, request.mask.mime_type)
         start = time.perf_counter()
-        with _openai_errors(role):
-            response = await self._openai.images.edit(**kwargs)
+        response = await self._openai_call(role, lambda c: c.images.edit(**kwargs))
         return await self._openai_image_result(role, deployment, response, start)
 
     async def _openai_image_result(
@@ -365,19 +394,16 @@ class AzureFoundryClient(FoundryClient):
                     json=payload,
                     timeout=self._timeout_s,
                 )
-            except httpx.TimeoutException as exc:
-                if last:
-                    raise FoundryTimeoutError("Tiempo de espera agotado", role=role) from exc
-                await asyncio.sleep(_retry_delay(None, attempt))
-                continue
+            except httpx.TimeoutException as exc:  # nunca se reintenta (pudo facturarse)
+                raise FoundryTimeoutError("Tiempo de espera agotado", role=role) from exc
             except httpx.HTTPError as exc:
                 raise FoundryError("No se pudo conectar con el renderizador", role=role) from exc
 
             status = response.status_code
+            if status in RETRYABLE_STATUS and not last:
+                await asyncio.sleep(_retry_delay(response, attempt))
+                continue
             if status == 429 or status >= 500:
-                if not last:
-                    await asyncio.sleep(_retry_delay(response, attempt))
-                    continue
                 error = FoundryRateLimitError if status == 429 else FoundryError
                 raise error(f"El renderizador respondió {status}", role=role, status_code=status)
             if status in {401, 403}:

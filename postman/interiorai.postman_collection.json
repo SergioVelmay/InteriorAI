@@ -847,7 +847,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"JPEG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"));"
+                  "pm.test(\"PNG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\"));"
                 ]
               }
             }
@@ -859,6 +859,105 @@
           }
         },
         {
+          "name": "Auditar render final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"informe guardado y comparado con la imagen base\", () => {",
+                  "  pm.expect(b.audit.report).to.have.property(\"verdict\");",
+                  "  pm.expect(b.audit.report.checks.length).to.be.above(0);",
+                  "  pm.expect(b.render.audits).to.have.lengthOf(1);",
+                  "  pm.expect(b.render.status).to.eql(\"generado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/audit"
+          }
+        },
+        {
+          "name": "Auditar boceto (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/audit"
+          }
+        },
+        {
+          "name": "Rechazar render final y regenerar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"rechazado y sustituido\", () => {",
+                  "  pm.expect(b.rejected.status).to.eql(\"rechazado\");",
+                  "  pm.expect(b.new_renders).to.have.lengthOf(1);",
+                  "  pm.expect(b.new_renders[0].previous_attempt_id).to.eql(pm.collectionVariables.get(\"finalId\"));",
+                  "  pm.expect(b.new_renders[0].prompt).to.include(\"Más luz natural\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/reject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feedback\": \"Más luz natural\",\n  \"apply_audit_suggestions\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Seleccionar render rechazado (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/select"
+          }
+        },
+        {
           "name": "Historial de renders",
           "event": [
             {
@@ -867,9 +966,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"3 etapas\", () => {",
-                  "  const stages = pm.response.json().map(r => r.stage);",
-                  "  pm.expect(stages).to.eql([\"render_final\", \"composicion\", \"boceto\"]);",
+                  "pm.test(\"4 renders: final nuevo, final rechazado, composición y boceto\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.map(r => r.stage)).to.eql([\"render_final\", \"render_final\", \"composicion\", \"boceto\"]);",
+                  "  pm.expect(b[1].status).to.eql(\"rechazado\");",
                   "});"
                 ]
               }

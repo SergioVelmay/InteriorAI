@@ -42,9 +42,20 @@ _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 Quality = Literal["low", "medium", "high", "auto"]
 
 RENDER_TRANSITIONS = {
-    RenderStatus.GENERATED: frozenset({RenderStatus.SELECTED, RenderStatus.DISCARDED}),
-    RenderStatus.SELECTED: frozenset({RenderStatus.DISCARDED}),
-    RenderStatus.DISCARDED: frozenset({RenderStatus.SELECTED}),
+    RenderStatus.GENERATED: frozenset(
+        {RenderStatus.SELECTED, RenderStatus.DISCARDED, RenderStatus.REJECTED}
+    ),
+    RenderStatus.SELECTED: frozenset({RenderStatus.DISCARDED, RenderStatus.REJECTED}),
+    RenderStatus.DISCARDED: frozenset({RenderStatus.SELECTED, RenderStatus.REJECTED}),
+    # REJECTED es terminal: se sustituye por una nueva imagen (previous_attempt_id)
+}
+
+# Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
+# a petición del usuario (Paso 10); el renderizador cobra por MP, no por formato.
+_STAGE_ROLES: dict[RenderStage, tuple[Role, Literal["png", "jpeg"]]] = {
+    RenderStage.DRAFT: (Role.FAST_DRAFT, "png"),
+    RenderStage.COMPOSITION: (Role.STRUCTURAL_COMPOSER, "png"),
+    RenderStage.FINAL: (Role.PHOTOREALISTIC_RENDERER, "png"),
 }
 
 
@@ -175,7 +186,10 @@ async def _run_stage(
     base_prompt: str,
     options: RenderOptions,
     output_format: Literal["png", "jpeg"],
+    *,
+    previous_attempt_id: UUID | None = None,
 ) -> list[RenderRecord]:
+    # La imagen base es la primera entrada (asset subido o render de la etapa anterior).
     base = next(a for a in project.assets if a.id == inputs[0])
     size = resolve_size(role, options.size, base)
     images = [await _load(repo, project, asset_id) for asset_id in inputs]
@@ -221,6 +235,7 @@ async def _run_stage(
             seed=options.seed,
             request_id=current_request_id(),
             cost_eur=round(total / len(result.images), 6) if total is not None else None,
+            previous_attempt_id=previous_attempt_id,
         )
         await repo.add_render(
             project.id,
@@ -244,7 +259,8 @@ async def generate_drafts(
     return await _run_stage(
         repo, client, project, brief, RenderStage.DRAFT, Role.FAST_DRAFT, [base.id], None,
         brief.content.image_prompts.fast_draft,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "low"}), "png",
+        RenderOptions(**{**options.__dict__, "quality": options.quality or "low"}),
+        _STAGE_ROLES[RenderStage.DRAFT][1],
     )  # fmt: skip
 
 
@@ -264,7 +280,8 @@ async def generate_composition(
     return await _run_stage(
         repo, client, project, brief, RenderStage.COMPOSITION, Role.STRUCTURAL_COMPOSER, inputs,
         draft, brief.content.image_prompts.structural_composer,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"}), "png",
+        RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"}),
+        _STAGE_ROLES[RenderStage.COMPOSITION][1],
     )  # fmt: skip
 
 
@@ -293,7 +310,8 @@ async def generate_final(
     return await _run_stage(
         repo, client, project, brief, RenderStage.FINAL, Role.PHOTOREALISTIC_RENDERER,
         [composition.id, *references], composition,
-        brief.content.image_prompts.photorealistic_renderer, options, "jpeg",
+        brief.content.image_prompts.photorealistic_renderer, options,
+        _STAGE_ROLES[RenderStage.FINAL][1],
     )  # fmt: skip
 
 
@@ -312,3 +330,68 @@ async def decide_render(
         raise RenderNotFoundError(str(render_id))
 
     return await repo.mutate(project_id, change)
+
+
+def feedback_prompt(render: RenderRecord, feedback: str, audit_suggestions: str | None) -> str:
+    """Prompt anterior + comentarios del usuario (+ correcciones del auditor, si se aplican)."""
+    parts = [render.prompt, f"User feedback (in Spanish, apply it): {feedback.strip()}"]
+    if audit_suggestions and audit_suggestions.strip():
+        parts.append(f"Corrections from the geometric audit: {audit_suggestions.strip()}")
+    return "\n\n".join(parts)
+
+
+async def reject_render(
+    repo: ProjectRepository,
+    client: FoundryClient,
+    project_id: UUID,
+    render_id: UUID,
+    feedback: str,
+    regenerate: bool = True,
+    apply_audit_suggestions: bool = True,
+) -> tuple[RenderRecord, list[RenderRecord]]:
+    """Rechazo con comentarios; si `regenerate`, nueva imagen de la misma etapa y entradas."""
+
+    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
+        renders = list(metadata.renders)
+        for i, render in enumerate(renders):
+            if render.id == render_id:
+                ensure_transition(
+                    RENDER_TRANSITIONS, render.status, RenderStatus.REJECTED, "el render"
+                )
+                renders[i] = render.model_copy(
+                    update={
+                        "status": RenderStatus.REJECTED,
+                        "feedback": feedback.strip(),
+                        "decided_at": utc_now(),
+                    }
+                )
+                return metadata.model_copy(update={"renders": renders}), renders[i]
+        raise RenderNotFoundError(str(render_id))
+
+    rejected = await repo.mutate(project_id, change)
+    if not regenerate:
+        return rejected, []
+
+    project = await repo.get(project_id)
+    brief = next((b for b in project.briefs if b.id == rejected.brief_id), None)
+    if brief is None:
+        raise BriefNotFoundError(str(rejected.brief_id))
+    parent = next((r for r in project.renders if r.id == rejected.parent_render_id), None)
+    suggestions = (
+        rejected.audits[-1].report.suggested_prompt_adjustments
+        if apply_audit_suggestions and rejected.audits
+        else None
+    )
+    role, output_format = _STAGE_ROLES[rejected.stage]
+    options = RenderOptions(
+        n=1,
+        size=rejected.size,
+        quality=rejected.quality,  # type: ignore[arg-type]
+        seed=rejected.seed,
+        prompt_override=feedback_prompt(rejected, feedback, suggestions),
+    )
+    new = await _run_stage(
+        repo, client, project, brief, rejected.stage, role, rejected.input_asset_ids, parent,
+        rejected.prompt, options, output_format, previous_attempt_id=rejected.id,
+    )  # fmt: skip
+    return rejected, new

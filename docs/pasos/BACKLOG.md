@@ -4,7 +4,7 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 
 | ID | Descripción | Origen | Destino previsto | Estado |
 |----|-------------|--------|------------------|--------|
-| B-001 | Verificar que el despliegue del Auditor Geométrico acepta `reasoning_effort: max` | [Paso 0](paso-00-plan-y-decisiones.md) | Paso 6 | ✅ Resuelto en [Paso 6](paso-06-foundry.md): acepta `max` |
+| B-001 | Verificar que el despliegue del Auditor Geométrico acepta `reasoning_effort: max` | [Paso 0](paso-00-plan-y-decisiones.md) | Paso 6 | ✅ Resuelto en [Paso 6](paso-06-foundry.md): acepta `max`; en el Paso 10 el usuario lo fija en `medium` |
 | B-002 | Ejecutar gitleaks sobre todo el historial en CI (GitHub Actions) | [Paso 1](paso-01-repo-seguro.md) | Paso 15 | ⏳ Abierto |
 | B-003 | Verificar si la API del renderizador (`/providers/...`) requiere `api-version` | [Paso 2](paso-02-configuracion.md) | Paso 6 | ✅ Resuelto en [Paso 6](paso-06-foundry.md): `api-version=preview` |
 | B-004 | Activar Dependabot en GitHub | [Paso 2](paso-02-configuracion.md) | Paso 15 | ⏳ Abierto |
@@ -19,3 +19,6 @@ Elementos diferidos o pendientes de verificación. Cada entrada enlaza al paso q
 | B-013 | Enviar planos PDF al PROMPT_ENGINEER con `input_file` (Responses API) tras verificarlo en Azure | [Paso 8](paso-08-pipelines-texto.md) | Paso 9-10 | ⏳ Abierto |
 | B-014 | Generar el brief tarda ~40 s: indicador de progreso o tarea en segundo plano en la UI | [Paso 8](paso-08-pipelines-texto.md) | Paso 13 | ⏳ Abierto |
 | B-015 | Escalado automático previo de las imágenes de entrada (sobre todo las referencias del renderizador, que cuestan tanto como la salida) si el coste lo hace necesario | [Paso 9](paso-09-pipelines-imagen.md) | Cuando el usuario lo considere necesario | ⏳ Abierto |
+| B-016 | Revisar en Azure Cost Management lo facturado por los 4 intentos (timeout) de la primera auditoría con `max` (2026-10-18) | [Paso 10](paso-10-auditor-hitl.md) | Cuando haya datos de facturación | ⏳ Abierto |
+| B-017 | *Background mode* de la Responses API para llamadas de minutos (exige `store=true`) | [Paso 10](paso-10-auditor-hitl.md) | Cuando el usuario lo decida | ⏳ Abierto |
+| B-018 | Render final con la misma proporción que la captura (16:9 → 1920×1088 en el renderizador) | [Paso 10](paso-10-auditor-hitl.md) | Paso 13 o antes | ⏳ Abierto |

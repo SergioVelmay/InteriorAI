@@ -86,7 +86,7 @@ Hallazgos de coste:
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-09`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-09`, PR #8 revisada y mergeada por el usuario.
 
 ## 6. Pendiente / futuro
 
