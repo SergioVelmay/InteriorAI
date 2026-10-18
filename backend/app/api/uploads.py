@@ -47,7 +47,7 @@ class UploadKind(StrEnum):
 
 
 ACCEPTED_TYPES: dict[AssetKind, frozenset[str]] = {
-    AssetKind.PLANO: IMAGE_TYPES | {PDF},
+    AssetKind.PLANO: IMAGE_TYPES,  # solo imágenes (Paso 12): un PDF nunca llegaba a los modelos
     AssetKind.REFERENCIA: IMAGE_TYPES,
     AssetKind.CAPTURA_SKETCHUP: IMAGE_TYPES,
     AssetKind.RENDER: IMAGE_TYPES,

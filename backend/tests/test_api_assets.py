@@ -55,12 +55,10 @@ def test_image_formats_accepted(api: TestClient, project_url: str, fmt: str) -> 
     assert upload(api, project_url, "captura_sketchup", image_bytes(fmt)).status_code == 201
 
 
-def test_pdf_only_accepted_for_plano(api: TestClient, project_url: str) -> None:
-    plano = upload(api, project_url, "plano", PDF, "plano.pdf")
-    assert plano.status_code == 201
-    assert plano.json()["mime_type"] == "application/pdf"
-    assert plano.json()["width_px"] is None
-    rejected = upload(api, project_url, "referencia", PDF, "ref.pdf")
+@pytest.mark.parametrize("kind", ["plano", "referencia", "captura_sketchup"])
+def test_pdf_is_rejected_for_every_kind(api: TestClient, project_url: str, kind: str) -> None:
+    """Los planos son imágenes (Paso 12): un PDF nunca llegaba a los modelos."""
+    rejected = upload(api, project_url, kind, PDF, "documento.pdf")
     assert rejected.status_code == 415
     assert "PNG" in rejected.json()["detail"]
 

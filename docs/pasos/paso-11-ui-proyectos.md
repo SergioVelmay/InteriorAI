@@ -61,9 +61,10 @@ Sin llamadas a la IA en todo el paso: coste 0 €.
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-11`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-11`, PR #10 revisada y mergeada por el usuario. Pulido pedido por el
+usuario (barra de desplazamiento oscura y hueco bajo la galería) resuelto en el Paso 12.
 
 ## 6. Pendiente / futuro
 
 - B-019: incorporar las pruebas de interfaz con Playwright al repositorio y a la CI (Paso 15).
-- Pulido: hueco vacío bajo la galería cuando hay pocos proyectos.
+- ~~Pulido: hueco vacío bajo la galería~~ → resuelto en el Paso 12.

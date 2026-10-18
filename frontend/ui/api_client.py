@@ -13,9 +13,18 @@ from uuid import UUID
 import httpx
 from pydantic import BaseModel
 
-from shared.models import ProjectCreate, ProjectMetadata, ProjectSummary, ProjectUpdate
+from shared.models import (
+    Asset,
+    AssetKind,
+    ProjectCreate,
+    ProjectMetadata,
+    ProjectSummary,
+    ProjectUpdate,
+    ReferenceAnalysis,
+)
 
 DEFAULT_TIMEOUT_S = 30
+AI_TIMEOUT_S = 600  # llamadas que invocan a la IA (indexación, brief, renders)
 
 
 class ApiError(Exception):
@@ -116,3 +125,63 @@ class BackendClient:
             "GET", f"/api/v1/projects/{project_id}/costs", params={"limit": 0}
         )
         return response.json()
+
+    # --- Assets ---------------------------------------------------------------------------
+
+    async def list_assets(
+        self, project_id: UUID | str, kind: AssetKind | None = None
+    ) -> list[Asset]:
+        params = {"kind": kind.value} if kind else None
+        response = await self._request(
+            "GET", f"/api/v1/projects/{project_id}/assets", params=params
+        )
+        return [Asset.model_validate(item) for item in response.json()]
+
+    async def upload_asset(
+        self,
+        project_id: UUID | str,
+        kind: AssetKind,
+        filename: str,
+        content: bytes,
+        description: str = "",
+    ) -> Asset:
+        response = await self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/assets/{kind.value}",
+            files={"file": (filename, content)},
+            data={"description": description},
+        )
+        return Asset.model_validate(response.json())
+
+    async def update_asset_note(
+        self, project_id: UUID | str, asset_id: UUID | str, note: str
+    ) -> Asset:
+        response = await self._request(
+            "PATCH",
+            f"/api/v1/projects/{project_id}/assets/{asset_id}",
+            json={"description": note},
+        )
+        return Asset.model_validate(response.json())
+
+    async def delete_asset(self, project_id: UUID | str, asset_id: UUID | str) -> None:
+        await self._request("DELETE", f"/api/v1/projects/{project_id}/assets/{asset_id}")
+
+    async def index_references(self, project_id: UUID | str, force: bool = False) -> dict[str, Any]:
+        """CONTEXT_MANAGER: llama a la IA (coste en modo azure)."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/references/index",
+            json={"force": force},
+            timeout=AI_TIMEOUT_S,
+        )
+        return response.json()
+
+    async def validate_analysis(
+        self, project_id: UUID | str, asset_id: UUID | str, analysis: ReferenceAnalysis
+    ) -> Asset:
+        response = await self._request(
+            "PUT",
+            f"/api/v1/projects/{project_id}/assets/{asset_id}/analysis",
+            json=analysis.model_dump(mode="json"),
+        )
+        return Asset.model_validate(response.json())

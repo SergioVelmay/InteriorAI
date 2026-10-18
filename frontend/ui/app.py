@@ -11,6 +11,7 @@ import gradio as gr
 
 from shared import Settings, get_settings
 from ui.api_client import BackendClient
+from ui.tabs.assets import build_assets_tab
 from ui.tabs.projects import build_projects_tab
 from ui.theme import CSS, FORCE_DARK_JS, build_theme
 from ui.views import header_html
@@ -18,7 +19,6 @@ from ui.views import header_html
 ACTIVE_PROJECT_KEY = "interiorai.active_project"
 
 COMING_SOON = {
-    "Assets": "Planos, capturas de SketchUp y referencias con sus fichas — **Paso 12**.",
     "Estudio": (
         "Brief, bocetos, composición, render final y auditoría con revisión humana — **Paso 13**."
     ),
@@ -36,11 +36,15 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
         with gr.Tabs():
             with gr.Tab("Proyectos"):
                 projects = build_projects_tab(client, data_dir, active, header)
+            with gr.Tab("Assets") as assets_tab:
+                assets = build_assets_tab(client, data_dir, active)
             for title, text in COMING_SOON.items():
                 with gr.Tab(title):
                     gr.Markdown(f"Disponible próximamente. {text}", elem_classes="iai-soon")
 
         demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
+        # Al entrar en Assets se recarga con el proyecto activo (puede haber cambiado).
+        assets_tab.select(assets.refresh_all, inputs=active, outputs=assets.all_outputs)
     return demo
 
 

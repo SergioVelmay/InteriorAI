@@ -79,7 +79,7 @@ def _set_location(request: Request, response: Response, project_id: UUID, asset:
 async def upload_asset(
     project_id: UUID,
     kind: UploadKind,
-    file: Annotated[UploadFile, File(description="Imagen (o PDF para planos)")],
+    file: Annotated[UploadFile, File(description="Imagen PNG, JPEG o WebP")],
     repo: RepositoryDep,
     settings: SettingsDep,
     request: Request,

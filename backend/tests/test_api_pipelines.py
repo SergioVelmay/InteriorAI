@@ -16,8 +16,6 @@ from app.foundry import (
 )
 from shared.roles import Role
 
-PDF = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n"
-
 
 class SpyClient(MockFoundryClient):
     def __init__(self) -> None:
@@ -75,7 +73,7 @@ def project(api: TestClient) -> dict:
         "capture": upload(
             "captura_sketchup", image_bytes(size=(1600, 900)), "vista.png", "Vista del sofá"
         ),
-        "pdf": upload("plano", PDF, "plano.pdf"),
+        "plan": upload("plano", image_bytes(size=(800, 600), color="#dddddd"), "plano.png"),
         "product": upload(
             "referencia", image_bytes(color="#556b2f"), "planificador.png", "285 x 160 x 87 cm"
         ),
@@ -187,19 +185,20 @@ def test_brief_context_and_creation(api: TestClient, spy: SpyClient, project: di
     assert brief["version"] == 1
     assert brief["status"] == "propuesto"
     assert brief["prompt_version"].startswith("prompt_engineer@")
-    assert brief["source_asset_ids"] == [project["capture"]["id"]]
+    # capturas primero y después planos, ambos como imagen
+    assert brief["source_asset_ids"] == [project["capture"]["id"], project["plan"]["id"]]
     assert set(brief["reference_asset_ids"]) == {
         project["product"]["id"],
         project["inspiration"]["id"],
     }
-    assert any("PDF" in w for w in brief["warnings"])
+    assert not any("no es una imagen" in w for w in brief["warnings"])
     assert brief["content"]["furniture"][0]["reference_asset_id"] is None  # id inventado → null
     assert body["cost_eur"] > 0
 
     [(role, request)] = spy.requests
     assert role is Role.PROMPT_ENGINEER
     assert request.schema_name == "brief_diseno"
-    assert len(request.images) == 1  # solo la captura; ni el PDF ni las referencias
+    assert len(request.images) == 2  # captura + plano; las referencias van como texto
     assert image_size(request.images[0].data) == (1024, 576)
     assert "Sofá en L junto a la península" in request.input
     assert project["product"]["id"] in request.input  # ficha como texto, con su id

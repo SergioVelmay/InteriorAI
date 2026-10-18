@@ -10,7 +10,7 @@ from PIL import Image
 from app.foundry.types import InputImage
 
 MAX_SIDE_PX = 1024
-# Formatos que se pueden enviar a los modelos de visión (los PDF no)
+# Formatos que se pueden enviar a los modelos de visión
 VISION_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 JPEG_QUALITY = 85
 
