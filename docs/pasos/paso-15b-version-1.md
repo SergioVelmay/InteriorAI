@@ -49,8 +49,8 @@ Cerrar el proyecto: endurecer los contenedores, permitir cualquier usuario en ho
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-15b`, Pull Request en GitHub. Tras el merge: etiqueta
-`v1.0.0` y GitHub Release.
+✅ Cerrado — rama `feat/paso-15b`, PR #17 revisada y mergeada por el usuario; etiqueta `v1.0.0`
+y GitHub Release publicados.
 
 ## 6. Pendiente / futuro
 

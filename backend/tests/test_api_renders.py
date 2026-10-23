@@ -109,7 +109,8 @@ def test_drafts_edit_the_capture(
         assert render["prompt"] == project["brief"]["content"]["image_prompts"]["fast_draft"]
         assert render["request_id"] == body["request_id"]
     assert body["cost_eur"] > 0
-    assert sum(r["cost_eur"] for r in renders) == pytest.approx(body["cost_eur"], abs=1e-6)
+    # Cada imagen redondea su parte a 6 decimales: la suma puede desviarse en ~1e-6
+    assert sum(r["cost_eur"] for r in renders) == pytest.approx(body["cost_eur"], abs=2e-6)
 
     [(role, request)] = spy.edits
     assert role is Role.FAST_DRAFT

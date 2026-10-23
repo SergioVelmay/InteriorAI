@@ -90,6 +90,12 @@ Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €.
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 
+Contraste con la factura de octubre de 2026 ([docs](../pasos/mantenimiento-2026-10-factura.md)):
+los tokens coinciden con la telemetría y el precio en euros es la lista × 0,98463
+(`billing_factor`); FLUX factura el MP binario (`megapixel_px: 1048576`) y 1 MP por imagen de
+referencia (`reference_mode: per_image`); `gpt-6.1-sol` salió a 0 €, pero se mantiene su precio
+de lista a propósito. Un timeout no se facturó.
+
 Paso 14: `summary.py` filtra las llamadas simuladas (`include_simulated`; la API las incluye
 por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el coste de la
 cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,

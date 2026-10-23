@@ -27,19 +27,26 @@ def with_overrides(table: PricingTable, **changes: object) -> PricingTable:
     return table.model_copy(update=changes)
 
 
+@pytest.fixture(scope="module")
+def list_prices(table: PricingTable) -> PricingTable:
+    """Precios de lista tal cual y megapíxel decimal: para comprobar las fórmulas."""
+    return with_overrides(table, billing_factor=1.0, megapixel_px=1_000_000)
+
+
 def test_repo_pricing_file_is_valid_and_complete(table: PricingTable) -> None:
     assert table.currency == "EUR"
     assert table.deployment_type == "global"
     assert table.long_context_threshold_tokens == 272_000
     assert table.megapixel_rounding == "exact"
+    assert table.megapixel_px == 1_048_576 and table.billing_factor == pytest.approx(0.98463)
     assert missing_prices(table, DEPLOYMENTS) == []
     assert missing_prices(table, [*DEPLOYMENTS, "otro"]) == ["otro"]
 
 
-def test_real_auditor_call_from_step_6(table: PricingTable) -> None:
+def test_real_auditor_call_from_step_6(list_prices: PricingTable) -> None:
     """Llamada real del Paso 6: 74 de entrada y 1.084 de salida (1.012 de razonamiento)."""
     usage = Usage(input_tokens=74, output_tokens=1084, reasoning_tokens=1012)
-    cost = estimate_cost(table, "gpt-6-astra", usage)
+    cost = estimate_cost(list_prices, "gpt-6-astra", usage)
     assert cost is not None
     assert cost.tier == "global/short"
     assert cost.parts["input"] == pytest.approx(74 * 8.80 / 1e6)
@@ -47,29 +54,29 @@ def test_real_auditor_call_from_step_6(table: PricingTable) -> None:
     assert cost.total == pytest.approx(0.0483472)
 
 
-def test_cached_and_cache_write_tokens(table: PricingTable) -> None:
+def test_cached_and_cache_write_tokens(list_prices: PricingTable) -> None:
     usage = Usage(
         input_tokens=10_000, cached_input_tokens=6_000, cache_write_tokens=1_000, output_tokens=0
     )
-    cost = estimate_cost(table, "gpt-6.1-sol", usage)
+    cost = estimate_cost(list_prices, "gpt-6.1-sol", usage)
     assert cost is not None
     assert cost.parts["input"] == pytest.approx(3_000 * 1.76 / 1e6)
     assert cost.parts["cached_input"] == pytest.approx(6_000 * 0.09 / 1e6)
     assert cost.parts["cache_write"] == pytest.approx(1_000 * 2.20 / 1e6)
 
 
-def test_long_context_above_threshold(table: PricingTable) -> None:
-    short = estimate_cost(table, "gpt-6-luna", Usage(input_tokens=272_000))
-    long = estimate_cost(table, "gpt-6-luna", Usage(input_tokens=272_001))
+def test_long_context_above_threshold(list_prices: PricingTable) -> None:
+    short = estimate_cost(list_prices, "gpt-6-luna", Usage(input_tokens=272_000))
+    long = estimate_cost(list_prices, "gpt-6-luna", Usage(input_tokens=272_001))
     assert short is not None and long is not None
     assert short.tier == "global/short"
     assert long.tier == "global/long"
     assert long.total == pytest.approx(272_001 * 0.176 / 1e6)
 
 
-def test_data_zone_rates(table: PricingTable) -> None:
+def test_data_zone_rates(list_prices: PricingTable) -> None:
     cost = estimate_cost(
-        with_overrides(table, deployment_type="data_zone"),
+        with_overrides(list_prices, deployment_type="data_zone"),
         "gpt-6-astra",
         Usage(input_tokens=100_000),  # por debajo del umbral de contexto largo
     )
@@ -78,33 +85,35 @@ def test_data_zone_rates(table: PricingTable) -> None:
     assert cost.total == pytest.approx(100_000 * 10.56 / 1e6)
 
 
-def test_image_tokens_split_text_and_image(table: PricingTable) -> None:
+def test_image_tokens_split_text_and_image(list_prices: PricingTable) -> None:
     usage = Usage(
         input_tokens=1053, input_text_tokens=21, input_image_tokens=1032, output_tokens=196
     )
-    cost = estimate_cost(table, "gpt-image-2.5-sunburst", usage)
+    cost = estimate_cost(list_prices, "gpt-image-2.5-sunburst", usage)
     assert cost is not None
     assert cost.parts["input_text"] == pytest.approx(21 * 4.40 / 1e6)
     assert cost.parts["input_image"] == pytest.approx(1032 * 7.04 / 1e6)
     assert cost.parts["output"] == pytest.approx(196 * 26.40 / 1e6)
 
 
-def test_image_tokens_without_breakdown_count_as_text(table: PricingTable) -> None:
-    cost = estimate_cost(table, "gpt-image-2.5-flare", Usage(input_tokens=24, output_tokens=196))
+def test_image_tokens_without_breakdown_count_as_text(list_prices: PricingTable) -> None:
+    cost = estimate_cost(
+        list_prices, "gpt-image-2.5-flare", Usage(input_tokens=24, output_tokens=196)
+    )
     assert cost is not None
     assert cost.parts["input_text"] == pytest.approx(24 * 4.40 / 1e6)
     assert cost.total == pytest.approx((24 * 4.40 + 196 * 26.40) / 1e6)
 
 
-def test_flux_megapixels_exact(table: PricingTable) -> None:
-    cost = estimate_cost(table, "FLUX.2-pro", Usage(), images_out=[(1024, 1024)])
+def test_flux_megapixels_exact(list_prices: PricingTable) -> None:
+    cost = estimate_cost(list_prices, "FLUX.2-pro", Usage(), images_out=[(1024, 1024)])
     assert cost is not None
     assert cost.tier == "megapixels/exact"
     assert cost.total == pytest.approx(0.0264 + 0.048576 * 0.0132)  # 0,02704 €
 
 
-def test_flux_megapixels_ceil_and_references(table: PricingTable) -> None:
-    ceil = with_overrides(table, megapixel_rounding="ceil")
+def test_flux_megapixels_ceil_and_references(list_prices: PricingTable) -> None:
+    ceil = with_overrides(list_prices, megapixel_rounding="ceil")
     cost = estimate_cost(
         ceil, "FLUX.2-pro", Usage(), images_out=[(1024, 1024)], references=[(1000, 1000)] * 2
     )
@@ -112,6 +121,32 @@ def test_flux_megapixels_ceil_and_references(table: PricingTable) -> None:
     assert cost.parts["initial_mp"] == pytest.approx(0.0264)
     assert cost.parts["additional_mp"] == pytest.approx(0.0132)  # 1,05 MP → 2 MP
     assert cost.parts["reference_mp"] == pytest.approx(2 * 0.0132)
+
+
+def test_repo_pricing_reproduces_the_october_invoice(table: PricingTable) -> None:
+    """Factura real del 18/10/2026 (B-011): mismos tokens, lista por 0,98463; FLUX con MP
+    binario y 1 MP por referencia."""
+    astra = estimate_cost(
+        table, "gpt-6-astra", Usage(input_tokens=11_861, cache_write_tokens=11_855,
+                                    output_tokens=3_730),
+    )  # fmt: skip
+    assert astra is not None and astra.total == pytest.approx(0.290049, abs=2e-5)
+    flare = estimate_cost(
+        table, "gpt-image-2.5-flare",
+        Usage(input_text_tokens=666, input_image_tokens=9_048, output_tokens=1_687),
+    )  # fmt: skip
+    assert flare is not None and flare.total == pytest.approx(0.109456, abs=2e-5)
+    flux = estimate_cost(
+        table, "FLUX.2-pro", Usage(), images_out=[(1920, 1280)],
+        references=[(1536, 1024), (949, 535)],
+    )  # fmt: skip
+    assert flux is not None
+    assert flux.parts["initial_mp"] == pytest.approx(0.0264 * 0.98463)
+    assert flux.parts["additional_mp"] == pytest.approx(
+        (1920 * 1280 / 1_048_576 - 1) * 0.0132 * 0.98463
+    )
+    assert flux.parts["reference_mp"] == pytest.approx(2 * 0.0132 * 0.98463)  # 1 MP cada una
+    assert flux.tier == "megapixels/exact/1048576px"
 
 
 def test_unknown_deployment_or_missing_table_has_no_price(table: PricingTable) -> None:

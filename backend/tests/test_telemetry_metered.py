@@ -80,6 +80,7 @@ async def test_text_call_is_recorded_with_cost_and_context() -> None:
     assert record.reasoning_tokens == result.usage.reasoning_tokens > 0
     assert record.pricing_tier == "global/short"
     expected = (result.usage.input_tokens * 8.80 + result.usage.output_tokens * 44.0) / 1e6
+    expected *= 0.98463  # billing_factor de config/pricing.yaml
     assert record.cost_eur == pytest.approx(expected)
 
 
@@ -98,10 +99,11 @@ async def test_image_calls_record_megapixels() -> None:
     generated, edited = (record for _, record in sink.records)
     assert generated.images_out == 1
     assert generated.megapixels_out == pytest.approx(1.048576)
-    assert generated.cost_eur == pytest.approx(0.0264 + 0.048576 * 0.0132)
+    # 1024x1024 = exactamente 1 MP binario (megapixel_px = 2^20): solo el primer MP
+    assert generated.cost_eur == pytest.approx(0.0264 * 0.98463)
     assert edited.operation == "edit_image"
     assert edited.megapixels_ref == pytest.approx(0.5)
-    assert edited.cost_breakdown["reference_mp"] == pytest.approx(0.5 * 0.0132)
+    assert edited.cost_breakdown["reference_mp"] == pytest.approx(0.0132 * 0.98463)  # 1 MP
 
 
 async def test_errors_with_usage_are_recorded_and_reraised() -> None:
@@ -117,7 +119,7 @@ async def test_errors_with_usage_are_recorded_and_reraised() -> None:
     [(_, record)] = sink.records
     assert record.status == "error"
     assert record.error_type == "FoundryIncompleteError"
-    assert record.cost_eur == pytest.approx((100 * 8.80 + 2000 * 44.0) / 1e6)
+    assert record.cost_eur == pytest.approx((100 * 8.80 + 2000 * 44.0) / 1e6 * 0.98463)
 
 
 async def test_invalid_role_is_rejected_before_any_record() -> None:
