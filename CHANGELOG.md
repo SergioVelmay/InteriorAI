@@ -6,6 +6,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Seguridad
+
+- Pillow 13.0.0 (~40 alertas, varias críticas), certifi 2026.10.23 y brotli 1.2.1 (una crítica
+  cada uno). Gradio 6.30 exige `pillow<13`: se fuerza con `override-dependencies` de uv hasta
+  que lo admita (B-024). `uv.lock` pasa al formato de uv 0.13 (hace falta uv ≥ 0.13).
+
 ### Corregido
 
 - Estimación de costes ajustada a la factura real de octubre de 2026: factor sobre los precios
