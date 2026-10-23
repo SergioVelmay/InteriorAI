@@ -76,5 +76,5 @@ cobró, frente a 1,468 € facturados).
 
 ## 5. Estado final
 
-🧪 En validación — rama `fix/precios-facturados`, Pull Request en GitHub. Cierra B-011, B-015 y
-B-016.
+✅ Cerrado — rama `fix/precios-facturados`, PR #21 revisada y mergeada por el usuario. Cierra
+B-011, B-015 y B-016.

@@ -20,6 +20,9 @@ e2e = [
 
 [tool.uv]
 package = false
+# Seguridad: Gradio 6.30 exige pillow<13, pero las alertas de Pillow (críticas incluidas) solo
+# se corrigen en 13.0.0. Se fuerza 13 mientras Gradio no lo permita (quitar entonces).
+override-dependencies = ["pillow>=13.0.0"]
 
 [tool.uv.workspace]
 members = ["shared", "backend", "frontend"]

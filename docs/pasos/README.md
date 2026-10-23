@@ -30,7 +30,8 @@ Mantenimiento posterior a la 1.0.0:
 | Fecha | Documento | Rama | Estado |
 |-------|-----------|------|--------|
 | 2026-10-23 | Alinear uv 0.13 en la CI (PR #19) | `chore/uv-0.13` | ✅ Cerrado |
-| 2026-10-23 | [Contraste con la factura real de octubre](mantenimiento-2026-10-factura.md) | `fix/precios-facturados` | 🧪 En validación |
+| 2026-10-23 | [Contraste con la factura real de octubre](mantenimiento-2026-10-factura.md) | `fix/precios-facturados` | ✅ Cerrado |
+| 2026-10-23 | Dependencias con alertas de seguridad: Pillow 13 forzado, certifi y brotli (PR #22; B-024) | `fix/seguridad-dependencias` | 🧪 En validación |
 
 ## Plantilla de documento de paso
 
