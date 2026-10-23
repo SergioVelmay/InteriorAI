@@ -16,7 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  UV_VERSION: "0.12.17"
+  # Misma serie que la imagen `ghcr.io/astral-sh/uv` de los Dockerfiles. Dependabot actualiza
+  # los Dockerfiles, pero no esta variable: al mergear una subida de uv, alinearla a mano.
+  UV_VERSION: "0.13.5"
 
 jobs:
   tests:
