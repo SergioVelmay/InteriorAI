@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 [SemVer](https://semver.org/lang/es/). El detalle de cada paso está en
 [docs/pasos/](docs/pasos/README.md).
 
+## [Sin publicar]
+
+### Cambiado
+
+- uv 0.13 en las imágenes Docker (Dependabot, #18) y 0.13.5 en la CI, alineadas (antes 0.12).
+  Sin cambios en `uv.lock` ni en el comportamiento: Python sigue fijado a 3.11.
+
 ## [1.0.0] — 2026-10-18
 
 Primera versión completa: estudio de interiorismo asistido por IA con supervisión humana en
