@@ -48,6 +48,9 @@ class MegapixelPricing(_Model):
     initial_mp: float = Field(ge=0)
     additional_mp: float = Field(ge=0)
     reference_mp: float = Field(ge=0)
+    # pixels: según el tamaño de cada referencia | per_image: 1 MP por referencia, sea cual
+    # sea su tamaño (lo observado en la factura de FLUX, B-011)
+    reference_mode: Literal["pixels", "per_image"] = "pixels"
 
 
 DeploymentPricing = Annotated[
@@ -61,6 +64,10 @@ class PricingTable(_Model):
     deployment_type: Literal["global", "data_zone"] = "global"
     long_context_threshold_tokens: int | None = Field(default=None, gt=0)
     megapixel_rounding: Literal["exact", "ceil"] = "exact"
+    # Píxeles por megapíxel: 1.000.000 (decimal) o 1.048.576 (2^20, lo que factura Azure)
+    megapixel_px: int = Field(default=PER_MILLION, gt=0)
+    # Factor sobre los precios de lista (p. ej. el tipo de cambio observado en la factura)
+    billing_factor: float = Field(default=1.0, gt=0)
     deployments: dict[str, DeploymentPricing]
 
 
@@ -86,14 +93,17 @@ def missing_prices(pricing: PricingTable, deployments: Iterable[str]) -> list[st
     return sorted({d for d in deployments if d not in pricing.deployments})
 
 
-def megapixels(width: int, height: int, rounding: str = "exact") -> float:
-    mp = width * height / PER_MILLION
+def megapixels(
+    width: int, height: int, rounding: str = "exact", px_per_mp: int = PER_MILLION
+) -> float:
+    mp = width * height / px_per_mp
     return float(math.ceil(mp)) if rounding == "ceil" else mp
 
 
-def _round(parts: dict[str, float], tier: str) -> CostBreakdown:
-    rounded = {k: round(v, 8) for k, v in parts.items()}
-    return CostBreakdown(total=round(sum(parts.values()), 8), parts=rounded, tier=tier)
+def _round(parts: dict[str, float], tier: str, factor: float = 1.0) -> CostBreakdown:
+    scaled = {k: v * factor for k, v in parts.items()}
+    rounded = {k: round(v, 8) for k, v in scaled.items()}
+    return CostBreakdown(total=round(sum(scaled.values()), 8), parts=rounded, tier=tier)
 
 
 def _tokens_cost(pricing: TokenPricing, table: PricingTable, usage: Usage) -> CostBreakdown:
@@ -109,10 +119,12 @@ def _tokens_cost(pricing: TokenPricing, table: PricingTable, usage: Usage) -> Co
         "cache_write": writes * rates.cache_write / PER_MILLION,
         "output": usage.output_tokens * rates.output / PER_MILLION,
     }
-    return _round(parts, f"{table.deployment_type}/{context}")
+    return _round(parts, f"{table.deployment_type}/{context}", table.billing_factor)
 
 
-def _image_tokens_cost(pricing: ImageTokenPricing, usage: Usage) -> CostBreakdown:
+def _image_tokens_cost(
+    pricing: ImageTokenPricing, table: PricingTable, usage: Usage
+) -> CostBreakdown:
     text, image = usage.input_text_tokens, usage.input_image_tokens
     if text + image == 0:  # sin desglose: toda la entrada se considera texto
         text = usage.input_tokens
@@ -121,7 +133,7 @@ def _image_tokens_cost(pricing: ImageTokenPricing, usage: Usage) -> CostBreakdow
         "input_image": image * pricing.input_image / PER_MILLION,
         "output": usage.output_tokens * pricing.output_image / PER_MILLION,
     }
-    return _round(parts, "image_tokens")
+    return _round(parts, "image_tokens", table.billing_factor)
 
 
 def _megapixels_cost(
@@ -130,15 +142,23 @@ def _megapixels_cost(
     images_out: list[tuple[int, int]],
     references: list[tuple[int, int]],
 ) -> CostBreakdown:
-    rounding = table.megapixel_rounding
+    rounding, unit = table.megapixel_rounding, table.megapixel_px
     initial = additional = 0.0
     for width, height in images_out:
-        mp = megapixels(width, height, rounding)
+        mp = megapixels(width, height, rounding, unit)
         initial += min(mp, 1.0) * pricing.initial_mp
         additional += max(mp - 1.0, 0.0) * pricing.additional_mp
-    reference = sum(megapixels(w, h, rounding) for w, h in references) * pricing.reference_mp
-    parts = {"initial_mp": initial, "additional_mp": additional, "reference_mp": reference}
-    return _round(parts, f"megapixels/{rounding}")
+    if pricing.reference_mode == "per_image":
+        reference_mp = float(len(references))
+    else:
+        reference_mp = sum(megapixels(w, h, rounding, unit) for w, h in references)
+    parts = {
+        "initial_mp": initial,
+        "additional_mp": additional,
+        "reference_mp": reference_mp * pricing.reference_mp,
+    }
+    tier = f"megapixels/{rounding}" + ("" if unit == PER_MILLION else f"/{unit}px")
+    return _round(parts, tier, table.billing_factor)
 
 
 def estimate_cost(
@@ -155,5 +175,5 @@ def estimate_cost(
     if isinstance(pricing, TokenPricing):
         return _tokens_cost(pricing, table, usage)
     if isinstance(pricing, ImageTokenPricing):
-        return _image_tokens_cost(pricing, usage)
+        return _image_tokens_cost(pricing, table, usage)
     return _megapixels_cost(pricing, table, images_out or [], references or [])

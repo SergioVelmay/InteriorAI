@@ -6,6 +6,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Corregido
+
+- Estimación de costes ajustada a la factura real de octubre de 2026: factor sobre los precios
+  de lista (× 0,98463), megapíxel binario y 1 MP por imagen de referencia en FLUX. El modelo del
+  brief mantiene su precio de lista aunque Azure lo cobró a 0 €.
+
 ### Cambiado
 
 - uv 0.13 en las imágenes Docker (Dependabot, #18) y 0.13.5 en la CI, alineadas (antes 0.12).

@@ -58,14 +58,15 @@ Management). Observados en las pruebas reales:
 
 | Acción | Coste aproximado |
 |--------|------------------|
-| Brief de diseño | 0,02-0,05 € |
+| Brief de diseño | 0-0,05 € (en octubre de 2026 su modelo se facturó a 0 €) |
 | Boceto (por imagen) | 0,015 € |
 | Composición | 0,03 € |
-| Render final 1920 px | 0,09 € |
-| Retoque de una zona del render final | 0,09 € |
-| Auditoría geométrica | 0,15-0,25 € |
+| Render final 1920 px | 0,07-0,08 € |
+| Retoque de una zona del render final | 0,07 € |
+| Auditoría geométrica | 0,15 € |
 
-Un salón completo, con varias iteraciones, retoques y una auditoría, costó unos **0,62 €**. En
+En la factura real de octubre, dos proyectos completos (28 llamadas, con iteraciones, retoques y
+auditorías) costaron **1,47 €**; la estimación de la app quedó un 3 % por encima. En
 modo `azure`, las acciones de más de 0,05 € piden un segundo clic de confirmación.
 
 ## Arquitectura

@@ -23,7 +23,14 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 13b | [UI: Estudio (retoques e inpainting)](paso-13b-retoques.md) | `feat/paso-13b` | ✅ Cerrado |
 | 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | ✅ Cerrado |
 | 15a | [CI, Dependabot y seguridad del repositorio](paso-15a-ci-seguridad.md) | `feat/paso-15a` | ✅ Cerrado |
-| 15b | [Contenedores, papelera y versión 1.0.0](paso-15b-version-1.md) | `feat/paso-15b` | 🧪 En validación |
+| 15b | [Contenedores, papelera y versión 1.0.0](paso-15b-version-1.md) | `feat/paso-15b` | ✅ Cerrado |
+
+Mantenimiento posterior a la 1.0.0:
+
+| Fecha | Documento | Rama | Estado |
+|-------|-----------|------|--------|
+| 2026-10-23 | Alinear uv 0.13 en la CI (PR #19) | `chore/uv-0.13` | ✅ Cerrado |
+| 2026-10-23 | [Contraste con la factura real de octubre](mantenimiento-2026-10-factura.md) | `fix/precios-facturados` | 🧪 En validación |
 
 ## Plantilla de documento de paso
 
