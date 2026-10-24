@@ -39,7 +39,7 @@ Postman (46 peticiones), E2E y tests se actualizan en cada commit.
 | Migración sobre una **copia** de `data/` | ✅ Ver la tabla siguiente; sin archivos perdidos y con `metadatos.v1.json` en los dos proyectos |
 | Postman en local (mock, sobre la copia) | ✅ 46 peticiones, 82 comprobaciones |
 | Playwright en local (mock, Edge) | ✅ 5/5 |
-| CI de la PR | Pendiente |
+| CI de la PR #25 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Ensayo de la migración sobre la copia de los datos reales:
 
@@ -53,7 +53,7 @@ Ensayo de la migración sobre la copia de los datos reales:
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-17`, PR pendiente de validación por el usuario. Los datos
+⏳ En revisión — rama `feat/paso-17`, PR #25 pendiente de validación por el usuario. Los datos
 locales se migrarán solos al reconstruir Docker tras el merge (los originales quedan como
 `metadatos.v1.json`).
 
