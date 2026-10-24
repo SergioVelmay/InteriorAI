@@ -37,7 +37,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 # Falla el build si falta alguna dependencia (los imports diferidos no se ven en mock)
-RUN python -c "import app.main, app.foundry.azure, app.foundry.smoke, app.storage.__main__, app.telemetry.__main__; from app.pipelines.prompts import load_prompt; load_prompt('context_manager'); load_prompt('prompt_engineer'); load_prompt('geometric_auditor')"
+RUN python -c "import app.main, app.foundry.azure, app.foundry.smoke, app.storage.__main__, app.telemetry.__main__; from app.pipelines.prompts import load_prompt; load_prompt('reference_analyst'); load_prompt('prompt_engineer'); load_prompt('geometric_auditor')"
 USER app
 
 EXPOSE 8000
