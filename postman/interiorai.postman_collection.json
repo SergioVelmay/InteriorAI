@@ -1241,11 +1241,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"cadena: brief, boceto, composición, final y su auditoría (simulados)\", () => {",
+                  "pm.test(\"cadena: ficha de referencia, brief, boceto, composición, final y su auditoría (simulados)\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(1);",
-                  "  pm.expect(b.simulated_calls).to.eql(5);",
+                  "  pm.expect(b.references).to.eql(1);  // la ficha indexada que usa el brief (B-022)",
+                  "  pm.expect(b.simulated_calls).to.eql(6);",
                   "});"
                 ]
               }
