@@ -1,6 +1,6 @@
 """Pestaña Assets: las imágenes del proyecto activo, todas referencias desde la v2 (B-028).
 
-Subir (vía API), ver, anotar y borrar (papelera); indexar con el CONTEXT_MANAGER (botón
+Subir (vía API), ver, anotar y borrar (papelera); indexar con el REFERENCE_ANALYST (botón
 manual, con coste en modo azure) y validar la ficha.
 """
 
@@ -31,7 +31,7 @@ FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"]
 NO_PROJECT = "### Ningún proyecto activo\nElige o crea un proyecto en la pestaña **Proyectos**."
 NO_SELECTION = "Selecciona una imagen de la galería para ver su detalle."
 INDEX_HINT = (
-    "Llama a la IA (CONTEXT_MANAGER) solo para las referencias **sin indexar**. "
+    "Llama a la IA (REFERENCE_ANALYST) solo para las referencias **sin indexar**. "
     "En modo Azure ≈ 0,0004 € por referencia; en simulación, sin coste."
 )
 

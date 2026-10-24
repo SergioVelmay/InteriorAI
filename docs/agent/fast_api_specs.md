@@ -136,7 +136,7 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 
 ## Pipelines y HITL (Paso 8)
 
-- `app/pipelines/`: `context_manager.py` (fichas de referencias), `prompt_engineer.py` (brief),
+- `app/pipelines/`: `reference_analyst.py` (fichas de referencias), `prompt_engineer.py` (brief),
   `schemas.py` (`strict_schema`), `images.py` (`prepare_image`, 1.024 px JPEG),
   `prompts/*.md` (prompts de sistema; `load_prompt(name).version` = hash).
 - `app/hitl/`: `ensure_transition` + tablas de transiciones; `briefs.py` (`edit_brief`,

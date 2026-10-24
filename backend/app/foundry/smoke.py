@@ -93,8 +93,8 @@ def build_plan() -> list[Check]:
             )),
         ),
         Check(
-            "2", Role.CONTEXT_MANAGER, "1 texto corto con salida JSON estructurada",
-            lambda c: c.complete_text(Role.CONTEXT_MANAGER, TextRequest(
+            "2", Role.REFERENCE_ANALYST, "1 texto corto con salida JSON estructurada",
+            lambda c: c.complete_text(Role.REFERENCE_ANALYST, TextRequest(
                 instructions="Extrae estilo y colores del producto. Responde solo con el JSON.",
                 input=(
                     "Sofá de tres plazas, tapizado gris claro, patas de roble, estilo escandinavo."

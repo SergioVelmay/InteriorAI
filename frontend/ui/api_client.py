@@ -197,7 +197,7 @@ class BackendClient:
         await self._request("DELETE", f"/api/v1/projects/{project_id}/assets/{asset_id}")
 
     async def index_references(self, project_id: UUID | str, force: bool = False) -> dict[str, Any]:
-        """CONTEXT_MANAGER: llama a la IA (coste en modo azure)."""
+        """REFERENCE_ANALYST: llama a la IA (coste en modo azure)."""
         response = await self._request(
             "POST",
             f"/api/v1/projects/{project_id}/references/index",

@@ -9,8 +9,10 @@ from shared.models import (
     ProjectIndex,
     ProjectMetadata,
     ProjectUpdate,
+    TelemetryRecord,
     utc_now,
 )
+from shared.roles import Role
 
 
 def test_every_asset_kind_has_folder() -> None:
@@ -41,3 +43,12 @@ def test_metadata_and_index_carry_schema_version() -> None:
     assert metadata.schema_version == 2
     assert ProjectIndex(projects=[metadata.summary()]).schema_version == 2
     assert '"schema_version":2' in metadata.model_dump_json()
+
+
+def test_telemetry_reads_the_previous_role_name() -> None:
+    """B-052: los registros con CONTEXT_MANAGER (antes del Paso 18) son REFERENCE_ANALYST."""
+    record = TelemetryRecord.model_validate(
+        {"role": "CONTEXT_MANAGER", "deployment": "d", "operation": "complete_text",
+         "status": "ok", "latency_s": 1.0}
+    )  # fmt: skip
+    assert record.role is Role.REFERENCE_ANALYST

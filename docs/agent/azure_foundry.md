@@ -14,7 +14,7 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 |------------|---------------------|-----------|-----|
 | `PROMPT_ENGINEER` | `DEPLOYMENT_ROLE_PROMPT_ENGINEER` | `RESPONSES` | Notas/planos → prompt técnico |
 | `GEOMETRIC_AUDITOR` | `DEPLOYMENT_ROLE_GEOMETRIC_AUDITOR` | `RESPONSES` | QA del render frente a SketchUp (`reasoning.effort`) |
-| `CONTEXT_MANAGER` | `DEPLOYMENT_ROLE_CONTEXT_MANAGER` | `RESPONSES` | Indexación de referencias y metadatos |
+| `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Indexación de referencias y metadatos |
 | `FAST_DRAFT` | `DEPLOYMENT_ROLE_FAST_DRAFT` | `IMAGES` | Bocetos rápidos |
 | `STRUCTURAL_COMPOSER` | `DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER` | `IMAGES` | Encaje de mobiliario; **inpainting con máscara** |
 | `PHOTOREALISTIC_RENDERER` | `DEPLOYMENT_ROLE_PHOTOREALISTIC_RENDERER` | `PROVIDER_IMAGES` | Render final; edición por **referencias** (sin máscara) |
@@ -71,7 +71,7 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 | Rol | Latencia | Tokens entrada / salida / razonamiento | Observaciones |
 |-----|----------|----------------------------------------|---------------|
 | PROMPT_ENGINEER | 6,1 s | 44 / 65 / 0 | Sin razonamiento por defecto |
-| CONTEXT_MANAGER | 3,9 s | 83 / 64 / 37 | **Razona por defecto**; JSON estricto correcto |
+| REFERENCE_ANALYST | 3,9 s | 83 / 64 / 37 | **Razona por defecto**; JSON estricto correcto |
 | GEOMETRIC_AUDITOR (`max`) | 23,0 s | 74 / 1.084 / 1.012 | El 93 % de la salida es razonamiento |
 | FAST_DRAFT (1024², low) | 14,5 s | 24 / 196 / 0 | PNG |
 | STRUCTURAL_COMPOSER (edit + máscara, low) | 18,4 s | 1.053 / 196 / 0 | **La máscara es orientativa**: el objeto puede salirse de la zona |

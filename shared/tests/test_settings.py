@@ -21,6 +21,7 @@ AZURE_ENV = {
 _PREFIXES = (
     "APP_", "LOG_", "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_",
     "DATA_DIR", "PRICING_", "MAX_UPLOAD", "BACKEND_", "FRONTEND_", "COST_ALERT_",
+    "PROMPT_ENGINEER_", "REFERENCE_ANALYST_",
 )  # fmt: skip
 
 
@@ -215,6 +216,20 @@ def test_auditor_defaults_medium_effort_and_own_timeout() -> None:
     s = Settings.load(env_file=None)
     assert s.auditor.reasoning_effort == "medium"
     assert s.auditor.timeout_s == 900
+
+
+def test_reasoning_effort_per_text_role(tmp_path: Path) -> None:
+    defaults = Settings.load(env_file=None)
+    assert {r: defaults.reasoning_effort(r) for r in Role if r.api_kind is ApiKind.RESPONSES} == {
+        Role.PROMPT_ENGINEER: "medium",
+        Role.REFERENCE_ANALYST: "medium",
+        Role.GEOMETRIC_AUDITOR: "medium",
+    }
+    assert defaults.reasoning_effort(Role.FAST_DRAFT) is None  # roles de imagen: no razonan
+    custom = load(tmp_path, {"PROMPT_ENGINEER_REASONING_EFFORT": " Low ",
+                             "REFERENCE_ANALYST_REASONING_EFFORT": "high"})  # fmt: skip
+    assert custom.reasoning_effort(Role.PROMPT_ENGINEER) == "low"
+    assert custom.reasoning_effort(Role.REFERENCE_ANALYST) == "high"
 
 
 def test_cost_alert_thresholds(tmp_path: Path) -> None:

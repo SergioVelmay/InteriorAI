@@ -95,7 +95,7 @@ def _reference_request_ids(
         if analysis.request_id:
             ids.add(analysis.request_id)
         else:
-            ids |= _legacy_ids(records, Role.CONTEXT_MANAGER, analysis.analyzed_at)
+            ids |= _legacy_ids(records, Role.REFERENCE_ANALYST, analysis.analyzed_at)
     return ids, len(analyses)
 
 

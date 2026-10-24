@@ -65,9 +65,9 @@ async def test_auditor_simulates_reasoning_tokens(client: MockFoundryClient) -> 
 
 
 async def test_images_add_input_tokens(client: MockFoundryClient) -> None:
-    plain = await client.complete_text(Role.CONTEXT_MANAGER, TextRequest(input="x"))
+    plain = await client.complete_text(Role.REFERENCE_ANALYST, TextRequest(input="x"))
     with_image = await client.complete_text(
-        Role.CONTEXT_MANAGER, TextRequest(input="x", images=[InputImage(data=png())])
+        Role.REFERENCE_ANALYST, TextRequest(input="x", images=[InputImage(data=png())])
     )
     assert with_image.usage.input_tokens == plain.usage.input_tokens + 85
 

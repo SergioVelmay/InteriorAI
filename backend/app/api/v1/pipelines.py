@@ -1,4 +1,4 @@
-"""Pipelines de texto: indexación de referencias (CONTEXT_MANAGER) y briefs (PROMPT_ENGINEER).
+"""Pipelines de texto: indexación de referencias (REFERENCE_ANALYST) y briefs (PROMPT_ENGINEER).
 
 Los briefs siguen el ciclo HITL: propuesto → (editado) → aprobado | rechazado (→ nueva versión).
 """
@@ -17,8 +17,8 @@ from app.hitl.briefs import (
     find_brief,
     reject_brief,
 )
-from app.pipelines.context_manager import index_references, validate_analysis
 from app.pipelines.prompt_engineer import create_brief
+from app.pipelines.reference_analyst import index_references, validate_analysis
 from app.telemetry import current_request_id, request_cost, telemetry_scope
 from shared.models import Asset, DesignBrief, ReferenceAnalysis
 
@@ -84,7 +84,7 @@ async def index_project_references(
     foundry: FoundryDep,
     body: Annotated[IndexRequest, Body()] = IndexRequest(),  # noqa: B008
 ) -> IndexResponse:
-    """Analiza las referencias con el CONTEXT_MANAGER y guarda su ficha (estado `proposed`)."""
+    """Analiza las referencias con el REFERENCE_ANALYST y guarda su ficha (estado `proposed`)."""
     with telemetry_scope(project_id):
         result = await index_references(repo, foundry, project_id, body.asset_ids, body.force)
     return IndexResponse(
