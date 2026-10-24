@@ -24,6 +24,7 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | ✅ Cerrado |
 | 15a | [CI, Dependabot y seguridad del repositorio](paso-15a-ci-seguridad.md) | `feat/paso-15a` | ✅ Cerrado |
 | 15b | [Contenedores, papelera y versión 1.0.0](paso-15b-version-1.md) | `feat/paso-15b` | ✅ Cerrado |
+| 16 | [Mejoras del backlog](paso-16-mejoras.md) | `feat/paso-16` | 🧪 En validación |
 
 Mantenimiento posterior a la 1.0.0:
 
@@ -31,7 +32,7 @@ Mantenimiento posterior a la 1.0.0:
 |-------|-----------|------|--------|
 | 2026-10-23 | Alinear uv 0.13 en la CI (PR #19) | `chore/uv-0.13` | ✅ Cerrado |
 | 2026-10-23 | [Contraste con la factura real de octubre](mantenimiento-2026-10-factura.md) | `fix/precios-facturados` | ✅ Cerrado |
-| 2026-10-23 | Dependencias con alertas de seguridad: Pillow 13 forzado, certifi y brotli (PR #22; B-024) | `fix/seguridad-dependencias` | 🧪 En validación |
+| 2026-10-23 | Dependencias con alertas de seguridad: Pillow 13 forzado, certifi y brotli (PR #22; B-024) | `fix/seguridad-dependencias` | ✅ Cerrado |
 
 ## Plantilla de documento de paso
 
