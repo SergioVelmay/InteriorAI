@@ -96,6 +96,10 @@ los tokens coinciden con la telemetría y el precio en euros es la lista × 0,98
 referencia (`reference_mode: per_image`); `gpt-6.1-sol` salió a 0 €, pero se mantiene su precio
 de lista a propósito. Un timeout no se facturó.
 
+Renderizador y tamaños (B-020, Paso 16): acepta medidas que no son múltiplo de 16, pero las
+**redondea hacia abajo en silencio** (pedida 1920×1080 → devuelta 1920×1072). Por eso se pide el
+múltiplo superior y se recorta (`generation_size` + `masks.fit`).
+
 Paso 14: `summary.py` filtra las llamadas simuladas (`include_simulated`; la API las incluye
 por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el coste de la
 cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,

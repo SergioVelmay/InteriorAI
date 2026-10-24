@@ -171,7 +171,11 @@ def _ceil16(value: int) -> int:
 def generation_size(role: Role, size: str) -> str:
     """Tamaño que se pide al modelo para entregar `size`. El renderizador trabaja en múltiplos
     de 16 px: se pide el múltiplo superior (1920x1080 → 1920x1088) y después se recorta al
-    centro hasta el tamaño exacto, sin escalar (`masks.fit`)."""
+    centro hasta el tamaño exacto, sin escalar (`masks.fit`).
+
+    Comprobado con una llamada real (B-020, Paso 16): si se le pide 1920x1080, lo acepta pero
+    devuelve 1920x1072 (redondea hacia abajo en silencio), así que no basta con pedir el
+    tamaño exacto."""
     if role is not Role.PHOTOREALISTIC_RENDERER:
         return size
     width, height = (int(v) for v in size.split("x"))
