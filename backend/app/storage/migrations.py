@@ -6,6 +6,9 @@ v1 → v2 (versión 2.0.0, Paso 17):
   que tuvieran se añade al final de la descripción, una línea por campo con valor.
 - Estados (B-048): los renders descartados o rechazados vuelven a `generado` (los comentarios
   del rechazo se conservan como historia).
+- Selección (B-043): una imagen seleccionada por etapa. Si había varias, queda la decidida más
+  tarde; si una etapa no tenía ninguna pero sí la siguiente, se selecciona la imagen de la que
+  esta procede (p. ej. el boceto del que salió la composición seleccionada).
 - Imágenes (B-028): un solo tipo. Capturas de SketchUp y planos pasan a referencias (con su tipo
   anterior en `legacy_kind`) y sus archivos se renombran a `referencias/`.
 
@@ -47,6 +50,7 @@ _V1_PROJECT_FIELDS = frozenset({"space_type", "design_notes", "dimensions", "sty
 # Carpetas de los tipos de imagen que desaparecen en la v2.
 _V1_FOLDERS = {"captura_sketchup": "capturas_sketchup", "plano": "planos"}
 REFERENCE_FOLDER = "referencias"
+_STAGES_DOWNSTREAM_FIRST = ("render_final", "composicion", "boceto")
 
 Move = tuple[str, str]  # (carpeta/archivo origen, carpeta/archivo destino), relativos al proyecto
 
@@ -92,13 +96,29 @@ def _render(render: dict[str, Any]) -> dict[str, Any]:
     return render
 
 
+def _single_selection(renders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_id = {r["id"]: r for r in renders}
+    keep: set[str] = set()
+    downstream: dict[str, Any] | None = None
+    for stage in _STAGES_DOWNSTREAM_FIRST:
+        selected = [r for r in renders if r["stage"] == stage and r["status"] == "seleccionado"]
+        chosen = max(selected, key=lambda r: r.get("decided_at") or r["created_at"], default=None)
+        if chosen is None and downstream is not None:
+            parent = by_id.get(downstream.get("parent_render_id"))
+            chosen = parent if parent is not None and parent["stage"] == stage else None
+        if chosen is not None:
+            keep.add(chosen["id"])
+        downstream = chosen
+    return [r | {"status": "seleccionado" if r["id"] in keep else "generado"} for r in renders]
+
+
 def upgrade_v1(data: dict[str, Any]) -> tuple[dict[str, Any], list[Move]]:
     """Convierte el contenido de un `metadatos.json` v1 en v2 (sin tocar el disco). Devuelve
     también los archivos que hay que mover."""
     upgraded = {k: v for k, v in data.items() if k not in _V1_PROJECT_FIELDS}
     upgraded["description"] = _description(data)
     upgraded["assets"], moves = _assets(data.get("assets", []))
-    upgraded["renders"] = [_render(r) for r in data.get("renders", [])]
+    upgraded["renders"] = _single_selection([_render(r) for r in data.get("renders", [])])
     upgraded["schema_version"] = SCHEMA_VERSION
     return upgraded, moves
 

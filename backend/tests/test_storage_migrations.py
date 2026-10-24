@@ -140,15 +140,89 @@ async def test_restored_v1_project_is_migrated(repo: ProjectRepository) -> None:
 # --- B-048: sin rechazos ni descartes ---------------------------------------------------------
 
 
+def render(
+    id: str,
+    stage: str,
+    status: str,
+    minute: int,
+    parent: str | None = None,
+    decided: int | None = None,
+    **extra: object,
+) -> dict:
+    """Render v1 mínimo (solo lo que mira la migración); `decided`: minuto de la decisión."""
+    return {
+        "id": id, "stage": stage, "status": status, "parent_render_id": parent,
+        "created_at": f"2026-10-18T10:{minute:02d}:00Z",
+        "decided_at": f"2026-10-18T11:{decided:02d}:00Z" if decided is not None else None,
+    } | extra  # fmt: skip
+
+
+def statuses(data: dict) -> dict[str, str]:
+    return {r["id"]: r["status"] for r in data["renders"]}
+
+
 def test_rejected_and_discarded_renders_become_generated() -> None:
     renders = [
-        {"id": "a", "status": "descartado"},
-        {"id": "b", "status": "rechazado", "feedback": "Más luz"},
-        {"id": "c", "status": "generado"},
+        render("a", "boceto", "descartado", 1),
+        render("b", "boceto", "rechazado", 2, feedback="Más luz"),
+        render("c", "boceto", "generado", 3),
     ]
     data, _ = upgrade_v1(v1(renders=renders))
-    assert [r["status"] for r in data["renders"]] == ["generado"] * 3
+    assert set(statuses(data).values()) == {"generado"}
     assert data["renders"][1]["feedback"] == "Más luz"  # se conserva como historia
+
+
+# --- B-043: una imagen seleccionada por etapa ------------------------------------------------
+
+
+def test_selection_keeps_the_latest_and_selects_ancestors() -> None:
+    """Caso del Salón: final y composición seleccionados, boceto de origen descartado."""
+    renders = [
+        render("d1", "boceto", "descartado", 1),
+        render("d2", "boceto", "generado", 1),
+        render("c1", "composicion", "descartado", 5, parent="d1"),  # origen del final elegido
+        render("c2", "composicion", "seleccionado", 30, parent="d1", decided=55),
+        render("c3", "composicion", "seleccionado", 9, parent="d2", decided=10),
+        render("f1", "render_final", "seleccionado", 20, parent="c1"),
+        render("f2", "render_final", "rechazado", 21, parent="c2"),
+    ]  # fmt: skip
+    data, _ = upgrade_v1(v1(renders=renders))
+    assert statuses(data) == {
+        "d1": "seleccionado",  # boceto del que salió la composición seleccionada
+        "d2": "generado",
+        "c1": "generado",
+        "c2": "seleccionado",  # la decidida más tarde
+        "c3": "generado",
+        "f1": "seleccionado",
+        "f2": "generado",
+    }
+
+
+def test_selection_without_downstream_choice_stays_empty() -> None:
+    """Caso de la Cocina: sin render final seleccionado, sigue sin haberlo."""
+    renders = [
+        render("d1", "boceto", "seleccionado", 1),
+        render("c1", "composicion", "seleccionado", 5, parent="d1"),
+        render("f1", "render_final", "generado", 9, parent="c1"),
+        render("f2", "render_final", "rechazado", 10, parent="c1"),
+    ]
+    data, _ = upgrade_v1(v1(renders=renders))
+    assert statuses(data) == {
+        "d1": "seleccionado",
+        "c1": "seleccionado",
+        "f1": "generado",
+        "f2": "generado",
+    }
+
+
+def test_selection_follows_the_final_when_no_composition_was_selected() -> None:
+    renders = [
+        render("d1", "boceto", "generado", 1),
+        render("c1", "composicion", "descartado", 5, parent="d1"),
+        render("f1", "render_final", "seleccionado", 9, parent="c1"),
+    ]
+    data, _ = upgrade_v1(v1(renders=renders))
+    assert set(statuses(data).values()) == {"seleccionado"}
 
 
 # --- B-028: un solo tipo de imagen -----------------------------------------------------------

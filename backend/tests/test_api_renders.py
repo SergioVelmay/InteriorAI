@@ -289,6 +289,19 @@ def test_select_transition(api: TestClient, spy: SpyClient, project: dict) -> No
     assert api.post(f"{url}/select").status_code == 409
 
 
+def test_one_selected_render_per_stage(api: TestClient, spy: SpyClient, project: dict) -> None:
+    first, second = run(api, project, "drafts", n=2)["renders"]
+    composition = run(api, project, "compositions")["renders"][0]
+    for render in (first, composition, second):
+        select(api, project, render["id"])
+    statuses = {r["id"]: r["status"] for r in api.get(f"{project['url']}/renders").json()}
+    assert statuses == {
+        first["id"]: "generado",  # la etapa admite una sola imagen seleccionada (B-043)
+        second["id"]: "seleccionado",
+        composition["id"]: "seleccionado",  # otras etapas no cambian
+    }
+
+
 def test_history_filter_and_order(api: TestClient, spy: SpyClient, project: dict) -> None:
     run(api, project, "drafts", n=2)
     run(api, project, "compositions")

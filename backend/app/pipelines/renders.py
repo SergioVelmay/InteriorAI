@@ -1,6 +1,7 @@
 """Pipelines de imagen: boceto → composición → render final, a partir del brief aprobado.
 
-Cada etapa exige como entrada un render `seleccionado` por el usuario en la etapa anterior.
+Cada etapa exige como entrada el render `seleccionado` por el usuario en la etapa anterior (uno
+solo por etapa, B-043).
 Las composiciones y los renders finales admiten retoques de una zona (`inpaint_render`).
 """
 
@@ -359,7 +360,7 @@ async def generate_final(
 
 
 async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UUID) -> RenderRecord:
-    """El usuario selecciona un render; el render final seleccionado es único."""
+    """El usuario selecciona un render: uno solo por etapa (B-043)."""
 
     def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
         renders = list(metadata.renders)
@@ -369,17 +370,15 @@ async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UU
                 ensure_transition(RENDER_TRANSITIONS, render.status, target, "el render")
                 now = utc_now()
                 renders[i] = render.model_copy(update={"status": target, "decided_at": now})
-                if render.stage is RenderStage.FINAL:
-                    # Un único render final seleccionado: el anterior vuelve a generado.
-                    for j, other in enumerate(renders):
-                        if (
-                            j != i
-                            and other.stage is RenderStage.FINAL
-                            and (other.status is RenderStatus.SELECTED)
-                        ):
-                            renders[j] = other.model_copy(
-                                update={"status": RenderStatus.GENERATED, "decided_at": now}
-                            )
+                # El seleccionado anterior de la misma etapa vuelve a generado.
+                for j, other in enumerate(renders):
+                    if j != i and other.stage is render.stage and other.status is target:
+                        ensure_transition(
+                            RENDER_TRANSITIONS, other.status, RenderStatus.GENERATED, "el render"
+                        )
+                        renders[j] = other.model_copy(
+                            update={"status": RenderStatus.GENERATED, "decided_at": now}
+                        )
                 return metadata.model_copy(update={"renders": renders}), renders[i]
         raise RenderNotFoundError(str(render_id))
 

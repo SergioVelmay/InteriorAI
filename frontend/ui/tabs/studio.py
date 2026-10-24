@@ -141,7 +141,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         )  # fmt: skip
         drafts_ids = gr.State([])
     with gr.Accordion("③ Composición (STRUCTURAL_COMPOSER)", open=True):
-        draft_choice = gr.Dropdown(label="Boceto de referencia (seleccionados)", choices=[])
+        draft_choice = gr.Dropdown(label="Boceto de referencia (el seleccionado)", choices=[])
         composition_extra = gr.Textbox(label="Indicaciones adicionales (opcional)")
         with gr.Row(equal_height=True):
             generate_composition = gr.Button(
@@ -154,7 +154,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         )  # fmt: skip
         compositions_ids = gr.State([])
     with gr.Accordion("④ Render final (PHOTOREALISTIC_RENDERER)", open=True):
-        composition_choice = gr.Dropdown(label="Composición (seleccionadas)", choices=[])
+        composition_choice = gr.Dropdown(label="Composición (la seleccionada)", choices=[])
         references = gr.CheckboxGroup(label="Referencias de textura y color", choices=[])
         final_extra = gr.Textbox(label="Indicaciones adicionales (opcional)")
         with gr.Row(equal_height=True):
@@ -327,7 +327,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             drafts_cost: cost_hint(COST_PER_IMAGE[RenderStage.DRAFT], current_mode) + " por imagen",
             draft_choice: gr.update(
                 choices=[("Sin boceto", ""), *drafts_selected],
-                value=drafts_selected[0][1] if drafts_selected else "",  # el más reciente
+                value=drafts_selected[0][1] if drafts_selected else "",
             ),
             generate_composition: gr.update(interactive=approved is not None),
             composition_cost: cost_hint(COST_PER_IMAGE[RenderStage.COMPOSITION], current_mode),
@@ -575,9 +575,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     async def on_select(active_id, current_mode, brief_id, render_id):
         return await guarded(
             lambda: client.select_render(active_id, render_id),
-            "Imagen seleccionada"
-            + (" (el render final anterior deja de estarlo)"
-               if stage_of(render_id) == RenderStage.FINAL.value else ""),
+            "Imagen seleccionada (la anterior de la etapa deja de estarlo)",
             active_id, brief_id, render_id,
         )  # fmt: skip
 
