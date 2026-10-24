@@ -34,7 +34,7 @@ especialización.
 | `python -m shared` con el `.env` nuevo | ✅ luna para los prompts, sol para las fichas, `medium` en los tres roles; listo para `azure` |
 | Smoke real (`python -m app.foundry.smoke`) | 7 de 8 correctas; la llamada a sunburst con `input_fidelity` falló (ver abajo) |
 | Brief e indexación reales sobre una **copia** de `data/` (proyecto Salón) | ✅ Ficha correcta con sol (5,1 s; 223 tokens de salida, 0 de razonamiento; 0,0052 €). Brief correcto con luna (13,5 s; 1 787 tokens de salida, de ellos 982 de razonamiento; 0,0011 €), dentro del tope de 6 000 |
-| CI de la PR | Pendiente |
+| CI de la PR #26 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (al segundo intento: el Dockerfile aún comprobaba el prompt `context_manager`) |
 
 Hallazgos de las llamadas reales:
 
@@ -55,7 +55,7 @@ Coste real del paso: unos 0,10 € (smoke 0,058 €, semillas y retoque sin `inp
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-18`. **Después del merge hay que reconstruir Docker:** la
+⏳ En revisión — rama `feat/paso-18`, PR #26. **Después del merge hay que reconstruir Docker:** la
 variable `DEPLOYMENT_ROLE_CONTEXT_MANAGER` ya no existe en el `.env`, así que la imagen anterior
 no arrancaría en modo `azure`.
 
