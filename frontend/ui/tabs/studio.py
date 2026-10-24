@@ -1,8 +1,8 @@
 """Pestaña Estudio: ciclo Human-in-the-Loop completo del proyecto activo.
 
 ① Brief (generar, editar prompts, aprobar, rechazar) → ② Bocetos → ③ Composición →
-④ Render final, con un visor común para seleccionar, descartar, rechazar con comentarios,
-auditar y retocar una zona pintada (composición y render final). Las acciones de IA muestran
+④ Render final, con un visor común para seleccionar, auditar y retocar una zona pintada
+(composición y render final). Las acciones de IA muestran
 su coste; en modo Azure, las de más de 0,05 € piden un segundo clic de confirmación.
 """
 
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -62,8 +61,6 @@ def estimate(action: dict[str, Any]) -> float:
         return COST_BRIEF
     if kind == "audit":
         return COST_AUDIT
-    if kind == "reject_render":
-        return COST_PER_IMAGE[RenderStage(action["stage"])]
     if kind == "inpaint":
         return COST_INPAINT[RenderStage(action["stage"])]
     return COST_PER_IMAGE[RenderStage(kind)] * action.get("n", 1)
@@ -74,7 +71,6 @@ def describe(action: dict[str, Any]) -> str:
         "brief": "generar un brief",
         "reject_brief": "rechazar el brief y generar una nueva versión",
         "audit": "auditar la imagen (GEOMETRIC_AUDITOR)",
-        "reject_render": "rechazar la imagen y regenerarla",
         "inpaint": "retocar la zona pintada",
         RenderStage.DRAFT.value: f"generar {action.get('n', 1)} boceto(s)",
         RenderStage.COMPOSITION.value: "generar la composición",
@@ -83,8 +79,8 @@ def describe(action: dict[str, Any]) -> str:
 
 
 def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTab:
-    # Etapa de cada render (para estimar el coste de rechazar y regenerar) e imagen del render
-    # mostrado (para el editor de retoques); los rellena view().
+    # Etapa de cada render (para estimar el coste de un retoque) e imagen del render mostrado
+    # (para el editor de retoques); los rellena view().
     stages_by_render: dict[str, str] = {}
     shown_images: dict[str, Any] = {}
 
@@ -184,20 +180,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 )
             with gr.Column(scale=2):
                 viewer_md = gr.Markdown()
-                with gr.Row():
-                    select_btn = gr.Button("Seleccionar", variant="primary", elem_id="iai-select")
-                    discard_btn = gr.Button("Descartar", variant="secondary")
-                render_feedback = gr.Textbox(
-                    label="Comentarios para rechazar", lines=2, elem_id="iai-render-feedback"
-                )
-                apply_audit = gr.Checkbox(
-                    value=True, label="Aplicar las correcciones de la última auditoría"
-                )
-                with gr.Row():
-                    reject_regenerate = gr.Button(
-                        "Rechazar y regenerar", variant="secondary", elem_id="iai-reject-render"
-                    )
-                    reject_only = gr.Button("Rechazar sin regenerar", variant="secondary")
+                select_btn = gr.Button("Seleccionar", variant="primary", elem_id="iai-select")
                 with gr.Row(equal_height=True):
                     audit_btn = gr.Button("Auditar", variant="secondary", elem_id="iai-audit")
                     audit_cost = gr.Markdown()
@@ -217,8 +200,8 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 "Pinta la zona que quieres cambiar y describe el cambio; si añades un objeto, "
                 "pinta **algo más grande que el objeto** (lo que se salga de la zona se corta). "
                 "Fuera de lo pintado la imagen queda **idéntica**; el retoque es una imagen nueva "
-                "de la misma etapa que puedes seleccionar, descartar o rechazar (se repite con la "
-                "misma zona). La salida en bruto del modelo también se guarda."
+                "de la misma etapa que puedes seleccionar. La salida en bruto del modelo también "
+                "se guarda."
             )
 
             # Un editor nuevo por imagen: cambiar por código el valor de un ImageEditor ya
@@ -281,8 +264,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         for gallery, ids in galleries.values():
             updates |= {gallery: [], ids: []}
         for button in (generate_brief, generate_drafts, generate_composition, generate_final,
-                       approve, reject_brief, save_prompts, select_btn, discard_btn,
-                       reject_regenerate, reject_only, audit_btn):  # fmt: skip
+                       approve, reject_brief, save_prompts, select_btn, audit_btn):  # fmt: skip
             updates[button] = gr.update(interactive=False)
         return updates
 
@@ -374,18 +356,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             ),
             use_raw_btn: gr.update(visible=can_use_raw(project, render)),
             select_btn: gr.update(
-                interactive=bool(render)
-                and render.status in {RenderStatus.GENERATED, RenderStatus.DISCARDED}
-            ),
-            discard_btn: gr.update(
-                interactive=bool(render)
-                and render.status in {RenderStatus.GENERATED, RenderStatus.SELECTED}
-            ),
-            reject_regenerate: gr.update(
-                interactive=bool(render) and render.status is not RenderStatus.REJECTED
-            ),
-            reject_only: gr.update(
-                interactive=bool(render) and render.status is not RenderStatus.REJECTED
+                interactive=bool(render) and render.status is RenderStatus.GENERATED
             ),
             audit_btn: gr.update(interactive=bool(render) and render.stage in AUDITABLE),
         }
@@ -435,12 +406,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 None,
                 action["render_id"],
             )
-        if kind == "reject_render":
-            body = await client.reject_render(
-                active_id, action["render_id"], action["feedback"], True, action["apply_audit"]
-            )
-            new = body["new_renders"][0]["id"] if body["new_renders"] else None
-            return f"Imagen rechazada y regenerada · {euros(body['cost_eur'])}", None, new
         if kind == "inpaint":
             body = await client.inpaint_render(
                 active_id, action["render_id"], action["mask"], action["instruction"]
@@ -514,8 +479,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         generate_brief, brief_cost, generate_drafts, drafts_cost, draft_choice,
         generate_composition,
         composition_cost, composition_choice, references, generate_final, final_cost, viewer,
-        viewer_md, audit_md, select_btn, discard_btn, reject_regenerate, reject_only, audit_btn,
-        audit_cost, inpaint_files, use_raw_btn,
+        viewer_md, audit_md, select_btn, audit_btn, audit_cost, inpaint_files, use_raw_btn,
         *(c for pair in galleries.values() for c in pair),
     ]  # fmt: skip
 
@@ -574,14 +538,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         composition_choice, references, final_extra,
     )  # fmt: skip
     wire(audit_btn, lambda b, r: {"kind": "audit", "render_id": r})
-    wire(
-        reject_regenerate,
-        lambda b, r, text, apply: {
-            "kind": "reject_render", "render_id": r, "feedback": (text or "").strip(),
-            "apply_audit": bool(apply), "stage": stage_of(r),
-        } if (text or "").strip() else {"error": "Escribe tus comentarios antes de rechazar"},
-        render_feedback, apply_audit,
-    )  # fmt: skip
 
     def build_inpaint(b, r, value, text) -> dict[str, Any]:
         mask = editor_mask(value)
@@ -616,22 +572,13 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             active_id, brief_id, render_id,
         )  # fmt: skip
 
-    async def on_decide(select: bool, active_id, current_mode, brief_id, render_id):
+    async def on_select(active_id, current_mode, brief_id, render_id):
         return await guarded(
-            lambda: client.decide_render(active_id, render_id, select),
-            ("Imagen seleccionada" if select else "Imagen descartada")
-            + (" (el render final anterior pasa a descartado)"
-               if select and stage_of(render_id) == RenderStage.FINAL.value else ""),
+            lambda: client.select_render(active_id, render_id),
+            "Imagen seleccionada"
+            + (" (el render final anterior deja de estarlo)"
+               if stage_of(render_id) == RenderStage.FINAL.value else ""),
             active_id, brief_id, render_id,
-        )  # fmt: skip
-
-    async def on_reject_only(active_id, current_mode, brief_id, render_id, text):
-        if not (text or "").strip():
-            gr.Warning("Escribe tus comentarios antes de rechazar")
-            return {pending: gr.skip()}
-        return await guarded(
-            lambda: client.reject_render(active_id, render_id, text.strip(), regenerate=False),
-            "Imagen rechazada", active_id, brief_id, render_id,
         )  # fmt: skip
 
     async def on_brief_change(active_id, current_mode, brief_id, render_id, chosen):
@@ -648,8 +595,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         on_save_prompts, inputs=[*common, prompt_fast, prompt_struct, prompt_photo], outputs=outputs
     )
     approve.click(on_approve, inputs=common, outputs=outputs)
-    select_btn.click(partial(on_decide, True), inputs=common, outputs=outputs)
-    discard_btn.click(partial(on_decide, False), inputs=common, outputs=outputs)
+    select_btn.click(on_select, inputs=common, outputs=outputs)
 
     async def on_use_raw(active_id, current_mode, brief_id, render_id):
         try:
@@ -661,7 +607,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         return await view(active_id, brief_id, str(record.id))
 
     use_raw_btn.click(on_use_raw, inputs=common, outputs=outputs)
-    reject_only.click(on_reject_only, inputs=[*common, render_feedback], outputs=outputs)
     brief_select.input(on_brief_change, inputs=[*common, brief_select], outputs=outputs)
     for stage, (gallery, ids) in galleries.items():
         gallery.select(gallery_handler(stage), inputs=[*common, ids], outputs=outputs)

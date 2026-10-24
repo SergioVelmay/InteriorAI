@@ -280,10 +280,9 @@ def test_wrong_stage_or_missing_render(api: TestClient, spy: SpyClient, project:
 # --- Decisiones del usuario, historial y borrado -----------------------------------------------
 
 
-def test_select_and_discard_transitions(api: TestClient, spy: SpyClient, project: dict) -> None:
+def test_select_transition(api: TestClient, spy: SpyClient, project: dict) -> None:
     render = run(api, project, "drafts", n=1)["renders"][0]
     url = f"{project['url']}/renders/{render['id']}"
-    assert api.post(f"{url}/discard").json()["status"] == "descartado"
     selected = api.post(f"{url}/select").json()
     assert selected["status"] == "seleccionado"
     assert selected["decided_at"] is not None
@@ -466,28 +465,19 @@ def test_inpaint_validation(api: TestClient, spy: SpyClient, project: dict) -> N
     assert len(spy.edits) == 2  # ninguna petición inválida llega al modelo
 
 
-def test_rejecting_a_retouch_repeats_it_with_the_same_mask(
+def test_deleting_a_retouch_moves_its_files_to_the_trash(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
     composition = run(api, project, "compositions")["renders"][0]
     retouch = inpaint(
         api, project, composition["id"], zone_mask((1536, 1024), (100, 100, 300, 300))
     ).json()["renders"][0]
-    response = api.post(
-        f"{project['url']}/renders/{retouch['id']}/reject", json={"feedback": "Más oscuro"}
-    )
-    assert response.status_code == 200, response.text
-    [again] = response.json()["new_renders"]
-    assert again["previous_attempt_id"] == retouch["id"]
-    assert again["inpaint"]["source_render_id"] == composition["id"]
-    assert "Más oscuro" in again["inpaint"]["instruction"]
-    assert spy.edits[-1][1].mask is not None
 
     # Borrar el retoque se lleva también su máscara a la papelera.
-    assert api.delete(f"{project['url']}/assets/{again['id']}").status_code == 204
+    assert api.delete(f"{project['url']}/assets/{retouch['id']}").status_code == 204
     trash = tmp_path / "data" / ".papelera" / project["url"].rsplit("/", 1)[1]
     names = [p.name for p in trash.iterdir()]
-    for name in (again["inpaint"]["mask_file"], again["inpaint"]["raw_file"]):
+    for name in (retouch["inpaint"]["mask_file"], retouch["inpaint"]["raw_file"]):
         assert any(n.endswith(name) for n in names)
 
 
@@ -517,15 +507,7 @@ def test_use_raw_output_as_a_new_image(api: TestClient, spy: SpyClient, project:
     assert api.post(f"{project['url']}/renders/{final['id']}/raw").status_code == 422
     assert select(api, project, raw["id"])["status"] == "seleccionado"
     statuses = {r["id"]: r["status"] for r in api.get(f"{project['url']}/renders").json()}
-    assert statuses[final["id"]] == "descartado"  # un único render final seleccionado
-
-    # Rechazarla con comentarios repite el retoque (misma imagen y máscara).
-    response = api.post(
-        f"{project['url']}/renders/{raw['id']}/reject", json={"feedback": "Alfombra más clara"}
-    )
-    [again] = response.json()["new_renders"]
-    assert again["inpaint"]["source_render_id"] == final["id"]
-    assert again["previous_attempt_id"] == raw["id"]
+    assert statuses[final["id"]] == "generado"  # un único render final seleccionado
 
 
 def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> None:

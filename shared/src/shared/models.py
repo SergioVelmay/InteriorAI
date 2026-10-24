@@ -209,10 +209,11 @@ class RenderStage(StrEnum):
 
 
 class RenderStatus(StrEnum):
+    """Sin estados de rechazo ni descarte desde la v2 (B-048): las imágenes se generan y,
+    como mucho, se seleccionan."""
+
     GENERATED = "generado"
     SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
-    DISCARDED = "descartado"
-    REJECTED = "rechazado"  # rechazado con comentarios (puede regenerarse)
 
 
 # --- Auditoría geométrica (GEOMETRIC_AUDITOR) --------------------------------------------
@@ -297,8 +298,8 @@ class RenderRecord(_Model):
     request_id: str | None = None
     cost_eur: float | None = None  # coste estimado de la llamada repartido entre sus imágenes
     audits: list[RenderAudit] = Field(default_factory=list)  # a demanda; la última es la vigente
-    feedback: str | None = None  # comentarios del usuario al rechazar
-    previous_attempt_id: UUID | None = None  # render rechazado que esta imagen sustituye
+    feedback: str | None = None  # histórico (v1): comentarios del usuario al rechazarla
+    previous_attempt_id: UUID | None = None  # histórico (v1): render rechazado al que sustituye
     inpaint: RenderInpaint | None = None  # solo si es un retoque de zona (Paso 13b)
     raw_of_render_id: UUID | None = None  # salida en bruto de ese retoque, como imagen propia
     created_at: datetime = Field(default_factory=utc_now)

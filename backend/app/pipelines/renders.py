@@ -48,13 +48,11 @@ _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 
 Quality = Literal["low", "medium", "high", "auto"]
 
+# Solo el usuario selecciona. Una imagen seleccionada vuelve a `generado` cuando se selecciona
+# otra de la misma etapa (sin rechazos ni descartes desde la v2, B-048).
 RENDER_TRANSITIONS = {
-    RenderStatus.GENERATED: frozenset(
-        {RenderStatus.SELECTED, RenderStatus.DISCARDED, RenderStatus.REJECTED}
-    ),
-    RenderStatus.SELECTED: frozenset({RenderStatus.DISCARDED, RenderStatus.REJECTED}),
-    RenderStatus.DISCARDED: frozenset({RenderStatus.SELECTED, RenderStatus.REJECTED}),
-    # REJECTED es terminal: se sustituye por una nueva imagen (previous_attempt_id)
+    RenderStatus.GENERATED: frozenset({RenderStatus.SELECTED}),
+    RenderStatus.SELECTED: frozenset({RenderStatus.GENERATED}),
 }
 
 # Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
@@ -240,8 +238,6 @@ async def _run_stage(
     base_prompt: str,
     options: RenderOptions,
     output_format: Literal["png", "jpeg"],
-    *,
-    previous_attempt_id: UUID | None = None,
 ) -> list[RenderRecord]:
     # La imagen base es la primera entrada (asset subido o render de la etapa anterior).
     base = next(a for a in project.assets if a.id == inputs[0])
@@ -284,7 +280,6 @@ async def _run_stage(
             seed=options.seed,
             request_id=current_request_id(),
             cost_eur=round(total / len(result.images), 6) if total is not None else None,
-            previous_attempt_id=previous_attempt_id,
         )
         mime = generated.mime_type if content is generated.data else "image/png"
         await repo.add_render(project.id, record, content, mime, target[0], target[1])
@@ -363,20 +358,19 @@ async def generate_final(
     )  # fmt: skip
 
 
-async def decide_render(
-    repo: ProjectRepository, project_id: UUID, render_id: UUID, target: RenderStatus
-) -> RenderRecord:
-    """Selección o descarte de un render por el usuario."""
+async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UUID) -> RenderRecord:
+    """El usuario selecciona un render; el render final seleccionado es único."""
 
     def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
         renders = list(metadata.renders)
         for i, render in enumerate(renders):
             if render.id == render_id:
+                target = RenderStatus.SELECTED
                 ensure_transition(RENDER_TRANSITIONS, render.status, target, "el render")
                 now = utc_now()
                 renders[i] = render.model_copy(update={"status": target, "decided_at": now})
-                if target is RenderStatus.SELECTED and render.stage is RenderStage.FINAL:
-                    # Un único render final seleccionado: el anterior pasa a descartado.
+                if render.stage is RenderStage.FINAL:
+                    # Un único render final seleccionado: el anterior vuelve a generado.
                     for j, other in enumerate(renders):
                         if (
                             j != i
@@ -384,93 +378,12 @@ async def decide_render(
                             and (other.status is RenderStatus.SELECTED)
                         ):
                             renders[j] = other.model_copy(
-                                update={"status": RenderStatus.DISCARDED, "decided_at": now}
+                                update={"status": RenderStatus.GENERATED, "decided_at": now}
                             )
                 return metadata.model_copy(update={"renders": renders}), renders[i]
         raise RenderNotFoundError(str(render_id))
 
     return await repo.mutate(project_id, change)
-
-
-def feedback_prompt(render: RenderRecord, feedback: str, audit_suggestions: str | None) -> str:
-    """Prompt anterior + comentarios del usuario (+ correcciones del auditor, si se aplican)."""
-    parts = [render.prompt, f"User feedback (in Spanish, apply it): {feedback.strip()}"]
-    if audit_suggestions and audit_suggestions.strip():
-        parts.append(f"Corrections from the geometric audit: {audit_suggestions.strip()}")
-    return "\n\n".join(parts)
-
-
-async def reject_render(
-    repo: ProjectRepository,
-    client: FoundryClient,
-    project_id: UUID,
-    render_id: UUID,
-    feedback: str,
-    regenerate: bool = True,
-    apply_audit_suggestions: bool = True,
-) -> tuple[RenderRecord, list[RenderRecord]]:
-    """Rechazo con comentarios; si `regenerate`, nueva imagen de la misma etapa y entradas."""
-
-    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
-        renders = list(metadata.renders)
-        for i, render in enumerate(renders):
-            if render.id == render_id:
-                ensure_transition(
-                    RENDER_TRANSITIONS, render.status, RenderStatus.REJECTED, "el render"
-                )
-                renders[i] = render.model_copy(
-                    update={
-                        "status": RenderStatus.REJECTED,
-                        "feedback": feedback.strip(),
-                        "decided_at": utc_now(),
-                    }
-                )
-                return metadata.model_copy(update={"renders": renders}), renders[i]
-        raise RenderNotFoundError(str(render_id))
-
-    rejected = await repo.mutate(project_id, change)
-    if not regenerate:
-        return rejected, []
-    retouch = rejected
-    if rejected.raw_of_render_id is not None:  # salida en bruto: se repite su retoque
-        project = await repo.get(project_id)
-        retouch = next((r for r in project.renders if r.id == rejected.raw_of_render_id), rejected)
-    if retouch.inpaint is not None:
-        # Un retoque se repite sobre la misma imagen y con la misma máscara.
-        mask = await repo.read_render_file(project_id, retouch.inpaint.mask_file)
-        instruction = (
-            f"{retouch.inpaint.instruction}\n\n"
-            f"Feedback on the previous attempt (in Spanish): {feedback.strip()}"
-        )
-        new = await inpaint_render(
-            repo, client, project_id, retouch.inpaint.source_render_id, mask, instruction,
-            quality=rejected.quality, previous_attempt_id=rejected.id,  # type: ignore[arg-type]
-        )  # fmt: skip
-        return rejected, [new]
-
-    project = await repo.get(project_id)
-    brief = next((b for b in project.briefs if b.id == rejected.brief_id), None)
-    if brief is None:
-        raise BriefNotFoundError(str(rejected.brief_id))
-    parent = next((r for r in project.renders if r.id == rejected.parent_render_id), None)
-    suggestions = (
-        rejected.audits[-1].report.suggested_prompt_adjustments
-        if apply_audit_suggestions and rejected.audits
-        else None
-    )
-    role, output_format = _STAGE_ROLES[rejected.stage]
-    options = RenderOptions(
-        n=1,
-        size=rejected.size,
-        quality=rejected.quality,  # type: ignore[arg-type]
-        seed=rejected.seed,
-        prompt_override=feedback_prompt(rejected, feedback, suggestions),
-    )
-    new = await _run_stage(
-        repo, client, project, brief, rejected.stage, role, rejected.input_asset_ids, parent,
-        rejected.prompt, options, output_format, previous_attempt_id=rejected.id,
-    )  # fmt: skip
-    return rejected, new
 
 
 # --- Retoque de una zona (inpainting, Paso 13b) ---------------------------------------------
@@ -508,7 +421,6 @@ async def inpaint_render(
     instruction: str,
     *,
     quality: Quality | None = None,
-    previous_attempt_id: UUID | None = None,
 ) -> RenderRecord:
     """Retoca la zona pintada de una composición o render final.
 
@@ -589,7 +501,6 @@ async def inpaint_render(
         quality=quality_used,
         request_id=current_request_id(),
         cost_eur=round(total, 6) if total is not None else None,
-        previous_attempt_id=previous_attempt_id,
         inpaint=RenderInpaint(
             source_render_id=source.id,
             instruction=instruction.strip(),

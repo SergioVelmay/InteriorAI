@@ -137,6 +137,20 @@ async def test_restored_v1_project_is_migrated(repo: ProjectRepository) -> None:
     assert (repo.data_dir / str(project.id) / BACKUP_FILE).is_file()
 
 
+# --- B-048: sin rechazos ni descartes ---------------------------------------------------------
+
+
+def test_rejected_and_discarded_renders_become_generated() -> None:
+    renders = [
+        {"id": "a", "status": "descartado"},
+        {"id": "b", "status": "rechazado", "feedback": "Más luz"},
+        {"id": "c", "status": "generado"},
+    ]
+    data, _ = upgrade_v1(v1(renders=renders))
+    assert [r["status"] for r in data["renders"]] == ["generado"] * 3
+    assert data["renders"][1]["feedback"] == "Más luz"  # se conserva como historia
+
+
 # --- B-028: un solo tipo de imagen -----------------------------------------------------------
 
 

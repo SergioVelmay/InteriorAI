@@ -1,6 +1,6 @@
 """Portadas de los proyectos, leídas directamente del volumen compartido (solo lectura).
 
-Prioridad: render final seleccionado → último render no rechazado ni descartado →
+Prioridad: render final seleccionado → último render →
 captura de SketchUp → plano (imágenes de la v1) → referencia más antigua → imagen de relleno.
 """
 
@@ -34,8 +34,7 @@ def cover_asset(project: ProjectMetadata) -> Asset | None:
     finals = [
         r for r in renders if r.stage is RenderStage.FINAL and r.status is RenderStatus.SELECTED
     ]
-    usable = [r for r in renders if r.status not in {RenderStatus.REJECTED, RenderStatus.DISCARDED}]
-    for render in [*finals, *usable]:
+    for render in [*finals, *renders]:
         if render.id in assets:
             return assets[render.id]
     uploaded = sorted(

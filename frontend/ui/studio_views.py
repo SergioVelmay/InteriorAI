@@ -33,12 +33,7 @@ COST_BRIEF = 0.05
 COST_AUDIT = 0.25
 CONFIRM_THRESHOLD_EUR = 0.05  # en modo azure, por encima se pide un segundo clic
 
-STATUS_ICONS = {
-    RenderStatus.GENERATED: "○",
-    RenderStatus.SELECTED: "●",
-    RenderStatus.DISCARDED: "-",
-    RenderStatus.REJECTED: "✕",
-}
+STATUS_ICONS = {RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●"}
 CHECK_ICONS = {"ok": "✅", "aviso": "⚠️", "fallo": "❌"}
 VERDICTS = {
     "conforme": "✅ Conforme",
@@ -192,9 +187,11 @@ def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> s
             "completa que generó el modelo, sin recomponer (coste ya contado en el retoque)"
         )
     if render.previous_attempt_id:
-        lines.append(f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado)")
+        lines.append(
+            f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado en la v1)"
+        )
     if render.feedback:
-        lines.append(f"**Tus comentarios:** {html.escape(render.feedback)}")
+        lines.append(f"**Tus comentarios al rechazarla (v1):** {html.escape(render.feedback)}")
     lines.append(
         f"<details><summary>Prompt usado</summary>\n\n```\n{render.prompt}\n```\n</details>"
     )

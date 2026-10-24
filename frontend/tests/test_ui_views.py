@@ -115,7 +115,7 @@ def test_cover_priority() -> None:
     plan = asset(AssetKind.REFERENCIA, legacy_kind="plano")
     capture = asset(AssetKind.REFERENCIA, legacy_kind="captura_sketchup")
     reference = asset(AssetKind.REFERENCIA)  # de la v2: después de las imágenes de la v1
-    draft, final, rejected = (
+    draft, final, later = (
         asset(AssetKind.RENDER),
         asset(AssetKind.RENDER),
         asset(AssetKind.RENDER),
@@ -123,11 +123,11 @@ def test_cover_priority() -> None:
     renders = [
         render(draft.id, RenderStage.DRAFT, RenderStatus.GENERATED, minutes=1),
         render(final.id, RenderStage.FINAL, RenderStatus.SELECTED, minutes=0),
-        render(rejected.id, RenderStage.FINAL, RenderStatus.REJECTED, minutes=5),
+        render(later.id, RenderStage.FINAL, RenderStatus.GENERATED, minutes=5),
     ]
-    assets = [plan, capture, draft, final, rejected]
+    assets = [plan, capture, draft, final, later]
     assert cover_asset(project(assets=assets, renders=renders)) == final
-    assert cover_asset(project(assets=assets, renders=renders[::2])) == draft  # sin final elegido
+    assert cover_asset(project(assets=assets, renders=renders[::2])) == later  # el más reciente
     assert cover_asset(project(assets=[reference, plan, capture])) == capture
     assert cover_asset(project(assets=[reference, plan])) == plan
     assert cover_asset(project(assets=[reference])) == reference

@@ -13,16 +13,15 @@ from app.pipelines.auditor import audit_render
 from app.pipelines.renders import (
     RenderNotFoundError,
     RenderOptions,
-    decide_render,
     generate_composition,
     generate_drafts,
     generate_final,
     inpaint_render,
-    reject_render,
+    select_render,
     use_raw_output,
 )
 from app.telemetry import current_request_id, request_cost, telemetry_scope
-from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage, RenderStatus
+from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage
 
 router = APIRouter(prefix="/projects/{project_id}/renders", tags=["renders"])
 
@@ -69,23 +68,6 @@ class RenderRunResponse(BaseModel):
 class AuditResponse(BaseModel):
     render: RenderRecord
     audit: RenderAudit
-    cost_eur: float
-    request_id: str | None
-
-
-class RejectRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    feedback: str = Field(min_length=1, max_length=2_000)
-    regenerate: bool = Field(default=True, description="Generar una nueva imagen de la etapa")
-    apply_audit_suggestions: bool = Field(
-        default=True, description="Añadir al prompt las correcciones de la última auditoría"
-    )
-
-
-class RejectResponse(BaseModel):
-    rejected: RenderRecord
-    new_renders: list[RenderRecord]
     cost_eur: float
     request_id: str | None
 
@@ -168,14 +150,9 @@ async def list_renders(
 
 
 @router.post("/{render_id}/select", response_model=RenderRecord)
-async def select_render(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
+async def select(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
     """El usuario elige este render: puede alimentar la etapa siguiente."""
-    return await decide_render(repo, project_id, render_id, RenderStatus.SELECTED)
-
-
-@router.post("/{render_id}/discard", response_model=RenderRecord)
-async def discard_render(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
-    return await decide_render(repo, project_id, render_id, RenderStatus.DISCARDED)
+    return await select_render(repo, project_id, render_id)
 
 
 @router.post("/{render_id}/audit", response_model=AuditResponse)
@@ -197,25 +174,6 @@ async def audit(
     return AuditResponse(
         render=render,
         audit=report,
-        cost_eur=await request_cost(repo, project_id),
-        request_id=current_request_id(),
-    )
-
-
-@router.post("/{render_id}/reject", response_model=RejectResponse)
-async def reject(
-    project_id: UUID, render_id: UUID, body: RejectRequest, repo: RepositoryDep, foundry: FoundryDep
-) -> RejectResponse:
-    """Rechazo con comentarios; por defecto regenera la misma etapa con los comentarios (y las
-    correcciones de la última auditoría) añadidos al prompt."""
-    with telemetry_scope(project_id):
-        rejected, new = await reject_render(
-            repo, foundry, project_id, render_id, body.feedback, body.regenerate,
-            body.apply_audit_suggestions,
-        )  # fmt: skip
-    return RejectResponse(
-        rejected=rejected,
-        new_renders=new,
         cost_eur=await request_cost(repo, project_id),
         request_id=current_request_id(),
     )

@@ -4,6 +4,8 @@ v1 → v2 (versión 2.0.0, Paso 17):
 
 - Proyecto (B-026): sin tipo de espacio, notas de diseño, dimensiones, estilo ni presupuesto; lo
   que tuvieran se añade al final de la descripción, una línea por campo con valor.
+- Estados (B-048): los renders descartados o rechazados vuelven a `generado` (los comentarios
+  del rechazo se conservan como historia).
 - Imágenes (B-028): un solo tipo. Capturas de SketchUp y planos pasan a referencias (con su tipo
   anterior en `legacy_kind`) y sus archivos se renombran a `referencias/`.
 
@@ -84,12 +86,19 @@ def _assets(assets: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[Mo
     return upgraded, moves
 
 
+def _render(render: dict[str, Any]) -> dict[str, Any]:
+    if render.get("status") in {"descartado", "rechazado"}:
+        return render | {"status": "generado"}
+    return render
+
+
 def upgrade_v1(data: dict[str, Any]) -> tuple[dict[str, Any], list[Move]]:
     """Convierte el contenido de un `metadatos.json` v1 en v2 (sin tocar el disco). Devuelve
     también los archivos que hay que mover."""
     upgraded = {k: v for k, v in data.items() if k not in _V1_PROJECT_FIELDS}
     upgraded["description"] = _description(data)
     upgraded["assets"], moves = _assets(data.get("assets", []))
+    upgraded["renders"] = [_render(r) for r in data.get("renders", [])]
     upgraded["schema_version"] = SCHEMA_VERSION
     return upgraded, moves
 

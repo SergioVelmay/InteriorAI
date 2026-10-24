@@ -120,7 +120,6 @@ def test_costs_and_confirmation_threshold() -> None:
         ({"kind": "audit"}, 0.25),
         ({"kind": "boceto", "n": 3}, 0.045),
         ({"kind": "render_final"}, 0.095),
-        ({"kind": "reject_render", "stage": "composicion"}, 0.035),
         ({"kind": "inpaint", "stage": "composicion"}, 0.035),
         ({"kind": "inpaint", "stage": "render_final"}, 0.09),
     ],
@@ -150,13 +149,13 @@ def test_brief_markdown_escapes_and_keeps_unknown_dimensions() -> None:
 def test_render_helpers() -> None:
     old = render(RenderStage.DRAFT, RenderStatus.SELECTED)
     new = render(RenderStage.DRAFT, RenderStatus.SELECTED, minutes=5)
-    discarded = render(RenderStage.DRAFT, RenderStatus.DISCARDED, minutes=9)
+    latest = render(RenderStage.DRAFT, minutes=9)
     final = render(RenderStage.FINAL, audits=[audit()])
-    p = project(renders=[old, final, new, discarded])
-    assert renders_of(p, RenderStage.DRAFT) == [discarded, new, old]
+    p = project(renders=[old, final, new, latest])
+    assert renders_of(p, RenderStage.DRAFT) == [latest, new, old]
     assert [v for _, v in selected_choices(p, RenderStage.DRAFT)] == [str(new.id), str(old.id)]
     assert render_caption(final) == "○ generado · auditoría 82/100 · 0.0105 €"
-    assert render_caption(discarded) == "- descartado · 0.0105 €"
+    assert render_caption(new) == "● seleccionado · 0.0105 €"
 
 
 def test_render_detail_and_audit_markdown() -> None:
@@ -195,7 +194,7 @@ async def test_studio_client_requests() -> None:
             return httpx.Response(200, json=[render_json])
         if path.endswith(("/approve", f"/briefs/{bid}")):
             return httpx.Response(200, json=brief_json)
-        if path.endswith(("/select", "/discard")):
+        if path.endswith("/select"):
             return httpx.Response(200, json=render_json)
         return httpx.Response(200, json={"cost_eur": 0})
 
@@ -208,9 +207,7 @@ async def test_studio_client_requests() -> None:
     await client.list_renders(pid, RenderStage.FINAL)
     for stage in RenderStage:
         await client.generate_renders(pid, stage, {"n": 1})
-    await client.decide_render(pid, rid, select=True)
-    await client.decide_render(pid, rid, select=False)
-    await client.reject_render(pid, rid, "más luz", apply_audit_suggestions=False)
+    await client.select_render(pid, rid)
     await client.audit_render(pid, rid)
 
     assert [(r.method, r.url.path.removeprefix(f"/api/v1/projects/{pid}")) for r in seen] == [
@@ -224,19 +221,14 @@ async def test_studio_client_requests() -> None:
         ("POST", "/renders/compositions"),
         ("POST", "/renders/final"),
         ("POST", f"/renders/{rid}/select"),
-        ("POST", f"/renders/{rid}/discard"),
-        ("POST", f"/renders/{rid}/reject"),
         ("POST", f"/renders/{rid}/audit"),
     ]
     assert json.loads(seen[1].content) == {"instructions": "más verde"}
     assert json.loads(seen[4].content) == {"feedback": "no", "regenerate": False}
     assert seen[5].url.params["stage"] == "render_final"
-    assert json.loads(seen[11].content) == {
-        "feedback": "más luz", "regenerate": True, "apply_audit_suggestions": False,
-    }  # fmt: skip
     # Las llamadas de IA usan timeouts largos; la auditoría, el suyo propio.
     assert seen[1].extensions["timeout"]["read"] == AI_TIMEOUT_S
-    assert seen[12].extensions["timeout"]["read"] == AI_AUDIT_TIMEOUT_S
+    assert seen[10].extensions["timeout"]["read"] == AI_AUDIT_TIMEOUT_S
 
 
 # --- Pestaña --------------------------------------------------------------------------------

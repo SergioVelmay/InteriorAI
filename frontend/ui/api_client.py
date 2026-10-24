@@ -279,32 +279,11 @@ class BackendClient:
         )
         return response.json()
 
-    async def decide_render(
-        self, project_id: UUID | str, render_id: UUID | str, select: bool
-    ) -> RenderRecord:
-        action = "select" if select else "discard"
+    async def select_render(self, project_id: UUID | str, render_id: UUID | str) -> RenderRecord:
         response = await self._request(
-            "POST", f"{self._project(project_id)}/renders/{render_id}/{action}"
+            "POST", f"{self._project(project_id)}/renders/{render_id}/select"
         )
         return RenderRecord.model_validate(response.json())
-
-    async def reject_render(
-        self,
-        project_id: UUID | str,
-        render_id: UUID | str,
-        feedback: str,
-        regenerate: bool = True,
-        apply_audit_suggestions: bool = True,
-    ) -> dict[str, Any]:
-        response = await self._request(
-            "POST", f"{self._project(project_id)}/renders/{render_id}/reject",
-            json={
-                "feedback": feedback, "regenerate": regenerate,
-                "apply_audit_suggestions": apply_audit_suggestions,
-            },
-            timeout=AI_TIMEOUT_S,
-        )  # fmt: skip
-        return response.json()
 
     async def audit_render(self, project_id: UUID | str, render_id: UUID | str) -> dict[str, Any]:
         """GEOMETRIC_AUDITOR (el rol más caro)."""
