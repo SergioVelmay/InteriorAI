@@ -44,7 +44,7 @@ El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegu
 
 | Rol | Tarea |
 |-----|-------|
-| `CONTEXT_MANAGER` | Fichas de las referencias (medidas, materiales, colores) |
+| `REFERENCE_ANALYST` | Fichas de las referencias (medidas, materiales, colores) |
 | `PROMPT_ENGINEER` | Brief de diseño y prompts de imagen |
 | `FAST_DRAFT` | Bocetos rápidos sobre la captura |
 | `STRUCTURAL_COMPOSER` | Composición fiel a la geometría; retoques con máscara |

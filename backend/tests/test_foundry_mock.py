@@ -65,9 +65,9 @@ async def test_auditor_simulates_reasoning_tokens(client: MockFoundryClient) -> 
 
 
 async def test_images_add_input_tokens(client: MockFoundryClient) -> None:
-    plain = await client.complete_text(Role.CONTEXT_MANAGER, TextRequest(input="x"))
+    plain = await client.complete_text(Role.REFERENCE_ANALYST, TextRequest(input="x"))
     with_image = await client.complete_text(
-        Role.CONTEXT_MANAGER, TextRequest(input="x", images=[InputImage(data=png())])
+        Role.REFERENCE_ANALYST, TextRequest(input="x", images=[InputImage(data=png())])
     )
     assert with_image.usage.input_tokens == plain.usage.input_tokens + 85
 
@@ -148,12 +148,13 @@ async def test_role_and_operation_must_match(
             await client.generate_image(role, ImageRequest(prompt="x"))
 
 
-async def test_renderer_rejects_mask(client: MockFoundryClient) -> None:
+@pytest.mark.parametrize("role", [Role.PHOTOREALISTIC_RENDERER, Role.FAST_DRAFT])
+async def test_only_the_composer_accepts_a_mask(client: MockFoundryClient, role: Role) -> None:
     request = ImageEditRequest(
         prompt="x", images=[InputImage(data=png())], mask=InputImage(data=png())
     )
     with pytest.raises(FoundryUnsupportedError, match="STRUCTURAL_COMPOSER"):
-        await client.edit_image(Role.PHOTOREALISTIC_RENDERER, request)
+        await client.edit_image(role, request)  # especialización (B-037)
 
 
 def test_invalid_image_size_is_rejected() -> None:

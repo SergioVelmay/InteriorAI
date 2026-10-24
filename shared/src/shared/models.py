@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from shared.roles import Role
 
@@ -60,7 +60,7 @@ class _Model(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-# --- Ficha de una referencia (CONTEXT_MANAGER) ------------------------------------------
+# --- Ficha de una referencia (REFERENCE_ANALYST) ------------------------------------------
 
 
 class ReferenceCategory(StrEnum):
@@ -87,7 +87,7 @@ class DimensionsCm(_Model):
 
 
 class ReferenceAnalysis(_Model):
-    """Salida estructurada del CONTEXT_MANAGER para una referencia (Ikea, Pinterest...)."""
+    """Salida estructurada del REFERENCE_ANALYST para una referencia (Ikea, Pinterest...)."""
 
     category: ReferenceCategory
     item_name: str = Field(
@@ -373,6 +373,7 @@ class ProjectIndex(_Model):
 
 
 AiOperation = Literal["complete_text", "generate_image", "edit_image"]
+_RENAMED_ROLES = {"CONTEXT_MANAGER": Role.REFERENCE_ANALYST.value}  # nombre anterior → actual
 
 
 class TelemetryRecord(_Model):
@@ -401,6 +402,14 @@ class TelemetryRecord(_Model):
     cost_breakdown: dict[str, float] = Field(default_factory=dict)
     pricing_tier: str | None = None
     simulated: bool = False  # True en AI_PROVIDER_MODE=mock
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def _renamed_role(cls, value: Any) -> Any:
+        """El rol CONTEXT_MANAGER se renombró a REFERENCE_ANALYST (Paso 18, B-052). Los registros
+        anteriores se leen con el nombre nuevo en lugar de reescribirlos: la telemetría es
+        JSONL de solo añadir (`app.storage.telemetry_log`) y es la misma función."""
+        return _RENAMED_ROLES.get(value, value) if isinstance(value, str) else value
 
 
 class TelemetryLog(_Model):

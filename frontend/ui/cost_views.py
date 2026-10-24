@@ -16,7 +16,7 @@ ALL = "Todos"
 STATUS_LABELS = {"ok": "correcta", "error": "error"}
 ROLE_COLORS = {  # colores estables por rol en todos los gráficos
     Role.PROMPT_ENGINEER.value: "#a1a1aa",
-    Role.CONTEXT_MANAGER.value: "#71717a",
+    Role.REFERENCE_ANALYST.value: "#71717a",
     Role.FAST_DRAFT.value: "#38bdf8",
     Role.STRUCTURAL_COMPOSER.value: "#818cf8",
     Role.PHOTOREALISTIC_RENDERER.value: "#f59e0b",

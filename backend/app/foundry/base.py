@@ -42,6 +42,10 @@ def log_call(role: Role, deployment: str, latency_s: float, usage: Usage, extra:
     )
 
 
+# Único rol con máscara (B-037): bocetos sin máscara y fotorrealismo sin retoques de zona.
+MASK_ROLE = Role.STRUCTURAL_COMPOSER
+
+
 class FoundryClient(ABC):
     """Valida rol y operación y delega en la implementación concreta."""
 
@@ -55,10 +59,10 @@ class FoundryClient(ABC):
 
     async def edit_image(self, role: Role, request: ImageEditRequest) -> ImageResult:
         _require(role, _IMAGE_KINDS, "edit_image")
-        if role.api_kind is ApiKind.PROVIDER_IMAGES and request.mask is not None:
+        if request.mask is not None and role is not MASK_ROLE:
             raise FoundryUnsupportedError(
-                f"El rol {role.value} edita por imágenes de referencia y no admite máscara; "
-                f"para inpainting usa {Role.STRUCTURAL_COMPOSER.value}",
+                f"El rol {role.value} no admite máscara (especialización de los modelos de "
+                f"imagen, B-037); para retoques de una zona usa {MASK_ROLE.value}",
                 role=role,
             )
         return await self._edit_image(role, request)

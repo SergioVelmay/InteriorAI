@@ -151,7 +151,7 @@ async def test_text_request_shape_and_usage(make_client) -> None:
     assert body["store"] is False
     assert body["instructions"] == "Sistema"
     assert body["max_output_tokens"] == 200
-    assert "reasoning" not in body
+    assert body["reasoning"] == {"effort": "medium"}  # por defecto en los roles de texto (B-053)
     content = body["input"][0]["content"]
     assert content[0] == {"type": "input_text", "text": "Notas"}
     assert content[1]["image_url"].startswith("data:image/png;base64,")
@@ -172,6 +172,17 @@ async def test_auditor_sends_reasoning_effort_and_reads_reasoning_tokens(make_cl
     assert result.usage.reasoning_tokens == 250
 
 
+async def test_reasoning_effort_is_configured_per_role(make_client) -> None:
+    client, seen = make_client(
+        lambda r: httpx.Response(200, json=responses_body("{}")),
+        PROMPT_ENGINEER_REASONING_EFFORT="low",
+        REFERENCE_ANALYST_REASONING_EFFORT="high",
+    )
+    await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    await client.complete_text(Role.REFERENCE_ANALYST, TextRequest(input="x"))
+    assert [body_of(r)["reasoning"] for r in seen] == [{"effort": "low"}, {"effort": "high"}]
+
+
 async def test_json_schema_is_sent_and_parsed(make_client) -> None:
     schema = {
         "type": "object",
@@ -181,7 +192,7 @@ async def test_json_schema_is_sent_and_parsed(make_client) -> None:
     }
     client, seen = make_client(lambda r: httpx.Response(200, json=responses_body('{"ok": true}')))
     result = await client.complete_text(
-        Role.CONTEXT_MANAGER, TextRequest(input="x", json_schema=schema, schema_name="indice")
+        Role.REFERENCE_ANALYST, TextRequest(input="x", json_schema=schema, schema_name="indice")
     )
     fmt = body_of(seen[0])["text"]["format"]
     assert fmt == {"type": "json_schema", "name": "indice", "schema": schema, "strict": True}
@@ -263,6 +274,7 @@ async def test_edit_image_sends_multipart_with_mask(make_client) -> None:
     assert request.headers["content-type"].startswith("multipart/form-data")
     assert b'name="mask"' in request.content
     assert b"dep-structural_composer" in request.content
+    assert b"input_fidelity" not in request.content  # el despliegue lo rechaza (B-041)
 
 
 # --- Renderizador (API del proveedor) ----------------------------------------------------------
