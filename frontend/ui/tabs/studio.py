@@ -18,7 +18,7 @@ import gradio as gr
 
 from shared.models import AssetKind, BriefStatus, ProjectMetadata, RenderStage, RenderStatus
 from ui.api_client import ApiError, BackendClient
-from ui.cost_views import chain_cost_md
+from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.studio_views import (
     COST_AUDIT,
@@ -460,6 +460,8 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     ) -> dict:
         if not active_id:
             return {**empty_view(), **hide_confirm()}
+        if warnings := alert_lines(await client.cost_alerts(), active_id):
+            gr.Warning(" ".join(warnings))  # B-021: solo avisa, la acción continúa
         gr.Info(f"En marcha: {describe(action)}… puede tardar unos segundos")
         try:
             message, new_brief, new_render = await run_action(action, active_id)

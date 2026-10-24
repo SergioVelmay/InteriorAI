@@ -153,6 +153,31 @@ def test_costs_without_simulated_calls_and_for_all_projects(api: TestClient) -> 
     assert api.get("/api/v1/costs").json()["totals"]["calls"] == 5
 
 
+def test_cost_alerts_use_real_spend_only(
+    make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("COST_ALERT_TOTAL_EUR", "3.5")
+    api = make_api()
+    repo: ProjectRepository = api.app.state.repository
+    big = create_project(api)
+    small = api.post("/api/v1/projects", json={"name": "Baño", "space_type": "otro"})
+    small = small.json()["id"]
+    for cost in (2.0, 1.2):
+        api.portal.call(repo.append_telemetry, big, _real_record(cost))
+    api.portal.call(repo.append_telemetry, small, _real_record(0.4))
+    api.portal.call(_simulate_calls, api, small)  # lo simulado no cuenta
+
+    alerts = api.get("/api/v1/costs/alerts").json()
+    assert [(a["name"], a["cost_eur"], a["exceeded"]) for a in alerts["projects"]] == [
+        ("x", 3.2, True), ("Baño", 0.4, False),
+    ]  # fmt: skip
+    assert alerts["projects"][0]["threshold_eur"] == 3.0  # por defecto
+    assert alerts["total"] == {
+        "project_id": None, "name": None, "cost_eur": 3.6, "threshold_eur": 3.5,
+        "exceeded": True,
+    }  # fmt: skip
+
+
 def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
     from datetime import timedelta
 

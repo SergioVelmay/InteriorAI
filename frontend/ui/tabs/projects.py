@@ -133,7 +133,7 @@ def build_projects_tab(
         current = next((p for p in projects if str(p.id) == active_id), None)
         costs = await client.project_costs(current.id) if current else None
         return {
-            header: header_html(health, current),
+            header: header_html(health, current, await client.cost_alerts()),
             gallery: gr.update(
                 value=items,
                 selected_index=project_ids.index(active_id) if current else None,
@@ -153,7 +153,7 @@ def build_projects_tab(
             return unchanged()
         return {
             active: project_id,
-            header: header_html(await safe_health(client), project),
+            header: header_html(await safe_health(client), project, await client.cost_alerts()),
             **detail(project, costs),
         }
 

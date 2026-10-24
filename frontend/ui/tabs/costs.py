@@ -20,6 +20,7 @@ from ui.api_client import ApiError, BackendClient
 from ui.cost_views import (
     ALL,
     ROLE_COLORS,
+    alert_lines,
     day_role_frame,
     filter_records,
     kpi_html,
@@ -134,7 +135,9 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         return {
             heading: f"### Costes de IA de {title}",
             kpis: kpi_html(summary),
-            notes: notes_md(summary),
+            notes: " ".join(
+                [*alert_lines(await client.cost_alerts(), project_id), notes_md(summary)]
+            ),
             by_role: gr.update(value=roles, y_lim=y_range(roles)),
             by_day: day_role_frame(records),
             by_project: gr.update(

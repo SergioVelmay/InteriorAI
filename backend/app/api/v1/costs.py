@@ -5,11 +5,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from app.api.deps import RepositoryDep
+from app.api.deps import RepositoryDep, SettingsDep
 from app.pipelines.renders import RenderNotFoundError
 from app.telemetry.chain import RenderChainCost, chain_cost
 from app.telemetry.pricing import PricingTable
-from app.telemetry.summary import CostRecord, CostSummary, summarize, with_project
+from app.telemetry.summary import (
+    CostAlerts,
+    CostRecord,
+    CostSummary,
+    cost_alerts,
+    summarize,
+    with_project,
+)
 
 router = APIRouter(tags=["costes"])
 
@@ -57,6 +64,20 @@ async def all_costs(
         log = await repo.read_telemetry(project.id)
         records += with_project(log.records, project.id, project.name)
     return summarize(None, records, _currency(request), limit, include_simulated)
+
+
+@router.get("/costs/alerts", response_model=CostAlerts)
+async def alerts(repo: RepositoryDep, request: Request, settings: SettingsDep) -> CostAlerts:
+    """Gasto real (sin simulación) por proyecto y total frente a los umbrales de aviso
+    (`COST_ALERT_PROJECT_EUR`, `COST_ALERT_TOTAL_EUR`). Solo informa."""
+    records: list[CostRecord] = []
+    names = {}
+    for project in await repo.list_projects():
+        names[project.id] = project.name
+        log = await repo.read_telemetry(project.id)
+        records += with_project(log.records, project.id, project.name)
+    limits = settings.cost_alerts
+    return cost_alerts(records, names, _currency(request), limits.project_eur, limits.total_eur)
 
 
 @router.get("/projects/{project_id}/renders/{render_id}/cost", response_model=RenderChainCost)

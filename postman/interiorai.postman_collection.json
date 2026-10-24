@@ -1207,6 +1207,32 @@
           }
         },
         {
+          "name": "Avisos de gasto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"umbrales por proyecto y total; en mock no hay gasto real\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.total.threshold_eur).to.be.above(0);",
+                  "  pm.expect(b.total.exceeded).to.be.false;",
+                  "  const p = b.projects.find(x => x.project_id === pm.collectionVariables.get(\"projectId\"));",
+                  "  pm.expect(p.cost_eur).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/costs/alerts"
+          }
+        },
+        {
           "name": "Coste acumulado del render final",
           "event": [
             {

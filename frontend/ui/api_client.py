@@ -138,6 +138,14 @@ class BackendClient:
         params = {"limit": limit, "include_simulated": include_simulated}
         return (await self._request("GET", path, params=params)).json()
 
+    async def cost_alerts(self) -> dict[str, Any] | None:
+        """Avisos de gasto real por proyecto y total (B-021); None si no se pueden consultar:
+        un aviso nunca debe impedir usar la app."""
+        try:
+            return (await self._request("GET", "/api/v1/costs/alerts")).json()
+        except ApiError:
+            return None
+
     async def pricing(self) -> dict[str, Any] | None:
         try:
             return (await self._request("GET", "/api/v1/pricing")).json()
