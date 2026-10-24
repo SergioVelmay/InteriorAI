@@ -36,7 +36,7 @@ por mejora y las decisiones del usuario antes de implementarlas.
 | Migración JSONL sobre una **copia** de los datos reales | ✅ mismos registros e importes en los dos proyectos; original conservado como `.json.migrado` |
 | **B-020**, llamada real al renderizador (≈ 0,04 €) | Pedida 1920×1080 → **devuelta 1920×1072**: acepta el tamaño pero redondea hacia abajo al múltiplo de 16 en silencio. Se mantiene pedir 1920×1088 y recortar |
 | **B-008**, Postman CLI | 1.73.0 → **1.76.0**; carpeta «01 Sistema»: 3 peticiones correctas (la única comprobación fallida exige `mock` y el entorno local está en `azure`) |
-| CI de la PR | (se completa con el resultado) |
+| CI de la PR #23 | ✅ tras corregir la colección de Postman (la cadena del render final incluye ahora la ficha de referencia: 6 llamadas): lint y tests, gitleaks, newman 48/85 y Playwright 5/5 |
 
 Los contenedores locales estaban parados: se arrancaron solo para la llamada de B-020 y la
 prueba de Postman, y se volvieron a parar. Los datos reales se migrarán a JSONL al reconstruir
@@ -44,7 +44,7 @@ Docker tras el merge.
 
 ## 5. Estado final
 
-🧪 En validación — rama `feat/paso-16`, Pull Request en GitHub.
+✅ Cerrado — rama `feat/paso-16`, PR #23 revisada y mergeada por el usuario; Docker reconstruido y telemetría local migrada a JSONL.
 
 ## 6. Pendiente / futuro
 
