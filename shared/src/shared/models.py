@@ -144,6 +144,7 @@ class AssetAnalysis(_Model):
     prompt_version: str | None = None
     analyzed_at: datetime = Field(default_factory=utc_now)
     validated_at: datetime | None = None
+    request_id: str | None = None  # petición que la generó (coste en la telemetría)
 
 
 class Asset(_Model):
