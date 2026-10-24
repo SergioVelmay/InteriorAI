@@ -19,9 +19,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   retoque del render final, sin salida en bruto ni `/raw` (B-038).
 - Migración automática de `metadatos.json` al esquema 2 al arrancar (y al restaurar de la
   papelera), con copia del original en `metadatos.v1.json`.
+- El rol `CONTEXT_MANAGER` pasa a llamarse `REFERENCE_ANALYST` (`DEPLOYMENT_ROLE_REFERENCE_ANALYST`
+  en `.env`); la telemetría anterior se lee con el nombre nuevo. Las fichas pasan a sol y los
+  prompts a luna (Paso 18, B-052).
+- Solo `STRUCTURAL_COMPOSER` admite máscara (B-037).
 
 ### Añadido
 
+- Esfuerzo de razonamiento por rol de texto en `.env` (`PROMPT_ENGINEER_REASONING_EFFORT`,
+  `REFERENCE_ANALYST_REASONING_EFFORT`; `medium` por defecto), junto al del auditor (B-053).
 - Avisos de gasto real de IA: 3 € por proyecto y 10 € en total por defecto
   (`COST_ALERT_PROJECT_EUR`, `COST_ALERT_TOTAL_EUR`), en la cabecera, en Costes y al lanzar
   acciones con coste. Solo avisan (Paso 16, B-021).
@@ -52,6 +58,9 @@ Primera versión completa: estudio de interiorismo asistido por IA con supervisi
 cada etapa.
 
 ### Añadido
+
+- Esfuerzo de razonamiento por rol de texto en `.env` (`PROMPT_ENGINEER_REASONING_EFFORT`,
+  `REFERENCE_ANALYST_REASONING_EFFORT`; `medium` por defecto), junto al del auditor (B-053).
 
 - **Configuración y seguridad** (Pasos 0-3): repositorio público con secretos solo en `.env`
   (`SecretStr`), gitleaks y bloqueos en pre-commit; Docker Compose con puertos solo en

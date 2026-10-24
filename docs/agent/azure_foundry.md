@@ -12,11 +12,11 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 
 | Rol (enum) | Variable de entorno | `ApiKind` | Uso |
 |------------|---------------------|-----------|-----|
-| `PROMPT_ENGINEER` | `DEPLOYMENT_ROLE_PROMPT_ENGINEER` | `RESPONSES` | Notas/planos → prompt técnico |
+| `PROMPT_ENGINEER` | `DEPLOYMENT_ROLE_PROMPT_ENGINEER` | `RESPONSES` | Descripción e imágenes → brief y prompts de imagen (luna: en cada generación, casi gratis) |
 | `GEOMETRIC_AUDITOR` | `DEPLOYMENT_ROLE_GEOMETRIC_AUDITOR` | `RESPONSES` | QA del render frente a SketchUp (`reasoning.effort`) |
-| `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Indexación de referencias y metadatos |
+| `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Fichas de las referencias (sol: visión precisa). Antes del Paso 18 se llamaba `CONTEXT_MANAGER`; la telemetría antigua se lee con el nombre nuevo |
 | `FAST_DRAFT` | `DEPLOYMENT_ROLE_FAST_DRAFT` | `IMAGES` | Bocetos rápidos |
-| `STRUCTURAL_COMPOSER` | `DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER` | `IMAGES` | Encaje de mobiliario; **inpainting con máscara** |
+| `STRUCTURAL_COMPOSER` | `DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER` | `IMAGES` | Encaje de mobiliario; **único rol con máscara** (`MASK_ROLE`, B-037) |
 | `PHOTOREALISTIC_RENDERER` | `DEPLOYMENT_ROLE_PHOTOREALISTIC_RENDERER` | `PROVIDER_IMAGES` | Render final; edición por **referencias** (sin máscara) |
 
 ## Superficies de API
@@ -63,10 +63,14 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 | `AZURE_FOUNDRY_RENDERER_PATH` | Ruta de la API del renderizador |
 | `AZURE_FOUNDRY_RENDERER_API_VERSION` | `preview` (obligatoria para la API del proveedor) |
 | `AZURE_FOUNDRY_TIMEOUT_S`, `AZURE_FOUNDRY_MAX_RETRIES` | Resiliencia |
+| `PROMPT_ENGINEER_REASONING_EFFORT`, `REFERENCE_ANALYST_REASONING_EFFORT` | `medium` por defecto (B-053, Paso 18); `Settings.reasoning_effort(role)` |
 | `GEOMETRIC_AUDITOR_REASONING_EFFORT` | `medium` (decisión del usuario, Paso 10; `max` también es válido) |
 | `GEOMETRIC_AUDITOR_TIMEOUT_S` | 900 s (el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
 
 ## Comportamiento verificado contra Azure (Paso 6, 2026-10-17)
+
+Asignación de entonces: `PROMPT_ENGINEER` en sol y el antiguo `CONTEXT_MANAGER` en luna (en el
+Paso 18 se intercambiaron; ver más abajo).
 
 | Rol | Latencia | Tokens entrada / salida / razonamiento | Observaciones |
 |-----|----------|----------------------------------------|---------------|
@@ -88,6 +92,15 @@ geometría desplazada). Por eso se guarda también la salida en bruto y el usuar
 **añadir objetos**, mejor retocar la composición y regenerar el final a partir de ella.
 Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €. Desde el Paso 17
 (B-038) solo se retocan composiciones, sin recomponer: la imagen es la que devuelve sunburst.
+
+## Verificación del Paso 18 (2026-10-25)
+
+- `reasoning.effort=medium` aceptado por luna y sol. Luna razona en el brief (982 de 1.787
+  tokens de salida; 13,5 s; 0,0011 €); sol no razonó ni en la ficha ni en el smoke.
+- sunburst **rechaza `input_fidelity`** (400); sin él, el retoque con máscara respeta lo que hay
+  fuera de la zona.
+- FLUX **acepta `seed` pero no la respeta**: misma semilla y prompt → imágenes distintas
+  (parecidas en escena) y la respuesta no devuelve la semilla. No sirve para reproducir versiones.
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 
