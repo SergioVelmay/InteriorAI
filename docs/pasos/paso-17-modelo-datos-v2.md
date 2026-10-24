@@ -53,9 +53,9 @@ Ensayo de la migración sobre la copia de los datos reales:
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-17`, PR #25 pendiente de validación por el usuario. Los datos
-locales se migrarán solos al reconstruir Docker tras el merge (los originales quedan como
-`metadatos.v1.json`).
+✅ Cerrado — rama `feat/paso-17`, PR #25 revisada y mergeada por el usuario. Docker reconstruido
+el 2026-10-25: los dos proyectos locales se migraron al esquema 2 sin perder ningún archivo (el
+resultado coincide con el ensayo; originales en `metadatos.v1.json`).
 
 ## 6. Pendiente / futuro
 
