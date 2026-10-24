@@ -1,4 +1,4 @@
-"""Retoque de zona: render final (regeneración + recorte) y composición (máscara nativa)."""
+"""Retoque de zona: solo composiciones, con máscara nativa y la imagen completa (B-038)."""
 
 import io
 
@@ -27,42 +27,35 @@ def image(api: httpx.Client, url: str, render_id: str) -> Image.Image:
     return Image.open(io.BytesIO(content)).convert("RGB")
 
 
-def test_inpaint_final_and_composition(ui: UI, projects: Projects, api: httpx.Client) -> None:
+def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> None:
     page = ui.page
-    project, composition, final = prepared(api, projects)
+    project, composition, _ = prepared(api, projects)
     url = project["url"]
     ui.activate(project["name"])
     ui.tab("Estudio")
     expect(page.get_by_text(f"Estudio de «{project['name']}»")).to_be_visible()
 
-    page.get_by_text("Retocar zona (composición y render final)").click()
+    # El visor abre el render final seleccionado: no se puede retocar.
+    page.get_by_text("Retocar zona (composición)").click()
+    expect(page.get_by_text("Elige una composición en el visor.")).to_be_visible()
+
+    page.locator("#iai-compositions .thumbnail-item").first.click()
+    expect(page.get_by_text(f"Composición {composition['id'][:8]}").first).to_be_visible()
     expect(page.locator("#iai-inpaint-editor canvas").first).to_be_visible()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(2500)  # editor nuevo con la composición (gr.render)
     page.locator("#iai-inpaint").click()
     ui.toast("Pinta en la imagen la zona")  # sin trazos no hay llamada
 
     ui.paint()
-    page.locator("#iai-inpaint-instruction textarea").fill("Cojines en mostaza")
-    page.locator("#iai-inpaint").click()
-    ui.toast("Retoque generado", timeout=60_000)
-    expect(page.locator("#iai-finals .thumbnail-item", has_text="retoque")).to_have_count(1)
-    retouch = next(r for r in api.get(f"{url}/renders").json() if r.get("inpaint"))
-    assert retouch["inpaint"]["method"] == "regeneracion"
-    assert 0 < retouch["inpaint"]["coverage"] < 0.2
-    original, edited = image(api, url, final["id"]), image(api, url, retouch["id"])
-    assert edited.size == original.size == (1920, 1080)
-    top = (0, 0, 1920, 150)  # fuera de la zona: idéntico píxel a píxel
-    assert edited.crop(top).tobytes() == original.crop(top).tobytes()
-    assert edited.tobytes() != original.tobytes()
-    expect(page.locator("#iai-inpaint-files .thumbnail-item")).to_have_count(3)  # bruto, guía…
-
-    page.locator("#iai-compositions .thumbnail-item").first.click()
-    expect(page.get_by_text(f"Composición {composition['id'][:8]}").first).to_be_visible()
-    page.wait_for_timeout(2500)  # editor nuevo con la composición (gr.render)
-    ui.paint()
     page.locator("#iai-inpaint-instruction textarea").fill("Una planta en la esquina")
     page.locator("#iai-inpaint").click()
+    ui.toast("Retoque generado", timeout=60_000)
     retouched = page.locator("#iai-compositions .thumbnail-item", has_text="retoque")
-    expect(retouched).to_have_count(1, timeout=60_000)
+    expect(retouched).to_have_count(1)
     stage = api.get(f"{url}/renders", params={"stage": "composicion"}).json()
-    assert next(r for r in stage if r.get("inpaint"))["inpaint"]["method"] == "mascara"
+    retouch = next(r for r in stage if r.get("inpaint"))
+    assert retouch["inpaint"]["method"] == "mascara"
+    assert 0 < retouch["inpaint"]["coverage"] < 0.2
+    original, edited = image(api, url, composition["id"]), image(api, url, retouch["id"])
+    assert edited.size == original.size and edited.tobytes() != original.tobytes()
+    expect(page.locator("#iai-inpaint-files .thumbnail-item")).to_have_count(1)  # la máscara

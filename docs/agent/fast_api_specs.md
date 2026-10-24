@@ -51,14 +51,14 @@ data/
   (`asyncio.Lock` + `filelock`). **Orden de locks: proyecto → índice.** E/S en `anyio.to_thread`.
 - `metadatos.json` se escribe el último al crear: su presencia marca el proyecto como completo.
 - En disco los assets se guardan como `{uuid}.{ext}`; el nombre original solo en metadatos.
-- CLI: `python -m app.storage {crear,listar,ver,reindexar} [--data-dir DIR]`.
+- CLI: `python -m app.storage {crear,listar,ver,reindexar} [--data-dir DIR]` (`crear` admite
+  `--descripcion`).
 
 ## Endpoints (`/api/v1`, rutas en inglés)
 
 | Método | Ruta | Respuesta | Paso |
 |--------|------|-----------|------|
 | GET | `/health` | `HealthResponse`; 503 si `data/` no es escribible | 3 ✅ |
-| GET | `/space-types` | `[{value, label}]` | 5 ✅ |
 | GET | `/asset-kinds` | `[{value, label, folder, uploadable, accepted_mime_types}]` | 5 ✅ |
 | POST | `/projects` | 201 `ProjectMetadata` + `Location` | 5 ✅ |
 | GET | `/projects` | `[ProjectSummary]` (más reciente primero) | 5 ✅ |
@@ -86,17 +86,16 @@ data/
 | POST | `/projects/{id}/renders/compositions` | `{draft_id?, n=1, quality=medium, ...}` (boceto seleccionado) → 201 | 9 ✅ |
 | POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/select` · `/discard` | `RenderRecord` | 9 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{render, audit, cost_eur, request_id}` (solo composición/final) | 10 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/reject` | `{feedback, regenerate=true, apply_audit_suggestions=true}` → `{rejected, new_renders, cost_eur}` | 10 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`] → 201 `{renders, cost_eur}` (solo composición/final) | 13b ✅ |
-| GET | `/projects/{id}/renders/{render_id}/inpaint/{mascara\|bruto\|guia}` | Archivos del retoque: máscara, salida en bruto del modelo y guía del renderizador | 13b ✅ |
-| POST | `/projects/{id}/renders/{render_id}/raw` | Salida en bruto de un retoque como imagen nueva de la etapa (sin coste; 409 si ya existe) → 201 `RenderRecord` | 13b ✅ |
+| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`] → 201 `{renders, cost_eur}` (solo composiciones, B-038) | 13b · 17 ✅ |
+| GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque (los archivos bruto/guía de la v1 quedan en disco) | 13b · 17 ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
 
-- `{kind}` solo admite `UploadKind` (`plano`, `referencia`, `captura_sketchup`): los renders
-  solo los genera la IA (otro valor → 422).
+- `{kind}` solo admite `UploadKind` (`referencia`, desde el esquema 2, B-028): los renders
+  solo los genera la IA (otro valor → 422). Las capturas y planos de la v1 son referencias con
+  `legacy_kind` (imagen base hasta el Paso 22: `app/pipelines/sources.py`).
 - Tipo real por magic bytes (`detect_mime`), nunca por extensión/`Content-Type`. Todos los tipos
   (planos incluidos, desde el Paso 12): PNG, JPEG, WebP → si no, 415.
 - Imágenes decodificadas por completo con Pillow (corruptas → 415) y límite de 80 MP
@@ -166,17 +165,20 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   exacta de la captura** (16:9 → 1920×1080); se admite cualquier tamaño ≤ 4 MP. El renderizador
   trabaja en múltiplos de 16 px: se le pide el múltiplo superior (`generation_size`, 1920×1088)
   y se **recorta al centro** al tamaño exacto, sin escalar (`masks.fit`).
-- **Un único render final seleccionado**: seleccionar uno descarta el anterior. Bocetos y
-  composiciones admiten varios seleccionados (se elige cuál alimenta la etapa siguiente).
-- Retoques (`inpaint_render`, Paso 13b): composición con máscara nativa (`STRUCTURAL_COMPOSER`);
-  render final regenerando la imagen con una guía (zona en rojo) y la posición en el prompt. Se
-  recompone en local solo la zona (`masks.recompose`, borde suavizado hacia fuera) y se guardan
-  junto al render `{id}-mascara.png`, `{id}-bruto.png` (salida del modelo) y `{id}-guia.jpeg`
-  (`RenderInpaint`). Rechazar un retoque (o su salida en bruto) lo repite con la misma máscara.
+- **Una sola imagen seleccionada por etapa** (B-043): seleccionar otra devuelve la anterior a
+  `generado`.
+- Retoques (`inpaint_render`, Paso 13b · B-038): solo composiciones, con máscara nativa
+  (`STRUCTURAL_COMPOSER`) y la posición de la zona en el prompt; se guarda la imagen completa
+  del modelo (sin recomponer) y `{id}-mascara.png` (`RenderInpaint`). Los retoques de la v1
+  (render final con guía, `{id}-bruto.png`, `{id}-guia.jpeg`) se conservan como historia.
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
-- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado | descartado` (reversibles) y
-  `→ rechazado` (terminal; la regeneración crea otra imagen con `previous_attempt_id`).
+- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado` (acción del usuario) y
+  `seleccionado → generado` (al seleccionar otra de la etapa). Sin rechazos ni descartes (B-048);
+  `feedback` y `previous_attempt_id` solo existen en imágenes de la v1.
+- Esquema de `metadatos.json` (`SCHEMA_VERSION = 2`): la v1 se migra sola
+  (`app/storage/migrations.py`) al arrancar y al restaurar de la papelera, con copia previa en
+  `metadatos.v1.json`.
 - Formato de salida por etapa en `_STAGE_ROLES` (todo PNG).
 - Auditoría (`app/pipelines/auditor.py`): compara con la captura de origen (sigue la cadena de
   renders); a demanda y opcional; historial en `RenderRecord.audits`.

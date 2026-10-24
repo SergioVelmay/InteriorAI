@@ -13,16 +13,14 @@ from app.pipelines.auditor import audit_render
 from app.pipelines.renders import (
     RenderNotFoundError,
     RenderOptions,
-    decide_render,
     generate_composition,
     generate_drafts,
     generate_final,
     inpaint_render,
-    reject_render,
-    use_raw_output,
+    select_render,
 )
 from app.telemetry import current_request_id, request_cost, telemetry_scope
-from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage, RenderStatus
+from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage
 
 router = APIRouter(prefix="/projects/{project_id}/renders", tags=["renders"])
 
@@ -69,23 +67,6 @@ class RenderRunResponse(BaseModel):
 class AuditResponse(BaseModel):
     render: RenderRecord
     audit: RenderAudit
-    cost_eur: float
-    request_id: str | None
-
-
-class RejectRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    feedback: str = Field(min_length=1, max_length=2_000)
-    regenerate: bool = Field(default=True, description="Generar una nueva imagen de la etapa")
-    apply_audit_suggestions: bool = Field(
-        default=True, description="Añadir al prompt las correcciones de la última auditoría"
-    )
-
-
-class RejectResponse(BaseModel):
-    rejected: RenderRecord
-    new_renders: list[RenderRecord]
     cost_eur: float
     request_id: str | None
 
@@ -168,14 +149,9 @@ async def list_renders(
 
 
 @router.post("/{render_id}/select", response_model=RenderRecord)
-async def select_render(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
+async def select(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
     """El usuario elige este render: puede alimentar la etapa siguiente."""
-    return await decide_render(repo, project_id, render_id, RenderStatus.SELECTED)
-
-
-@router.post("/{render_id}/discard", response_model=RenderRecord)
-async def discard_render(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
-    return await decide_render(repo, project_id, render_id, RenderStatus.DISCARDED)
+    return await select_render(repo, project_id, render_id)
 
 
 @router.post("/{render_id}/audit", response_model=AuditResponse)
@@ -202,25 +178,6 @@ async def audit(
     )
 
 
-@router.post("/{render_id}/reject", response_model=RejectResponse)
-async def reject(
-    project_id: UUID, render_id: UUID, body: RejectRequest, repo: RepositoryDep, foundry: FoundryDep
-) -> RejectResponse:
-    """Rechazo con comentarios; por defecto regenera la misma etapa con los comentarios (y las
-    correcciones de la última auditoría) añadidos al prompt."""
-    with telemetry_scope(project_id):
-        rejected, new = await reject_render(
-            repo, foundry, project_id, render_id, body.feedback, body.regenerate,
-            body.apply_audit_suggestions,
-        )  # fmt: skip
-    return RejectResponse(
-        rejected=rejected,
-        new_renders=new,
-        cost_eur=await request_cost(repo, project_id),
-        request_id=current_request_id(),
-    )
-
-
 @router.post(
     "/{render_id}/inpaint", status_code=status.HTTP_201_CREATED, response_model=RenderRunResponse
 )
@@ -237,11 +194,11 @@ async def inpaint(
     settings: SettingsDep,
     quality: Annotated[Literal["low", "medium", "high", "auto"] | None, Form()] = None,
 ) -> RenderRunResponse:
-    """Retoque de una zona de una composición o render final (multipart).
+    """Retoque de una zona de una composición (multipart).
 
-    Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se regenera con la
-    instrucción; el resto queda idéntico al original (recomposición local). Crea una imagen
-    nueva de la misma etapa, sin seleccionar; la original no cambia.
+    Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se edita con la
+    instrucción mediante la máscara nativa del modelo, que devuelve la imagen completa (B-038).
+    Crea una imagen nueva de la misma etapa, sin seleccionar; la original no cambia.
     """
     content = await read_upload(mask, settings.storage.max_upload_bytes)
     await inspect_upload(content, AssetKind.RENDER)  # imagen real y sin daños
@@ -252,32 +209,22 @@ async def inpaint(
     return await _response(repo, project_id, [record])
 
 
-InpaintFile = Literal["mascara", "bruto", "guia"]
+InpaintFile = Literal["mascara"]
 
 
 @router.get("/{render_id}/inpaint/{file}", response_class=FileResponse)
 async def inpaint_file(
     project_id: UUID, render_id: UUID, file: InpaintFile, repo: RepositoryDep
 ) -> FileResponse:
-    """Archivos de un retoque: la máscara (blanco = zona), la salida **en bruto** del modelo
-    (antes de recomponer) y la guía enviada al renderizador (solo en el render final)."""
+    """Máscara de un retoque (blanco = zona editada)."""
     project = await repo.get(project_id)
     render = next((r for r in project.renders if r.id == render_id), None)
     if render is None:
         raise RenderNotFoundError(str(render_id))
     info = render.inpaint
-    name = None
-    if info is not None:
-        name = {"mascara": info.mask_file, "bruto": info.raw_file, "guia": info.guide_file}[file]
+    name = info.mask_file if info is not None else None
     if name is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Este render no tiene ese archivo")
     path = repo.render_file_path(project_id, name)
     media_type = "image/jpeg" if name.endswith(".jpeg") else "image/png"
     return FileResponse(path, media_type=media_type, filename=name)
-
-
-@router.post("/{render_id}/raw", status_code=status.HTTP_201_CREATED, response_model=RenderRecord)
-async def use_raw(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
-    """Usa la salida en bruto de un retoque (la imagen completa del modelo, sin recomponer) como
-    imagen nueva de la etapa, sin seleccionar. Sin coste."""
-    return await use_raw_output(repo, project_id, render_id)

@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
-from app.storage import telemetry_log, trash
+from app.storage import migrations, telemetry_log, trash
 from app.storage.atomic import (
     CorruptDataError,
     read_json,
@@ -95,9 +95,9 @@ class ProjectRepository:
         await self._run(self._init_dirs)
         async with self._locks.hold(INDEX_KEY):
             on_disk = set(await self._run(self._scan_project_ids))
-        for project_id in on_disk:  # telemetría en el formato anterior → JSONL (B-012)
+        for project_id in on_disk:
             async with self._locks.hold(str(project_id)):
-                await self._run(telemetry_log.migrate, self._paths(project_id).root)
+                await self._run(self._migrate_sync, project_id)
         async with self._locks.hold(INDEX_KEY):
             if not self.index_path.exists():
                 reason = "no existe"
@@ -106,10 +106,20 @@ class ProjectRepository:
                     indexed = {p.id for p in await self._run(self._read_index)}
                     reason = "" if indexed == on_disk else "desincronizado"
                 except CorruptDataError:
-                    reason = "corrupto"
+                    reason = "corrupto o de un esquema anterior"
         if reason:
             logger.warning("Índice %s (%d proyectos en disco): reindexando", reason, len(on_disk))
             await self.reindex()
+
+    def _migrate_sync(self, project_id: UUID) -> None:
+        """Pone al día un proyecto: esquema de `metadatos.json` (Paso 17) y telemetría en
+        JSONL (B-012). Un proyecto que no se puede migrar se registra y se deja como está."""
+        root = self._paths(project_id).root
+        try:
+            migrations.migrate(root)
+        except (OSError, ValueError) as exc:
+            logger.error("Proyecto %s sin migrar: %s", project_id, exc)
+        telemetry_log.migrate(root)
 
     def _init_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -176,7 +186,7 @@ class ProjectRepository:
             await self._run(self._create_sync, metadata)
             async with self._locks.hold(INDEX_KEY):
                 await self._run(self._upsert_index, metadata.summary())
-        logger.info("Proyecto creado: %s (%s)", metadata.id, metadata.space_type.value)
+        logger.info("Proyecto creado: %s", metadata.id)
         return metadata
 
     def _create_sync(self, metadata: ProjectMetadata) -> None:
@@ -424,6 +434,8 @@ class ProjectRepository:
             project_id = await self._run(
                 trash.restore_project, self.trash_dir, self.data_dir, entry
             )
+        async with self._locks.hold(str(project_id)):  # pudo borrarse con un esquema anterior
+            await self._run(self._migrate_sync, project_id)
         metadata = await self.get(project_id)
         async with self._locks.hold(INDEX_KEY):
             await self._run(self._upsert_index, metadata.summary())

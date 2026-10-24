@@ -6,6 +6,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado (incompatible: esquema v2 de los datos y de la API)
+
+- Proyecto con nombre y descripción: sin tipo de espacio, notas de diseño, dimensiones, estilo
+  ni presupuesto (su contenido pasa a la descripción); sin `/space-types` ni `crear --tipo`
+  (Paso 17, B-026).
+- Un solo tipo de imagen subida, `referencia` (sin capturas de SketchUp ni planos); la pestaña
+  Assets queda con una sola lista (B-028).
+- Renders sin estados «rechazado» ni «descartado» y sin `/reject` ni `/discard`; una sola imagen
+  seleccionada por etapa (B-048, B-043).
+- Retoques solo en composiciones, con la imagen completa del modelo: sin recomposición, sin
+  retoque del render final, sin salida en bruto ni `/raw` (B-038).
+- Migración automática de `metadatos.json` al esquema 2 al arrancar (y al restaurar de la
+  papelera), con copia del original en `metadatos.v1.json`.
+
 ### Añadido
 
 - Avisos de gasto real de IA: 3 € por proyecto y 10 € en total por defecto

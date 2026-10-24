@@ -49,19 +49,22 @@ def test_studio_hitl_cycle(ui: UI, projects: Projects, api: httpx.Client) -> Non
     ui.toast("Render final: 1 imagen(es)")
     expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(1)
     final = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()[0]
-    assert final["size"] == "1920x1080"  # proporción de la captura (16:9)
+    assert final["size"] == "1920x1080"  # proporción de la imagen base (16:9)
 
     page.locator("#iai-audit").click()
     ui.toast("Auditoría: ")
     expect(page.locator("#iai-finals .thumbnail-item", has_text="auditoría")).to_have_count(1)
 
-    page.locator("#iai-render-feedback textarea").fill("Más luz natural")
-    page.locator("#iai-reject-render").click()
-    ui.toast("Imagen rechazada y regenerada")
-    expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(2)
-    expect(page.locator("#iai-finals .thumbnail-item", has_text="rechazado")).to_have_count(1)
+    # Sin rechazos (B-048): se genera otra versión y la selección es única.
     page.locator("#iai-select").click()
-    expect(page.locator("#iai-finals .thumbnail-item", has_text="seleccionado")).to_have_count(1)
+    finals_selected = page.locator("#iai-finals .thumbnail-item", has_text="seleccionado")
+    expect(finals_selected).to_have_count(1)
+    page.locator("#iai-gen-final").click()
+    ui.toast("Render final: 1 imagen(es)")
+    expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(2)
+    page.locator("#iai-select").click()  # el visor muestra la imagen nueva
+    ui.toast("Imagen seleccionada")
+    expect(finals_selected).to_have_count(1)
     expect(page.get_by_text("Coste acumulado de la cadena").first).to_be_visible()
 
     expect(page.get_by_text("Confirmar (con coste)")).to_be_hidden()  # en mock no se confirma

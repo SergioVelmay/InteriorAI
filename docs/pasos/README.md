@@ -25,6 +25,7 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 15a | [CI, Dependabot y seguridad del repositorio](paso-15a-ci-seguridad.md) | `feat/paso-15a` | ✅ Cerrado |
 | 15b | [Contenedores, papelera y versión 1.0.0](paso-15b-version-1.md) | `feat/paso-15b` | ✅ Cerrado |
 | 16 | [Mejoras del backlog](paso-16-mejoras.md) | `feat/paso-16` | ✅ Cerrado |
+| 17 | [Modelo de datos v2 y migración](paso-17-modelo-datos-v2.md) | `feat/paso-17` | ⏳ En revisión |
 
 Versión 2.0.0 (en curso): [plan de acción](plan-version-2.md), Pasos 17 a 25, entradas B-023 a B-054
 del [backlog](BACKLOG.md).

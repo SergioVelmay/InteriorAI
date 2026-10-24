@@ -1,7 +1,8 @@
 """Pipelines de imagen: boceto → composición → render final, a partir del brief aprobado.
 
-Cada etapa exige como entrada un render `seleccionado` por el usuario en la etapa anterior.
-Las composiciones y los renders finales admiten retoques de una zona (`inpaint_render`).
+Cada etapa exige como entrada el render `seleccionado` por el usuario en la etapa anterior (uno
+solo por etapa, B-043).
+Las composiciones admiten retoques de una zona con máscara (`inpaint_render`, B-038).
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from app.hitl.briefs import BriefNotFoundError
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
+from app.pipelines.sources import base_candidates
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
@@ -42,18 +44,16 @@ MAX_RENDERER_REFERENCES = 7  # el renderizador admite 8 imágenes: composición 
 GPT_IMAGE_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
 RENDERER_MAX_PIXELS = 4_000_000  # 4 MP
 RENDERER_LONG_SIDE_PX = 1_920
-INPAINT_STAGES = frozenset({RenderStage.COMPOSITION, RenderStage.FINAL})
+INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativa (B-038)
 _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 
 Quality = Literal["low", "medium", "high", "auto"]
 
+# Solo el usuario selecciona. Una imagen seleccionada vuelve a `generado` cuando se selecciona
+# otra de la misma etapa (sin rechazos ni descartes desde la v2, B-048).
 RENDER_TRANSITIONS = {
-    RenderStatus.GENERATED: frozenset(
-        {RenderStatus.SELECTED, RenderStatus.DISCARDED, RenderStatus.REJECTED}
-    ),
-    RenderStatus.SELECTED: frozenset({RenderStatus.DISCARDED, RenderStatus.REJECTED}),
-    RenderStatus.DISCARDED: frozenset({RenderStatus.SELECTED, RenderStatus.REJECTED}),
-    # REJECTED es terminal: se sustituye por una nueva imagen (previous_attempt_id)
+    RenderStatus.GENERATED: frozenset({RenderStatus.SELECTED}),
+    RenderStatus.SELECTED: frozenset({RenderStatus.GENERATED}),
 }
 
 # Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
@@ -100,17 +100,13 @@ def approved_brief(project: ProjectMetadata, brief_id: UUID | None) -> DesignBri
 
 
 def base_asset(project: ProjectMetadata, brief: DesignBrief) -> Asset:
-    """Imagen base: la primera captura/plano en imagen del brief (o del proyecto)."""
+    """Imagen base: la primera imagen base del brief o, si no, la del proyecto (`sources`)."""
     by_id = {a.id: a for a in project.assets}
     candidates = [by_id[i] for i in brief.source_asset_ids if i in by_id]
-    candidates += sorted(
-        (a for a in project.assets if a.kind in {AssetKind.CAPTURA_SKETCHUP, AssetKind.PLANO}),
-        key=lambda a: (a.kind is not AssetKind.CAPTURA_SKETCHUP, a.created_at),
-    )
-    for asset in candidates:
+    for asset in [*candidates, *base_candidates(project)]:
         if asset.mime_type in VISION_MIME_TYPES:
             return asset
-    raise PipelineInputError("Sube una captura de SketchUp o un plano en imagen como base")
+    raise PipelineInputError("Sube una imagen del espacio (p. ej. una captura de SketchUp)")
 
 
 def selected_render(project: ProjectMetadata, render_id: UUID, stage: RenderStage) -> RenderRecord:
@@ -243,8 +239,6 @@ async def _run_stage(
     base_prompt: str,
     options: RenderOptions,
     output_format: Literal["png", "jpeg"],
-    *,
-    previous_attempt_id: UUID | None = None,
 ) -> list[RenderRecord]:
     # La imagen base es la primera entrada (asset subido o render de la etapa anterior).
     base = next(a for a in project.assets if a.id == inputs[0])
@@ -287,7 +281,6 @@ async def _run_stage(
             seed=options.seed,
             request_id=current_request_id(),
             cost_eur=round(total / len(result.images), 6) if total is not None else None,
-            previous_attempt_id=previous_attempt_id,
         )
         mime = generated.mime_type if content is generated.data else "image/png"
         await repo.add_render(project.id, record, content, mime, target[0], target[1])
@@ -346,7 +339,9 @@ async def generate_final(
     references_by_id = {
         a.id: a
         for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.mime_type in VISION_MIME_TYPES
+        if a.kind is AssetKind.REFERENCIA
+        and a.legacy_kind is None  # capturas y planos de la v1: no son texturas (B-028)
+        and a.mime_type in VISION_MIME_TYPES
     }
     wanted = brief.reference_asset_ids if reference_ids is None else reference_ids
     unknown = [str(i) for i in wanted if i not in references_by_id]
@@ -364,139 +359,47 @@ async def generate_final(
     )  # fmt: skip
 
 
-async def decide_render(
-    repo: ProjectRepository, project_id: UUID, render_id: UUID, target: RenderStatus
-) -> RenderRecord:
-    """Selección o descarte de un render por el usuario."""
+async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UUID) -> RenderRecord:
+    """El usuario selecciona un render: uno solo por etapa (B-043)."""
 
     def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
         renders = list(metadata.renders)
         for i, render in enumerate(renders):
             if render.id == render_id:
+                target = RenderStatus.SELECTED
                 ensure_transition(RENDER_TRANSITIONS, render.status, target, "el render")
                 now = utc_now()
                 renders[i] = render.model_copy(update={"status": target, "decided_at": now})
-                if target is RenderStatus.SELECTED and render.stage is RenderStage.FINAL:
-                    # Un único render final seleccionado: el anterior pasa a descartado.
-                    for j, other in enumerate(renders):
-                        if (
-                            j != i
-                            and other.stage is RenderStage.FINAL
-                            and (other.status is RenderStatus.SELECTED)
-                        ):
-                            renders[j] = other.model_copy(
-                                update={"status": RenderStatus.DISCARDED, "decided_at": now}
-                            )
+                # El seleccionado anterior de la misma etapa vuelve a generado.
+                for j, other in enumerate(renders):
+                    if j != i and other.stage is render.stage and other.status is target:
+                        ensure_transition(
+                            RENDER_TRANSITIONS, other.status, RenderStatus.GENERATED, "el render"
+                        )
+                        renders[j] = other.model_copy(
+                            update={"status": RenderStatus.GENERATED, "decided_at": now}
+                        )
                 return metadata.model_copy(update={"renders": renders}), renders[i]
         raise RenderNotFoundError(str(render_id))
 
     return await repo.mutate(project_id, change)
 
 
-def feedback_prompt(render: RenderRecord, feedback: str, audit_suggestions: str | None) -> str:
-    """Prompt anterior + comentarios del usuario (+ correcciones del auditor, si se aplican)."""
-    parts = [render.prompt, f"User feedback (in Spanish, apply it): {feedback.strip()}"]
-    if audit_suggestions and audit_suggestions.strip():
-        parts.append(f"Corrections from the geometric audit: {audit_suggestions.strip()}")
-    return "\n\n".join(parts)
-
-
-async def reject_render(
-    repo: ProjectRepository,
-    client: FoundryClient,
-    project_id: UUID,
-    render_id: UUID,
-    feedback: str,
-    regenerate: bool = True,
-    apply_audit_suggestions: bool = True,
-) -> tuple[RenderRecord, list[RenderRecord]]:
-    """Rechazo con comentarios; si `regenerate`, nueva imagen de la misma etapa y entradas."""
-
-    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
-        renders = list(metadata.renders)
-        for i, render in enumerate(renders):
-            if render.id == render_id:
-                ensure_transition(
-                    RENDER_TRANSITIONS, render.status, RenderStatus.REJECTED, "el render"
-                )
-                renders[i] = render.model_copy(
-                    update={
-                        "status": RenderStatus.REJECTED,
-                        "feedback": feedback.strip(),
-                        "decided_at": utc_now(),
-                    }
-                )
-                return metadata.model_copy(update={"renders": renders}), renders[i]
-        raise RenderNotFoundError(str(render_id))
-
-    rejected = await repo.mutate(project_id, change)
-    if not regenerate:
-        return rejected, []
-    retouch = rejected
-    if rejected.raw_of_render_id is not None:  # salida en bruto: se repite su retoque
-        project = await repo.get(project_id)
-        retouch = next((r for r in project.renders if r.id == rejected.raw_of_render_id), rejected)
-    if retouch.inpaint is not None:
-        # Un retoque se repite sobre la misma imagen y con la misma máscara.
-        mask = await repo.read_render_file(project_id, retouch.inpaint.mask_file)
-        instruction = (
-            f"{retouch.inpaint.instruction}\n\n"
-            f"Feedback on the previous attempt (in Spanish): {feedback.strip()}"
-        )
-        new = await inpaint_render(
-            repo, client, project_id, retouch.inpaint.source_render_id, mask, instruction,
-            quality=rejected.quality, previous_attempt_id=rejected.id,  # type: ignore[arg-type]
-        )  # fmt: skip
-        return rejected, [new]
-
-    project = await repo.get(project_id)
-    brief = next((b for b in project.briefs if b.id == rejected.brief_id), None)
-    if brief is None:
-        raise BriefNotFoundError(str(rejected.brief_id))
-    parent = next((r for r in project.renders if r.id == rejected.parent_render_id), None)
-    suggestions = (
-        rejected.audits[-1].report.suggested_prompt_adjustments
-        if apply_audit_suggestions and rejected.audits
-        else None
-    )
-    role, output_format = _STAGE_ROLES[rejected.stage]
-    options = RenderOptions(
-        n=1,
-        size=rejected.size,
-        quality=rejected.quality,  # type: ignore[arg-type]
-        seed=rejected.seed,
-        prompt_override=feedback_prompt(rejected, feedback, suggestions),
-    )
-    new = await _run_stage(
-        repo, client, project, brief, rejected.stage, role, rejected.input_asset_ids, parent,
-        rejected.prompt, options, output_format, previous_attempt_id=rejected.id,
-    )  # fmt: skip
-    return rejected, new
-
-
 # --- Retoque de una zona (inpainting, Paso 13b) ---------------------------------------------
 
 
-def inpaint_prompt(instruction: str, method: str, bounds: str) -> str:
-    """Prompt del retoque. Lo que se añada debe caber entero en la zona: fuera de ella se
-    descarta al recomponer, y un objeto que se salga quedaría cortado por el borde."""
+def inpaint_prompt(instruction: str, bounds: str) -> str:
+    """Prompt del retoque con máscara: el cambio debe quedar dentro de la zona pintada."""
     change = instruction.strip()
     keep = "same framing, geometry, perspective, camera, lighting, materials and colors"
     contain = (
         f"The area spans {bounds}. Everything you add or change must fit entirely inside "
         "that area, with a clear margin to its edges: nothing new may cross or touch them."
     )
-    if method == "mascara":
-        return (
-            "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
-            f"it): {change}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
-            "Blend the edit seamlessly with its surroundings."
-        )
     return (
-        "Image 1 is the photo to edit. Image 2 is the same photo with the area to change "
-        "highlighted in red. Apply this change only inside that area (in Spanish): "
-        f"{change}\n\n{contain}\n\nReproduce the rest of image 1 exactly: {keep}. "
-        "Do not draw the red highlight."
+        "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
+        f"it): {change}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
+        "Blend the edit seamlessly with its surroundings."
     )
 
 
@@ -509,14 +412,11 @@ async def inpaint_render(
     instruction: str,
     *,
     quality: Quality | None = None,
-    previous_attempt_id: UUID | None = None,
 ) -> RenderRecord:
-    """Retoca la zona pintada de una composición o render final.
+    """Retoca la zona pintada de una composición con la máscara nativa del STRUCTURAL_COMPOSER.
 
-    Composición: edición con máscara nativa (STRUCTURAL_COMPOSER). Render final: el renderizador
-    no admite máscara, así que regenera la imagen completa con una guía de la zona. En ambos
-    casos solo se conserva la zona pintada (recomposición local exacta, B-009): la imagen
-    original no cambia y el retoque es una imagen nueva de la misma etapa, sin seleccionar.
+    El resultado es la imagen completa que devuelve el modelo (B-038: sin recomponer), como
+    imagen nueva de la misma etapa y sin seleccionar; la original no cambia.
     """
     if not instruction.strip():
         raise PipelineInputError("Describe el cambio que quieres en la zona pintada")
@@ -525,7 +425,7 @@ async def inpaint_render(
     if source is None:
         raise RenderNotFoundError(str(render_id))
     if source.stage not in INPAINT_STAGES:
-        raise PipelineInputError("Solo se pueden retocar composiciones y renders finales")
+        raise PipelineInputError("Solo se pueden retocar composiciones")
 
     source_data = await repo.read_asset_bytes(project.id, source.id)
     width, height = _size_of(source_data)
@@ -533,48 +433,23 @@ async def inpaint_render(
     covered = masks.check_coverage(zone)
     role, output_format = _STAGE_ROLES[source.stage]
     source_image = await prepare_image(source_data, INPUT_MAX_SIDE_PX)
-    bounds = masks.zone_bounds_text(zone)
-    guide: bytes | None = None
-
-    if role is Role.PHOTOREALISTIC_RENDERER:
-        method, quality_used = "regeneracion", None
-        guide = await anyio.to_thread.run_sync(masks.guide_image, source_data, zone)
-        images = [source_image, InputImage(data=guide, mime_type="image/jpeg")]
-        request = ImageEditRequest(
-            prompt=inpaint_prompt(instruction, method, bounds),
-            size=generation_size(role, f"{width}x{height}"),
-            output_format=output_format, images=images,
-        )  # fmt: skip
-    else:
-        method, quality_used = "mascara", quality or source.quality or "medium"
-        size = f"{width}x{height}"
-        if size not in GPT_IMAGE_SIZES:
-            size = _DEFAULT_SIZES["gpt"][_orientation_of(width, height)]
-        model_mask = await anyio.to_thread.run_sync(
-            masks.model_mask, zone, _size_of(source_image.data)
-        )
-        images = [source_image]
-        request = ImageEditRequest(
-            prompt=inpaint_prompt(instruction, method, bounds), size=size,
-            quality=quality_used,
-            output_format=output_format, images=images,
-            mask=InputImage(data=model_mask, mime_type="image/png"),
-        )  # fmt: skip
+    quality_used = quality or source.quality or "medium"
+    size = f"{width}x{height}"
+    if size not in GPT_IMAGE_SIZES:
+        size = _DEFAULT_SIZES["gpt"][_orientation_of(width, height)]
+    model_mask = await anyio.to_thread.run_sync(masks.model_mask, zone, _size_of(source_image.data))
+    images = [source_image]
+    request = ImageEditRequest(
+        prompt=inpaint_prompt(instruction, masks.zone_bounds_text(zone)), size=size,
+        quality=quality_used, output_format=output_format, images=images,
+        mask=InputImage(data=model_mask, mime_type="image/png"),
+    )  # fmt: skip
 
     result = await client.edit_image(role, request)
-    raw = result.images[0]
-    content = await anyio.to_thread.run_sync(
-        masks.recompose, source_data, raw.data, zone, masks.FEATHER_PX
-    )
+    content = await anyio.to_thread.run_sync(masks.fit_png, result.images[0].data, (width, height))
     total = _call_cost(client, role, result, images)
     record_id = uuid4()
-    raw_ext = "jpeg" if raw.mime_type == "image/jpeg" else "png"
-    files = {
-        f"{record_id}-mascara.png": await anyio.to_thread.run_sync(masks.zone_png, zone),
-        f"{record_id}-bruto.{raw_ext}": raw.data,  # para comparar con la recomposición
-    }
-    if guide is not None:
-        files[f"{record_id}-guia.jpeg"] = guide
+    mask_file = f"{record_id}-mascara.png"
     record = RenderRecord(
         id=record_id,
         stage=source.stage,
@@ -590,54 +465,13 @@ async def inpaint_render(
         quality=quality_used,
         request_id=current_request_id(),
         cost_eur=round(total, 6) if total is not None else None,
-        previous_attempt_id=previous_attempt_id,
         inpaint=RenderInpaint(
             source_render_id=source.id,
             instruction=instruction.strip(),
-            mask_file=f"{record_id}-mascara.png",
-            raw_file=f"{record_id}-bruto.{raw_ext}",
-            guide_file=f"{record_id}-guia.jpeg" if guide is not None else None,
+            mask_file=mask_file,
             coverage=covered,
-            feather_px=masks.FEATHER_PX,
-            method=method,
         ),
     )
+    files = {mask_file: await anyio.to_thread.run_sync(masks.zone_png, zone)}
     await repo.add_render(project.id, record, content, "image/png", width, height, sidecars=files)
-    return record
-
-
-async def use_raw_output(
-    repo: ProjectRepository, project_id: UUID, render_id: UUID
-) -> RenderRecord:
-    """Guarda la salida en bruto de un retoque (la imagen completa que generó el modelo, sin
-    recomponer) como imagen nueva de la misma etapa. Sin coste: la llamada ya se pagó."""
-    project = await repo.get(project_id)
-    retouch = next((r for r in project.renders if r.id == render_id), None)
-    if retouch is None:
-        raise RenderNotFoundError(str(render_id))
-    if retouch.inpaint is None or retouch.inpaint.raw_file is None:
-        raise PipelineInputError("Esta imagen no es un retoque con salida en bruto guardada")
-    if any(r.raw_of_render_id == retouch.id for r in project.renders):
-        raise TransitionError("La salida en bruto de este retoque ya es una imagen del proyecto")
-    content = await repo.read_render_file(project_id, retouch.inpaint.raw_file)
-    # La salida en bruto puede venir en múltiplos de 16 (1920x1088): se entrega al tamaño exacto.
-    width, height = (int(v) for v in retouch.size.split("x"))
-    content = await anyio.to_thread.run_sync(masks.fit_png, content, (width, height))
-    record = retouch.model_copy(
-        update={
-            "id": uuid4(),
-            "status": RenderStatus.GENERATED,
-            "size": f"{width}x{height}",
-            "cost_eur": 0.0,  # ya contado en el retoque
-            "audits": [],
-            "feedback": None,
-            "previous_attempt_id": None,
-            "inpaint": None,
-            "raw_of_render_id": retouch.id,
-            "created_at": utc_now(),
-            "decided_at": None,
-        }
-    )
-    mime = "image/jpeg" if content[:3] == b"\xff\xd8\xff" else "image/png"
-    await repo.add_render(project.id, record, content, mime, width, height)
     return record

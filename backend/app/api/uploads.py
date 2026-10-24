@@ -35,11 +35,10 @@ _CHUNK = 1024 * 1024
 
 
 class UploadKind(StrEnum):
-    """Tipos de asset que el usuario puede subir. Los renders solo los genera la IA."""
+    """Tipos de asset que el usuario puede subir: solo referencias (B-028). Los renders solo
+    los genera la IA."""
 
-    PLANO = AssetKind.PLANO.value
     REFERENCIA = AssetKind.REFERENCIA.value
-    CAPTURA_SKETCHUP = AssetKind.CAPTURA_SKETCHUP.value
 
     @property
     def asset_kind(self) -> AssetKind:
@@ -47,9 +46,7 @@ class UploadKind(StrEnum):
 
 
 ACCEPTED_TYPES: dict[AssetKind, frozenset[str]] = {
-    AssetKind.PLANO: IMAGE_TYPES,  # solo imágenes (Paso 12): un PDF nunca llegaba a los modelos
-    AssetKind.REFERENCIA: IMAGE_TYPES,
-    AssetKind.CAPTURA_SKETCHUP: IMAGE_TYPES,
+    AssetKind.REFERENCIA: IMAGE_TYPES,  # solo imágenes (Paso 12): un PDF no llega a los modelos
     AssetKind.RENDER: IMAGE_TYPES,
 }
 

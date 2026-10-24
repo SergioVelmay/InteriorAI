@@ -61,33 +61,9 @@ def test_model_mask_is_transparent_where_to_edit() -> None:
         assert mask.getpixel((10, 10))[3] == 0 and mask.getpixel((290, 10))[3] == 255
 
 
-def test_recompose_keeps_everything_outside_the_zone() -> None:
-    source = Image.new("RGB", (600, 400), "#204060")
-    source.paste("#c08040", (0, 0, 600, 100))  # detalle que debe conservarse
-    generated = Image.new("RGB", (300, 200), "#ff00ff")  # otra resolución: se escala
-    zone = masks.edit_zone(painted((600, 400), (200, 200, 400, 300)), (600, 400))
-    result = Image.open(io.BytesIO(masks.recompose(png(source), png(generated), zone, 12)))
-    assert result.size == (600, 400)
-    assert result.getpixel((300, 250)) == (255, 0, 255)  # dentro: lo generado
-    outside = (0, 0, 600, 200 - 2 * 12)  # fuera de la zona y de su borde (hasta 2x12 px)
-    assert result.crop(outside).tobytes() == source.crop(outside).tobytes()
-    assert result.getpixel((200, 200)) == (255, 0, 255)  # lo pintado se sustituye entero
-    assert result.getpixel((300, 195)) not in {(255, 0, 255), source.getpixel((300, 195))}
-
-
-def test_guide_image_highlights_the_zone_and_is_small() -> None:
-    source = Image.new("RGB", (1920, 1088), "#808080")
-    zone = masks.edit_zone(painted((1920, 1088), (800, 400, 1200, 800)), (1920, 1088))
-    with Image.open(io.BytesIO(masks.guide_image(png(source), zone))) as guide:
-        assert guide.size == (1024, 580)
-        red, green, _ = guide.getpixel((533, 320))
-        assert red > 150 and green < 100
-        assert guide.getpixel((50, 50)) == (128, 128, 128)
-
-
 def asset(width: int | None, height: int | None) -> Asset:
     return Asset(
-        id=uuid4(), kind=AssetKind.CAPTURA_SKETCHUP, stored_name="x.png", original_name="x.png",
+        id=uuid4(), kind=AssetKind.REFERENCIA, stored_name="x.png", original_name="x.png",
         mime_type="image/png", size_bytes=1, sha256="0" * 64, width_px=width, height_px=height,
     )  # fmt: skip
 

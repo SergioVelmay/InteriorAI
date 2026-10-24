@@ -13,9 +13,8 @@ BACKEND = "http://backend.test"
 def project_json(name: str = "Salón") -> dict:
     now = utc_now().isoformat()
     return {
-        "schema_version": 1, "id": str(uuid4()), "name": name, "space_type": "salon",
-        "description": "", "design_notes": "", "dimensions": None, "style": "",
-        "budget_eur": None, "created_at": now, "updated_at": now, "assets": [], "briefs": [],
+        "schema_version": 2, "id": str(uuid4()), "name": name,
+        "description": "", "created_at": now, "updated_at": now, "assets": [], "briefs": [],
         "renders": [],
     }  # fmt: skip
 
@@ -39,16 +38,14 @@ async def test_project_crud_requests() -> None:
         if request.url.path == "/api/v1/projects" and request.method == "GET":
             return httpx.Response(
                 200,
-                json=[
-                    {k: body[k] for k in ("id", "name", "space_type", "created_at", "updated_at")}
-                ],
+                json=[{k: body[k] for k in ("id", "name", "created_at", "updated_at")}],
             )
         return httpx.Response(200, json=body)
 
     client, seen = client_for(handler)
     assert (await client.list_projects())[0].name == "Salón"
     assert (await client.get_project(body["id"])).id.hex == body["id"].replace("-", "")
-    await client.create_project(ProjectCreate(name="Salón", space_type="salon"))
+    await client.create_project(ProjectCreate(name="Salón"))
     await client.update_project(body["id"], ProjectUpdate(name="Nuevo"))
     await client.delete_project(body["id"])
 
@@ -76,14 +73,11 @@ async def test_costs_and_health_and_catalog() -> None:
                     "data_dir_writable": True,
                 },
             )
-        if request.url.path == "/api/v1/space-types":
-            return httpx.Response(200, json=[{"value": "salon", "label": "Salón"}])
         assert request.url.params["limit"] == "0"
         return httpx.Response(200, json={"totals": {"cost_eur": 0.5}})
 
     client, _ = client_for(handler)
     assert (await client.health()).mode == "azure"
-    assert await client.space_types() == [("Salón", "salon")]
     assert (await client.project_costs(uuid4()))["totals"]["cost_eur"] == 0.5
 
 

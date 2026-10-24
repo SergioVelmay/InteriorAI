@@ -34,7 +34,6 @@ from ui.studio_views import (
     audit_markdown,
     brief_choices,
     brief_markdown,
-    can_use_raw,
     cost_hint,
     editor_mask,
     euros,
@@ -98,9 +97,7 @@ def audit() -> RenderAudit:
 
 def project(**extra) -> ProjectMetadata:
     now = utc_now()
-    return ProjectMetadata(
-        id=uuid4(), name="Salón", space_type="salon", created_at=now, updated_at=now, **extra
-    )
+    return ProjectMetadata(id=uuid4(), name="Salón", created_at=now, updated_at=now, **extra)
 
 
 # --- Presentación ---------------------------------------------------------------------------
@@ -122,9 +119,7 @@ def test_costs_and_confirmation_threshold() -> None:
         ({"kind": "audit"}, 0.25),
         ({"kind": "boceto", "n": 3}, 0.045),
         ({"kind": "render_final"}, 0.095),
-        ({"kind": "reject_render", "stage": "composicion"}, 0.035),
         ({"kind": "inpaint", "stage": "composicion"}, 0.035),
-        ({"kind": "inpaint", "stage": "render_final"}, 0.09),
     ],
 )
 def test_action_estimates(action: dict, cost: float) -> None:
@@ -152,13 +147,13 @@ def test_brief_markdown_escapes_and_keeps_unknown_dimensions() -> None:
 def test_render_helpers() -> None:
     old = render(RenderStage.DRAFT, RenderStatus.SELECTED)
     new = render(RenderStage.DRAFT, RenderStatus.SELECTED, minutes=5)
-    discarded = render(RenderStage.DRAFT, RenderStatus.DISCARDED, minutes=9)
+    latest = render(RenderStage.DRAFT, minutes=9)
     final = render(RenderStage.FINAL, audits=[audit()])
-    p = project(renders=[old, final, new, discarded])
-    assert renders_of(p, RenderStage.DRAFT) == [discarded, new, old]
+    p = project(renders=[old, final, new, latest])
+    assert renders_of(p, RenderStage.DRAFT) == [latest, new, old]
     assert [v for _, v in selected_choices(p, RenderStage.DRAFT)] == [str(new.id), str(old.id)]
     assert render_caption(final) == "○ generado · auditoría 82/100 · 0.0105 €"
-    assert render_caption(discarded) == "- descartado · 0.0105 €"
+    assert render_caption(new) == "● seleccionado · 0.0105 €"
 
 
 def test_render_detail_and_audit_markdown() -> None:
@@ -197,7 +192,7 @@ async def test_studio_client_requests() -> None:
             return httpx.Response(200, json=[render_json])
         if path.endswith(("/approve", f"/briefs/{bid}")):
             return httpx.Response(200, json=brief_json)
-        if path.endswith(("/select", "/discard")):
+        if path.endswith("/select"):
             return httpx.Response(200, json=render_json)
         return httpx.Response(200, json={"cost_eur": 0})
 
@@ -210,9 +205,7 @@ async def test_studio_client_requests() -> None:
     await client.list_renders(pid, RenderStage.FINAL)
     for stage in RenderStage:
         await client.generate_renders(pid, stage, {"n": 1})
-    await client.decide_render(pid, rid, select=True)
-    await client.decide_render(pid, rid, select=False)
-    await client.reject_render(pid, rid, "más luz", apply_audit_suggestions=False)
+    await client.select_render(pid, rid)
     await client.audit_render(pid, rid)
 
     assert [(r.method, r.url.path.removeprefix(f"/api/v1/projects/{pid}")) for r in seen] == [
@@ -226,19 +219,14 @@ async def test_studio_client_requests() -> None:
         ("POST", "/renders/compositions"),
         ("POST", "/renders/final"),
         ("POST", f"/renders/{rid}/select"),
-        ("POST", f"/renders/{rid}/discard"),
-        ("POST", f"/renders/{rid}/reject"),
         ("POST", f"/renders/{rid}/audit"),
     ]
     assert json.loads(seen[1].content) == {"instructions": "más verde"}
     assert json.loads(seen[4].content) == {"feedback": "no", "regenerate": False}
     assert seen[5].url.params["stage"] == "render_final"
-    assert json.loads(seen[11].content) == {
-        "feedback": "más luz", "regenerate": True, "apply_audit_suggestions": False,
-    }  # fmt: skip
     # Las llamadas de IA usan timeouts largos; la auditoría, el suyo propio.
     assert seen[1].extensions["timeout"]["read"] == AI_TIMEOUT_S
-    assert seen[12].extensions["timeout"]["read"] == AI_AUDIT_TIMEOUT_S
+    assert seen[10].extensions["timeout"]["read"] == AI_AUDIT_TIMEOUT_S
 
 
 # --- Pestaña --------------------------------------------------------------------------------
@@ -368,8 +356,8 @@ async def test_inpaint_client_request() -> None:
         (None, "azure", None),
         (RenderStage.DRAFT, "azure", None),
         (RenderStage.COMPOSITION, "azure", "Azure: ≈ 0.035 €"),
-        (RenderStage.FINAL, "azure", "Azure: ≈ 0.090 €"),
-        (RenderStage.FINAL, "mock", "Simulación: sin coste"),
+        (RenderStage.COMPOSITION, "mock", "Simulación: sin coste"),
+        (RenderStage.FINAL, "azure", None),  # solo composiciones (B-038)
     ],
 )
 def test_inpaint_hint(stage: RenderStage | None, mode: str, hint: str | None) -> None:
@@ -387,7 +375,7 @@ async def test_show_render_opens_any_stage_in_the_viewer(tmp_path: Path) -> None
     assert "**Coste acumulado de la cadena:** 0.2969 € · 5 llamada(s)" in detail
 
 
-def test_raw_output_helpers() -> None:
+def test_v1_raw_output_is_still_described() -> None:
     source = render(RenderStage.FINAL)
     retouch = render(
         RenderStage.FINAL,
@@ -396,29 +384,7 @@ def test_raw_output_helpers() -> None:
             raw_file="b.png", coverage=0.1, feather_px=12, method="regeneracion",
         ),
     )  # fmt: skip
-    p = project(renders=[source, retouch])
-    assert can_use_raw(p, retouch) and not can_use_raw(p, source) and not can_use_raw(p, None)
-
     raw = render(RenderStage.FINAL, raw_of_render_id=retouch.id)
     p = project(renders=[source, retouch, raw])
-    assert not can_use_raw(p, retouch)  # ya usada
     assert render_caption(raw) == "○ generado · bruto · 0.0105 €"
     assert f"**Salida en bruto del retoque** `{retouch.id.hex[:8]}`" in render_detail_md(p, raw)
-
-
-async def test_use_raw_output_client_request() -> None:
-    seen: list[httpx.Request] = []
-    body = render(RenderStage.FINAL).model_dump(mode="json")
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        return httpx.Response(201, json=body)
-
-    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
-    pid, rid = uuid4(), uuid4()
-    record = await client.use_raw_output(pid, rid)
-    assert record.id.hex == body["id"].replace("-", "")
-    assert (seen[0].method, seen[0].url.path) == (
-        "POST",
-        f"/api/v1/projects/{pid}/renders/{rid}/raw",
-    )

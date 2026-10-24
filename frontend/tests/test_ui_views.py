@@ -41,7 +41,7 @@ def render(asset_id, stage: RenderStage, status: RenderStatus, minutes: int = 0)
 def project(**extra) -> ProjectMetadata:
     now = utc_now()
     return ProjectMetadata(
-        id=uuid4(), name="Salón <cocina>", space_type="salon_cocina_comedor",
+        id=uuid4(), name="Salón <cocina>",
         created_at=now, updated_at=now, **extra,
     )  # fmt: skip
 
@@ -82,47 +82,40 @@ def test_header_shows_spending_alerts() -> None:
 def test_summary_counts_and_costs() -> None:
     final = asset(AssetKind.RENDER)
     p = project(
-        assets=[asset(AssetKind.CAPTURA_SKETCHUP), asset(AssetKind.REFERENCIA), final],
+        assets=[asset(AssetKind.REFERENCIA), asset(AssetKind.REFERENCIA), final],
         renders=[render(final.id, RenderStage.FINAL, RenderStatus.SELECTED)],
     )
     md = project_summary_md(
         p, {"totals": {"cost_eur": 0.27, "calls": 9}, "includes_simulated": True}
     )
-    assert "Capturas de SketchUp: **1**" in md
-    assert "referencias: **1**" in md
+    assert "Imágenes de referencia: **2**" in md
     assert "renders finales: **1**" in md
     assert "Render final elegido: **sí**" in md
     assert "**0.2700 €** en 9 llamadas (incluye simulaciones)" in md
 
 
 def test_form_roundtrip() -> None:
-    p = project(dimensions={"width_m": 4, "length_m": 6.5, "height_m": 2.6}, style="nórdico")
-    update = parse_form(form_values(p))
-    assert update.dimensions is not None and update.dimensions.length_m == 6.5
-    assert update.style == "nórdico"
+    update = parse_form(form_values(project(description="Tonos nórdicos")))
+    assert update.changes() == {"name": "Salón <cocina>", "description": "Tonos nórdicos"}
 
 
-@pytest.mark.parametrize(
-    ("index", "value", "message"),
-    [(4, 4.0, "ancho y largo"), (0, "  ", "nombre")],
-)
-def test_form_validation(index: int, value, message: str) -> None:
-    values = form_values(project())
-    values[index] = value
-    with pytest.raises(ValueError, match=message):
-        parse_form(values)
+def test_form_validation() -> None:
+    with pytest.raises(ValueError, match="nombre"):
+        parse_form(["  ", ""])
 
 
-def test_form_without_dimensions() -> None:
-    assert parse_form(form_values(project())).dimensions is None
+def test_form_empty_description() -> None:
+    assert parse_form(["Salón", None]).description == ""
 
 
 # --- Portadas -----------------------------------------------------------------------------------
 
 
 def test_cover_priority() -> None:
-    capture, plan = asset(AssetKind.CAPTURA_SKETCHUP), asset(AssetKind.PLANO)
-    draft, final, rejected = (
+    plan = asset(AssetKind.REFERENCIA, legacy_kind="plano")
+    capture = asset(AssetKind.REFERENCIA, legacy_kind="captura_sketchup")
+    reference = asset(AssetKind.REFERENCIA)  # de la v2: después de las imágenes de la v1
+    draft, final, later = (
         asset(AssetKind.RENDER),
         asset(AssetKind.RENDER),
         asset(AssetKind.RENDER),
@@ -130,18 +123,21 @@ def test_cover_priority() -> None:
     renders = [
         render(draft.id, RenderStage.DRAFT, RenderStatus.GENERATED, minutes=1),
         render(final.id, RenderStage.FINAL, RenderStatus.SELECTED, minutes=0),
-        render(rejected.id, RenderStage.FINAL, RenderStatus.REJECTED, minutes=5),
+        render(later.id, RenderStage.FINAL, RenderStatus.GENERATED, minutes=5),
     ]
-    assets = [plan, capture, draft, final, rejected]
+    assets = [plan, capture, draft, final, later]
     assert cover_asset(project(assets=assets, renders=renders)) == final
-    assert cover_asset(project(assets=assets, renders=renders[::2])) == draft  # sin final elegido
-    assert cover_asset(project(assets=[plan, capture])) == capture
-    assert cover_asset(project(assets=[asset(AssetKind.PLANO, "application/pdf"), plan])) == plan
+    assert cover_asset(project(assets=assets, renders=renders[::2])) == later  # el más reciente
+    assert cover_asset(project(assets=[reference, plan, capture])) == capture
+    assert cover_asset(project(assets=[reference, plan])) == plan
+    assert cover_asset(project(assets=[reference])) == reference
+    pdf = asset(AssetKind.REFERENCIA, "application/pdf", legacy_kind="plano")
+    assert cover_asset(project(assets=[pdf, reference])) == reference
     assert cover_asset(project()) is None
 
 
 def test_cover_image_path_or_placeholder(tmp_path: Path) -> None:
-    capture = asset(AssetKind.CAPTURA_SKETCHUP)
+    capture = asset(AssetKind.REFERENCIA)
     p = project(assets=[capture])
     placeholder = cover_image(p, tmp_path)  # el archivo aún no existe
     assert isinstance(placeholder, Image.Image)

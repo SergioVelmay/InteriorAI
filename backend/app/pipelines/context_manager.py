@@ -43,7 +43,7 @@ class IndexResult:
 def _input_text(project: ProjectMetadata, asset: Asset) -> str:
     note = asset.description or "(sin nota)"
     return (
-        f"Proyecto: {project.name} ({project.space_type.label}).\n"
+        f"Proyecto: {project.name}.\n"
         f"Archivo: {asset.original_name}\n"
         f"Nota del usuario sobre esta referencia: {note}\n"
         "Analiza la imagen adjunta y devuelve la ficha."
@@ -98,7 +98,10 @@ async def index_references(
 ) -> IndexResult:
     """Indexa las referencias pendientes (o `asset_ids`); `force` reindexa las ya analizadas."""
     project = await repo.get(project_id)
-    references = [a for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    # Las capturas y planos de la v1 no se indexan hasta el Paso 21 (B-028, ver `sources`).
+    references = [
+        a for a in project.assets if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None
+    ]
     if asset_ids is not None:
         wanted = set(asset_ids)
         unknown = wanted - {a.id for a in references}
@@ -143,7 +146,7 @@ async def validate_analysis(
         for i, asset in enumerate(assets):
             if asset.id != asset_id:
                 continue
-            if asset.kind is not AssetKind.REFERENCIA:
+            if asset.kind is not AssetKind.REFERENCIA or asset.legacy_kind is not None:
                 raise PipelineInputError("Solo las referencias tienen ficha")
             now = utc_now()
             previous = asset.analysis

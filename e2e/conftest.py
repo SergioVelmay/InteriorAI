@@ -59,12 +59,12 @@ class Projects:
 
     def create(self, label: str, capture: bool = True, reference: bool = True) -> dict:
         project = self.api.post(
-            "/projects", json={"name": self.name(label), "space_type": "salon",
-                               "design_notes": "Sofá en L, tonos verdes"},
+            "/projects", json={"name": self.name(label),
+                               "description": "Sofá en L, tonos verdes"},
         ).json()  # fmt: skip
         url = f"/projects/{project['id']}"
         if capture:
-            self.upload(url, "captura_sketchup", "vista.png", png((1600, 900), "#b45309"))
+            self.upload(url, "referencia", "vista.png", png((1600, 900), "#b45309"))
         if reference:
             self.upload(url, "referencia", "sofa.png", png((900, 500), "#556b2f"))
         return project | {"url": url}

@@ -26,19 +26,14 @@ COST_PER_IMAGE = {
     RenderStage.COMPOSITION: 0.035,
     RenderStage.FINAL: 0.095,
 }
-# Retoque: la composición edita con máscara; el final regenera la imagen (+ guía de ~0,7 MP).
-COST_INPAINT = {RenderStage.COMPOSITION: 0.035, RenderStage.FINAL: 0.09}
+# Retoque: solo la composición, con máscara nativa (B-038).
+COST_INPAINT = {RenderStage.COMPOSITION: 0.035}
 INPAINT_STAGES = frozenset(COST_INPAINT)
 COST_BRIEF = 0.05
 COST_AUDIT = 0.25
 CONFIRM_THRESHOLD_EUR = 0.05  # en modo azure, por encima se pide un segundo clic
 
-STATUS_ICONS = {
-    RenderStatus.GENERATED: "○",
-    RenderStatus.SELECTED: "●",
-    RenderStatus.DISCARDED: "-",
-    RenderStatus.REJECTED: "✕",
-}
+STATUS_ICONS = {RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●"}
 CHECK_ICONS = {"ok": "✅", "aviso": "⚠️", "fallo": "❌"}
 VERDICTS = {
     "conforme": "✅ Conforme",
@@ -158,7 +153,12 @@ def selected_choices(project: ProjectMetadata, stage: RenderStage) -> list[tuple
 
 
 def reference_choices(project: ProjectMetadata) -> list[tuple[str, str]]:
-    return [(a.original_name, str(a.id)) for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    """Referencias para el render final (sin las capturas y planos de la v1, B-028)."""
+    return [
+        (a.original_name, str(a.id))
+        for a in project.assets
+        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None
+    ]
 
 
 def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> str:
@@ -187,9 +187,11 @@ def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> s
             "completa que generó el modelo, sin recomponer (coste ya contado en el retoque)"
         )
     if render.previous_attempt_id:
-        lines.append(f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado)")
+        lines.append(
+            f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado en la v1)"
+        )
     if render.feedback:
-        lines.append(f"**Tus comentarios:** {html.escape(render.feedback)}")
+        lines.append(f"**Tus comentarios al rechazarla (v1):** {html.escape(render.feedback)}")
     lines.append(
         f"<details><summary>Prompt usado</summary>\n\n```\n{render.prompt}\n```\n</details>"
     )
@@ -252,20 +254,14 @@ def editor_mask(value: dict[str, Any] | None) -> bytes | None:
 
 
 def inpaint_file_captions(render: RenderRecord | None) -> list[tuple[str, str]]:
-    """Archivos de un retoque para el visor: (nombre en `renders_historico/`, pie)."""
+    """Archivos de un retoque para el visor: (nombre en `renders_historico/`, pie). La salida
+    en bruto y la guía solo existen en los retoques de la v1."""
     info = render.inpaint if render else None
     if info is None:
         return []
     files = [
-        (info.raw_file, "Salida en bruto del modelo (antes de recomponer)"),
-        (info.guide_file, "Guía enviada al renderizador (zona en rojo)"),
+        (info.raw_file, "Salida en bruto del modelo (v1, antes de recomponer)"),
+        (info.guide_file, "Guía enviada al renderizador (v1, zona en rojo)"),
         (info.mask_file, "Máscara (blanco = zona retocada)"),
     ]
     return [(name, caption) for name, caption in files if name]
-
-
-def can_use_raw(project: ProjectMetadata, render: RenderRecord | None) -> bool:
-    """Retoque con salida en bruto guardada que aún no se ha usado como imagen propia."""
-    if render is None or render.inpaint is None or render.inpaint.raw_file is None:
-        return False
-    return not any(r.raw_of_render_id == render.id for r in project.renders)

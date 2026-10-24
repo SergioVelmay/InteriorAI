@@ -15,46 +15,19 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from shared.roles import Role
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 1 → 2: modelo de datos de la versión 2.0.0 (Paso 17)
+# Cabe la descripción de cualquier proyecto migrado (descripción + notas de diseño de la v1).
+DESCRIPTION_MAX = 25_000
 
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class SpaceType(StrEnum):
-    SALON_COCINA_COMEDOR = "salon_cocina_comedor"
-    SALON = "salon"
-    COCINA = "cocina"
-    COMEDOR = "comedor"
-    DORMITORIO = "dormitorio"
-    ESTUDIO = "estudio"
-    BANO = "bano"
-    TERRAZA = "terraza"
-    OTRO = "otro"
-
-    @property
-    def label(self) -> str:
-        return _SPACE_LABELS[self]
-
-
-_SPACE_LABELS: dict[SpaceType, str] = {
-    SpaceType.SALON_COCINA_COMEDOR: "Salón-cocina-comedor",
-    SpaceType.SALON: "Salón",
-    SpaceType.COCINA: "Cocina",
-    SpaceType.COMEDOR: "Comedor",
-    SpaceType.DORMITORIO: "Dormitorio",
-    SpaceType.ESTUDIO: "Estudio",
-    SpaceType.BANO: "Baño",
-    SpaceType.TERRAZA: "Terraza",
-    SpaceType.OTRO: "Otro",
-}
-
-
 class AssetKind(StrEnum):
-    PLANO = "plano"
+    """Tipo de asset. Desde la v2 (B-028), toda imagen subida es una referencia."""
+
     REFERENCIA = "referencia"
-    CAPTURA_SKETCHUP = "captura_sketchup"
     RENDER = "render"
 
     @property
@@ -68,28 +41,23 @@ class AssetKind(StrEnum):
 
 
 _ASSET_FOLDERS: dict[AssetKind, str] = {
-    AssetKind.PLANO: "planos",
     AssetKind.REFERENCIA: "referencias",
-    AssetKind.CAPTURA_SKETCHUP: "capturas_sketchup",
     AssetKind.RENDER: "renders_historico",
 }
 
 _ASSET_LABELS: dict[AssetKind, str] = {
-    AssetKind.PLANO: "Plano",
     AssetKind.REFERENCIA: "Referencia",
-    AssetKind.CAPTURA_SKETCHUP: "Captura de SketchUp",
     AssetKind.RENDER: "Render",
 }
+
+# Tipo que tenía en la v1 una imagen migrada: puente hasta el Paso 22, donde se elige la imagen
+# de partida. Mientras tanto sigue siendo la base de los bocetos, del brief y de la auditoría.
+LegacyKind = Literal["captura_sketchup", "plano"]
+LEGACY_KIND_LABELS: dict[str, str] = {"captura_sketchup": "Captura de SketchUp", "plano": "Plano"}
 
 
 class _Model(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-
-
-class Dimensions(_Model):
-    width_m: float = Field(gt=0, le=100)
-    length_m: float = Field(gt=0, le=100)
-    height_m: float | None = Field(default=None, gt=0, le=20)
 
 
 # --- Ficha de una referencia (CONTEXT_MANAGER) ------------------------------------------
@@ -159,6 +127,7 @@ class Asset(_Model):
     height_px: int | None = Field(default=None, gt=0)
     description: str = Field(default="", max_length=2_000)  # nota del usuario (p. ej. medidas)
     analysis: AssetAnalysis | None = None  # solo referencias indexadas
+    legacy_kind: LegacyKind | None = None  # solo imágenes migradas de la v1 (ver arriba)
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -213,7 +182,7 @@ class DesignBrief(_Model):
     instructions: str = ""  # indicaciones del usuario para esta versión
     feedback: str | None = None  # motivo del rechazo (alimenta la siguiente versión)
     parent_id: UUID | None = None
-    source_asset_ids: list[UUID] = Field(default_factory=list)  # planos/capturas enviados
+    source_asset_ids: list[UUID] = Field(default_factory=list)  # imágenes base enviadas
     reference_asset_ids: list[UUID] = Field(default_factory=list)  # fichas incluidas
     warnings: list[str] = Field(default_factory=list)
     prompt_version: str | None = None
@@ -240,10 +209,11 @@ class RenderStage(StrEnum):
 
 
 class RenderStatus(StrEnum):
+    """Sin estados de rechazo ni descarte desde la v2 (B-048): las imágenes se generan y,
+    como mucho, se seleccionan."""
+
     GENERATED = "generado"
     SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
-    DISCARDED = "descartado"
-    REJECTED = "rechazado"  # rechazado con comentarios (puede regenerarse)
 
 
 # --- Auditoría geométrica (GEOMETRIC_AUDITOR) --------------------------------------------
@@ -291,16 +261,18 @@ class RenderAudit(_Model):
 
 
 class RenderInpaint(_Model):
-    """Retoque de una zona: la imagen es `source_render_id` con solo la zona pintada cambiada."""
+    """Retoque de una zona de una composición con máscara nativa (B-038): la imagen es la que
+    devuelve el modelo, completa. Los retoques de la v1 recomponían solo la zona pintada sobre
+    `source_render_id` y podían ser de renders finales (`regeneracion`)."""
 
     source_render_id: UUID  # imagen retocada (no cambia)
     instruction: str  # cambio pedido por el usuario
     mask_file: str  # máscara normalizada junto al render (blanco = zona editada)
-    raw_file: str | None = None  # salida del modelo tal cual, antes de recomponer
-    guide_file: str | None = None  # imagen guía enviada al renderizador (zona en rojo)
+    raw_file: str | None = None  # histórico (v1): salida del modelo antes de recomponer
+    guide_file: str | None = None  # histórico (v1): guía enviada al renderizador (zona en rojo)
     coverage: float = Field(ge=0, le=1)  # fracción de la imagen pintada
-    feather_px: int = Field(ge=0)  # suavizado del borde al recomponer
-    method: Literal["mascara", "regeneracion"]  # máscara nativa o imagen completa + recorte
+    feather_px: int | None = Field(default=None, ge=0)  # histórico (v1): borde al recomponer
+    method: Literal["mascara", "regeneracion"] = "mascara"  # regeneracion: render final (v1)
 
     @property
     def files(self) -> list[str]:
@@ -328,24 +300,19 @@ class RenderRecord(_Model):
     request_id: str | None = None
     cost_eur: float | None = None  # coste estimado de la llamada repartido entre sus imágenes
     audits: list[RenderAudit] = Field(default_factory=list)  # a demanda; la última es la vigente
-    feedback: str | None = None  # comentarios del usuario al rechazar
-    previous_attempt_id: UUID | None = None  # render rechazado que esta imagen sustituye
+    feedback: str | None = None  # histórico (v1): comentarios del usuario al rechazarla
+    previous_attempt_id: UUID | None = None  # histórico (v1): render rechazado al que sustituye
     inpaint: RenderInpaint | None = None  # solo si es un retoque de zona (Paso 13b)
-    raw_of_render_id: UUID | None = None  # salida en bruto de ese retoque, como imagen propia
+    raw_of_render_id: UUID | None = None  # histórico (v1): salida en bruto de ese retoque
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
 
 
 class ProjectFields(_Model):
-    """Campos editables por el usuario."""
+    """Campos editables por el usuario. La descripción es el contexto del diseño (B-026)."""
 
     name: str = Field(min_length=1, max_length=120)
-    space_type: SpaceType
-    description: str = Field(default="", max_length=2_000)
-    design_notes: str = Field(default="", max_length=20_000)
-    dimensions: Dimensions | None = None
-    style: str = Field(default="", max_length=200)
-    budget_eur: float | None = Field(default=None, ge=0)
+    description: str = Field(default="", max_length=DESCRIPTION_MAX)
 
 
 class ProjectCreate(ProjectFields):
@@ -356,16 +323,11 @@ class ProjectUpdate(_Model):
     """Actualización parcial: solo se aplican los campos enviados."""
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    space_type: SpaceType | None = None
-    description: str | None = Field(default=None, max_length=2_000)
-    design_notes: str | None = Field(default=None, max_length=20_000)
-    dimensions: Dimensions | None = None
-    style: str | None = Field(default=None, max_length=200)
-    budget_eur: float | None = Field(default=None, ge=0)
+    description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
 
     @model_validator(mode="after")
     def _required_fields_not_null(self) -> ProjectUpdate:
-        for field in ("name", "space_type"):
+        for field in ("name", "description"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"'{field}' no puede ser null")
         return self
@@ -379,7 +341,6 @@ class ProjectSummary(_Model):
 
     id: UUID
     name: str
-    space_type: SpaceType
     created_at: datetime
     updated_at: datetime
 
@@ -387,7 +348,7 @@ class ProjectSummary(_Model):
 class ProjectMetadata(ProjectFields):
     """Contenido de `{id}/metadatos.json`."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     id: UUID
     created_at: datetime
     updated_at: datetime
@@ -399,7 +360,6 @@ class ProjectMetadata(ProjectFields):
         return ProjectSummary(
             id=self.id,
             name=self.name,
-            space_type=self.space_type,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -408,7 +368,7 @@ class ProjectMetadata(ProjectFields):
 class ProjectIndex(_Model):
     """Contenido de `proyectos.json`."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     projects: list[ProjectSummary] = Field(default_factory=list)
 
 
@@ -447,5 +407,5 @@ class TelemetryLog(_Model):
     """Telemetría de un proyecto (en disco, `{id}/costes_telemetria.jsonl`: un registro por
     línea; ver `app.storage.telemetry_log`)."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[1] = 1  # formato del antiguo `.json` (solo para migrarlo)
     records: list[TelemetryRecord] = Field(default_factory=list)

@@ -13,7 +13,7 @@ from app.storage import (
     ProjectRepository,
 )
 from app.storage.__main__ import main as cli_main
-from shared.models import AssetKind, ProjectCreate, ProjectUpdate, SpaceType
+from shared.models import AssetKind, ProjectCreate, ProjectUpdate
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
@@ -26,7 +26,7 @@ async def repo(tmp_path: Path) -> ProjectRepository:
 
 
 def new_project(name: str = "Salón principal") -> ProjectCreate:
-    return ProjectCreate(name=name, space_type=SpaceType.SALON_COCINA_COMEDOR)
+    return ProjectCreate(name=name)
 
 
 def read_index(repo: ProjectRepository) -> dict:
@@ -39,14 +39,13 @@ def read_index(repo: ProjectRepository) -> dict:
 async def test_create_builds_full_structure(repo: ProjectRepository) -> None:
     project = await repo.create(new_project())
     root = repo.data_dir / str(project.id)
-    for folder in ("planos", "referencias", "capturas_sketchup", "renders_historico"):
-        assert (root / folder).is_dir()
+    assert {p.name for p in root.iterdir() if p.is_dir()} == {"referencias", "renders_historico"}
     assert json.loads((root / "metadatos.json").read_text(encoding="utf-8"))["name"] == (
         "Salón principal"
     )
     assert (root / "costes_telemetria.jsonl").read_bytes() == b""  # JSONL vacío (B-012)
     index = read_index(repo)
-    assert index["schema_version"] == 1
+    assert index["schema_version"] == 2
     assert [p["id"] for p in index["projects"]] == [str(project.id)]
 
 
@@ -57,11 +56,10 @@ async def test_get_list_update(repo: ProjectRepository) -> None:
     assert (await repo.get(str(first.id))).id == first.id
 
     updated = await repo.update(
-        first.id, ProjectUpdate(name="Primero (editado)", design_notes="Tonos cálidos")
+        first.id, ProjectUpdate(name="Primero (editado)", description="Tonos cálidos")
     )
     assert updated.name == "Primero (editado)"
-    assert updated.design_notes == "Tonos cálidos"
-    assert updated.space_type is SpaceType.SALON_COCINA_COMEDOR
+    assert updated.description == "Tonos cálidos"
     assert updated.updated_at > first.updated_at
 
     listed = await repo.list_projects()
@@ -102,7 +100,7 @@ async def test_missing_and_invalid_ids(repo: ProjectRepository) -> None:
 async def test_add_list_and_resolve_asset(repo: ProjectRepository) -> None:
     project = await repo.create(new_project())
     asset = await repo.add_asset(
-        project.id, AssetKind.PLANO, PNG, "../../Plano Salón.PNG", "image/png"
+        project.id, AssetKind.REFERENCIA, PNG, "../../Plano Salón.PNG", "image/png"
     )
 
     assert asset.original_name == "Plano Salón.PNG"
@@ -111,11 +109,11 @@ async def test_add_list_and_resolve_asset(repo: ProjectRepository) -> None:
     assert len(asset.sha256) == 64
 
     path = await repo.asset_path(project.id, asset.id)
-    assert path == repo.data_dir / str(project.id) / "planos" / asset.stored_name
+    assert path == repo.data_dir / str(project.id) / "referencias" / asset.stored_name
     assert path.read_bytes() == PNG
 
     assert [a.id for a in await repo.list_assets(project.id)] == [asset.id]
-    assert await repo.list_assets(project.id, AssetKind.REFERENCIA) == []
+    assert await repo.list_assets(project.id, AssetKind.RENDER) == []
 
 
 async def test_remove_asset_moves_file_to_trash(repo: ProjectRepository) -> None:
@@ -183,7 +181,7 @@ async def test_init_repairs_desynchronized_index(tmp_path: Path) -> None:
 
 
 async def test_init_creates_empty_index(repo: ProjectRepository) -> None:
-    assert read_index(repo) == {"schema_version": 1, "projects": []}
+    assert read_index(repo) == {"schema_version": 2, "projects": []}
 
 
 async def test_init_repairs_corrupt_index(tmp_path: Path) -> None:
@@ -211,7 +209,7 @@ async def test_reindex_skips_corrupt_projects(repo: ProjectRepository) -> None:
 
 def test_cli_create_and_list(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data_dir = str(tmp_path / "data")
-    assert cli_main(["--data-dir", data_dir, "crear", "Dormitorio", "--tipo", "dormitorio"]) == 0
+    assert cli_main(["--data-dir", data_dir, "crear", "Dormitorio", "--descripcion", "Luz"]) == 0
     assert "Proyecto creado" in capsys.readouterr().out
     assert cli_main(["--data-dir", data_dir, "listar"]) == 0
     assert "Dormitorio" in capsys.readouterr().out

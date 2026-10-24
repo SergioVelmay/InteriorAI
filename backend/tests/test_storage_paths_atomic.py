@@ -36,7 +36,7 @@ def test_safe_join_rejects_escapes(tmp_path: Path, parts: tuple[str, ...]) -> No
 def test_asset_path_cannot_escape_project(tmp_path: Path) -> None:
     paths = ProjectPaths(tmp_path, uuid4())
     with pytest.raises(InvalidPathError):
-        paths.asset(AssetKind.PLANO, "../../../proyectos.json")
+        paths.asset(AssetKind.REFERENCIA, "../../../proyectos.json")
 
 
 @pytest.mark.parametrize(

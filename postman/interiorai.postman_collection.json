@@ -34,30 +34,6 @@
           }
         },
         {
-          "name": "Tipos de espacio",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"9 tipos con etiqueta\", () => {",
-                  "  const b = pm.response.json();",
-                  "  pm.expect(b).to.have.lengthOf(9);",
-                  "  pm.expect(b[0]).to.have.keys(\"value\", \"label\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/space-types"
-          }
-        },
-        {
           "name": "Tipos de asset",
           "event": [
             {
@@ -66,9 +42,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"render no se puede subir\", () => {",
-                  "  const render = pm.response.json().find(k => k.value === \"render\");",
-                  "  pm.expect(render.uploadable).to.be.false;",
+                  "pm.test(\"solo se suben referencias; render no se puede subir\", () => {",
+                  "  const kinds = pm.response.json();",
+                  "  pm.expect(kinds.map(k => k.value)).to.eql([\"referencia\", \"render\"]);",
+                  "  pm.expect(kinds.find(k => k.value === \"render\").uploadable).to.be.false;",
                   "});"
                 ]
               }
@@ -100,9 +77,9 @@
                   "  pm.expect(pm.response.headers.get(\"Location\")).to.include(b.id);",
                   "});",
                   "pm.test(\"estructura inicial\", () => {",
-                  "  pm.expect(b.space_type).to.eql(\"salon_cocina_comedor\");",
+                  "  pm.expect(b).to.not.have.property(\"space_type\");",
                   "  pm.expect(b.assets).to.eql([]);",
-                  "  pm.expect(b.schema_version).to.eql(1);",
+                  "  pm.expect(b.schema_version).to.eql(2);",
                   "});"
                 ]
               }
@@ -114,7 +91,7 @@
             "url": "{{baseUrl}}/api/v1/projects",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Salón principal (Postman)\",\n  \"space_type\": \"salon_cocina_comedor\",\n  \"description\": \"Proyecto creado por la colección de Postman\",\n  \"design_notes\": \"Estilo nórdico, tonos cálidos, mucha luz natural\",\n  \"dimensions\": {\n    \"width_m\": 4.2,\n    \"length_m\": 7.5,\n    \"height_m\": 2.6\n  }\n}",
+              "raw": "{\n  \"name\": \"Salón principal (Postman)\",\n  \"description\": \"Proyecto creado por la colección de Postman.\\n\\nEstilo nórdico, tonos cálidos, mucha luz natural. 4,2 x 7,5 m.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -142,7 +119,7 @@
             "url": "{{baseUrl}}/api/v1/projects",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"space_type\": \"garaje\"\n}",
+              "raw": "{\n  \"name\": \"\",\n  \"space_type\": \"salon\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -183,8 +160,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"dimensiones guardadas\", () => {",
-                  "  pm.expect(pm.response.json().dimensions.length_m).to.eql(7.5);",
+                  "pm.test(\"descripción guardada\", () => {",
+                  "  pm.expect(pm.response.json().description).to.include(\"7,5 m\");",
                   "});"
                 ]
               }
@@ -205,10 +182,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"nombre actualizado y notas intactas\", () => {",
+                  "pm.test(\"nombre actualizado y descripción intacta\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.name).to.eql(\"Salón principal (editado)\");",
-                  "  pm.expect(b.design_notes).to.include(\"nórdico\");",
+                  "  pm.expect(b.description).to.include(\"nórdico\");",
                   "});"
                 ]
               }
@@ -235,7 +212,7 @@
       "name": "03 Assets",
       "item": [
         {
-          "name": "Subir plano (multipart)",
+          "name": "Subir imagen del espacio (multipart)",
           "event": [
             {
               "listen": "test",
@@ -257,7 +234,7 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -271,7 +248,7 @@
           }
         },
         {
-          "name": "Subir plano duplicado",
+          "name": "Subir imagen duplicada",
           "event": [
             {
               "listen": "test",
@@ -290,7 +267,7 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -362,6 +339,34 @@
           }
         },
         {
+          "name": "Subir plano (tipo de la v1, no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"plano.png\",\n  \"data_base64\": \"iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAAJ0lEQVR42mPsjvnGQEvAxEBjMGrBqAWjFoxaMGrBqAWjFoxaQB0AANHqAg034bUdAAAAAElFTkSuQmCC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Subir archivo no válido",
           "event": [
             {
@@ -390,7 +395,7 @@
           }
         },
         {
-          "name": "Listar planos",
+          "name": "Listar referencias",
           "event": [
             {
               "listen": "test",
@@ -398,10 +403,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"solo el plano\", () => {",
+                  "pm.test(\"todas las imágenes subidas son referencias\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b).to.have.lengthOf(1);",
-                  "  pm.expect(b[0].id).to.eql(pm.collectionVariables.get(\"planoId\"));",
+                  "  pm.expect(b).to.have.lengthOf(2);",
+                  "  pm.expect(b.map(a => a.kind)).to.eql([\"referencia\", \"referencia\"]);",
+                  "  pm.expect(b.map(a => a.id)).to.include(pm.collectionVariables.get(\"planoId\"));",
                   "});"
                 ]
               }
@@ -410,11 +416,11 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets?kind=plano"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets?kind=referencia"
           }
         },
         {
-          "name": "Descargar plano",
+          "name": "Descargar imagen del espacio",
           "event": [
             {
               "listen": "test",
@@ -532,9 +538,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"ficha propuesta\", () => {",
+                  "pm.test(\"fichas propuestas: la imagen del espacio también es una referencia (B-028)\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b.indexed).to.have.lengthOf(1);",
+                  "  pm.expect(b.indexed).to.have.lengthOf(2);",
                   "  pm.expect(b.indexed[0].analysis.status).to.eql(\"proposed\");",
                   "});"
                 ]
@@ -817,7 +823,7 @@
                   "pm.test(\"render final con composición + referencia\", () => {",
                   "  pm.expect(r.stage).to.eql(\"render_final\");",
                   "  pm.expect(r.input_asset_ids).to.have.lengthOf(2);",
-                  "  pm.expect(r.size).to.eql(\"1920x1440\"); // proporción del plano (4:3)",
+                  "  pm.expect(r.size).to.eql(\"1920x1440\"); // proporción de la imagen base (4:3)",
                   "});"
                 ]
               }
@@ -904,20 +910,15 @@
           }
         },
         {
-          "name": "Rechazar render final y regenerar",
+          "name": "Rechazar render (eliminado en la v2)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "const b = pm.response.json();",
-                  "pm.test(\"rechazado y sustituido\", () => {",
-                  "  pm.expect(b.rejected.status).to.eql(\"rechazado\");",
-                  "  pm.expect(b.new_renders).to.have.lengthOf(1);",
-                  "  pm.expect(b.new_renders[0].previous_attempt_id).to.eql(pm.collectionVariables.get(\"finalId\"));",
-                  "  pm.expect(b.new_renders[0].prompt).to.include(\"Más luz natural\");",
+                  "pm.test(\"sin rechazos ni descartes (B-048)\", () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([404, 405]);",
                   "});"
                 ]
               }
@@ -929,32 +930,13 @@
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/reject",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"feedback\": \"Más luz natural\",\n  \"apply_audit_suggestions\": true\n}",
+              "raw": "{\n  \"feedback\": \"Más luz natural\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
-          }
-        },
-        {
-          "name": "Seleccionar render rechazado (no permitido)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/select"
           }
         },
         {
@@ -966,10 +948,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"4 renders: final nuevo, final rechazado, composición y boceto\", () => {",
+                  "pm.test(\"3 renders: final, composición y boceto\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b.map(r => r.stage)).to.eql([\"render_final\", \"render_final\", \"composicion\", \"boceto\"]);",
-                  "  pm.expect(b[1].status).to.eql(\"rechazado\");",
+                  "  pm.expect(b.map(r => r.stage)).to.eql([\"render_final\", \"composicion\", \"boceto\"]);",
+                  "  pm.expect(b.map(r => r.status)).to.eql([\"generado\", \"seleccionado\", \"seleccionado\"]);",
                   "});"
                 ]
               }
@@ -998,6 +980,10 @@
                   "  pm.expect(r.inpaint.source_render_id).to.eql(pm.collectionVariables.get(\"compositionId\"));",
                   "  pm.expect(r.inpaint.method).to.eql(\"mascara\");",
                   "  pm.expect(r.inpaint.coverage).to.be.within(0.05, 0.1);",
+                  "});",
+                  "pm.test(\"imagen completa del modelo: sin salida en bruto ni guía (B-038)\", () => {",
+                  "  pm.expect(r.inpaint.raw_file).to.be.null;",
+                  "  pm.expect(r.inpaint.guide_file).to.be.null;",
                   "});"
                 ]
               }
@@ -1025,7 +1011,7 @@
           }
         },
         {
-          "name": "Descargar salida en bruto del retoque",
+          "name": "Descargar máscara del retoque",
           "event": [
             {
               "listen": "test",
@@ -1041,51 +1027,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/inpaint/bruto"
-          }
-        },
-        {
-          "name": "Usar salida en bruto como imagen",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-                  "const r = pm.response.json();",
-                  "pm.test(\"imagen nueva enlazada al retoque, sin coste\", () => {",
-                  "  pm.expect(r.raw_of_render_id).to.eql(pm.collectionVariables.get(\"retouchId\"));",
-                  "  pm.expect(r.status).to.eql(\"generado\");",
-                  "  pm.expect(r.cost_eur).to.eql(0);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
-          }
-        },
-        {
-          "name": "Usar salida en bruto dos veces (no permitido)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/inpaint/mascara"
           }
         },
         {
@@ -1097,7 +1039,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
-                  "pm.test(\"solo composición y render final\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
+                  "pm.test(\"solo composiciones\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
                 ]
               }
             }
@@ -1106,6 +1048,41 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/inpaint",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mask",
+                  "type": "file",
+                  "src": "fixtures/mascara.png"
+                },
+                {
+                  "key": "instruction",
+                  "type": "text",
+                  "value": "Cojines en mostaza"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retocar render final (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"solo composiciones (B-038)\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/inpaint",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -1246,7 +1223,8 @@
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(1);",
                   "  pm.expect(b.references).to.eql(1);  // la ficha indexada que usa el brief (B-022)",
-                  "  pm.expect(b.simulated_calls).to.eql(6);",
+                  "  // 2 fichas indexadas en la misma petición + brief + boceto + composición + final + auditoría",
+                  "  pm.expect(b.simulated_calls).to.eql(7);",
                   "});"
                 ]
               }

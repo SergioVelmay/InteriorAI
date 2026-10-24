@@ -151,59 +151,13 @@ def test_incomplete_audit_is_502_but_billed(api: TestClient, spy: SpyClient, cha
     assert all(r["audits"] == [] for r in renders)
 
 
-# --- Rechazo con comentarios -------------------------------------------------------------------
+# --- Sin rechazo ni descarte (B-048) ------------------------------------------------------------
 
 
-def test_reject_with_feedback_and_audit_suggestions(
-    api: TestClient, spy: SpyClient, chain: dict
+@pytest.mark.parametrize("action", ["reject", "discard"])
+def test_reject_and_discard_were_removed(
+    api: TestClient, spy: SpyClient, chain: dict, action: str
 ) -> None:
-    audit(api, chain, chain["final"]["id"])
-    response = api.post(
-        f"{chain['url']}/renders/{chain['final']['id']}/reject",
-        json={"feedback": "El verde debe ser más oscuro y apagado"},
-    )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["rejected"]["status"] == "rechazado"
-    assert body["rejected"]["feedback"] == "El verde debe ser más oscuro y apagado"
-    [new] = body["new_renders"]
-    assert new["stage"] == "render_final"
-    assert new["previous_attempt_id"] == chain["final"]["id"]
-    assert new["parent_render_id"] == chain["composition"]["id"]
-    assert new["input_asset_ids"] == chain["final"]["input_asset_ids"]
-    assert new["size"] == chain["final"]["size"]
-    assert new["prompt"].startswith(chain["final"]["prompt"])
-    assert "El verde debe ser más oscuro y apagado" in new["prompt"]
-    assert "Make the corduroy ribs slightly finer." in new["prompt"]
-    assert body["cost_eur"] > 0
-
-    [(role, request)] = spy.edits
-    assert role is Role.PHOTOREALISTIC_RENDERER
-    assert request.prompt == new["prompt"]
-
-
-def test_reject_without_audit_suggestions_or_regeneration(
-    api: TestClient, spy: SpyClient, chain: dict
-) -> None:
-    audit(api, chain, chain["composition"]["id"])
-    body = api.post(
-        f"{chain['url']}/renders/{chain['composition']['id']}/reject",
-        json={"feedback": "Más luz", "apply_audit_suggestions": False},
-    ).json()
-    assert "Make the corduroy" not in body["new_renders"][0]["prompt"]
-    assert body["new_renders"][0]["quality"] == "medium"
-
-    only = api.post(
-        f"{chain['url']}/renders/{chain['draft']['id']}/reject",
-        json={"feedback": "No", "regenerate": False},
-    ).json()
-    assert only["new_renders"] == []
-    assert only["cost_eur"] == 0
-
-
-def test_rejected_is_terminal(api: TestClient, spy: SpyClient, chain: dict) -> None:
-    url = f"{chain['url']}/renders/{chain['final']['id']}"
-    api.post(f"{url}/reject", json={"feedback": "No", "regenerate": False})
-    assert api.post(f"{url}/select").status_code == 409
-    assert api.post(f"{url}/reject", json={"feedback": "Otra vez"}).status_code == 409
-    assert api.post(f"{url}/reject", json={"feedback": ""}).status_code == 422
+    url = f"{chain['url']}/renders/{chain['final']['id']}/{action}"
+    assert api.post(url, json={"feedback": "No"}).status_code in {404, 405}
+    assert spy.edits == []

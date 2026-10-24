@@ -10,14 +10,13 @@ Solo se restauran proyectos completos: un asset borrado ya no figura en `metadat
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
-
-from shared.models import ProjectMetadata
 
 STAMP_FORMAT = "%Y%m%dT%H%M%S%fZ"
 _UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -58,12 +57,12 @@ def _size(path: Path) -> int:
 
 
 def _name(folder: Path) -> str | None:
+    """Nombre del proyecto, sea cual sea su esquema (pudo borrarse con una versión anterior)."""
     try:
-        return ProjectMetadata.model_validate_json(
-            (folder / "metadatos.json").read_text(encoding="utf-8")
-        ).name
-    except (OSError, ValueError):
+        name = json.loads((folder / "metadatos.json").read_text(encoding="utf-8")).get("name")
+    except (OSError, ValueError, AttributeError):
         return None
+    return name if isinstance(name, str) else None
 
 
 def scan(trash: Path) -> tuple[list[TrashedProject], list[TrashedFile]]:

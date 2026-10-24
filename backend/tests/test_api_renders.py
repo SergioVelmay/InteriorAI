@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import image_bytes
+from conftest import image_bytes, mark_legacy
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -45,7 +45,7 @@ def spy(api: TestClient) -> SpyClient:
 def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) -> dict:
     pid = api.post(
         "/api/v1/projects",
-        json={"name": "Salón", "space_type": "salon_cocina_comedor", "design_notes": "Sofá en L"},
+        json={"name": "Salón", "description": "Sofá en L"},
     ).json()["id"]
     url = f"/api/v1/projects/{pid}"
 
@@ -54,12 +54,14 @@ def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) ->
         assert response.status_code == 201, response.text
         return response.json()["id"]
 
-    return {
+    project = {
         "url": url,
-        "capture": upload("captura_sketchup", image_bytes(size=capture_size), "vista.png"),
+        "capture": upload("referencia", image_bytes(size=capture_size), "vista.png"),
         "product": upload("referencia", image_bytes(color="#556b2f"), "planificador.png"),
         "inspiration": upload("referencia", image_bytes(color="#6b8e23"), "inspiracion.jpg"),
     }
+    mark_legacy(api, pid, {project["capture"]: "captura_sketchup"})  # migrada de la v1 (B-028)
+    return project
 
 
 def approve_brief(api: TestClient, project: dict) -> dict:
@@ -278,14 +280,26 @@ def test_wrong_stage_or_missing_render(api: TestClient, spy: SpyClient, project:
 # --- Decisiones del usuario, historial y borrado -----------------------------------------------
 
 
-def test_select_and_discard_transitions(api: TestClient, spy: SpyClient, project: dict) -> None:
+def test_select_transition(api: TestClient, spy: SpyClient, project: dict) -> None:
     render = run(api, project, "drafts", n=1)["renders"][0]
     url = f"{project['url']}/renders/{render['id']}"
-    assert api.post(f"{url}/discard").json()["status"] == "descartado"
     selected = api.post(f"{url}/select").json()
     assert selected["status"] == "seleccionado"
     assert selected["decided_at"] is not None
     assert api.post(f"{url}/select").status_code == 409
+
+
+def test_one_selected_render_per_stage(api: TestClient, spy: SpyClient, project: dict) -> None:
+    first, second = run(api, project, "drafts", n=2)["renders"]
+    composition = run(api, project, "compositions")["renders"][0]
+    for render in (first, composition, second):
+        select(api, project, render["id"])
+    statuses = {r["id"]: r["status"] for r in api.get(f"{project['url']}/renders").json()}
+    assert statuses == {
+        first["id"]: "generado",  # la etapa admite una sola imagen seleccionada (B-043)
+        second["id"]: "seleccionado",
+        composition["id"]: "seleccionado",  # otras etapas no cambian
+    }
 
 
 def test_history_filter_and_order(api: TestClient, spy: SpyClient, project: dict) -> None:
@@ -379,66 +393,35 @@ def test_inpaint_composition_uses_the_native_mask(
     with Image.open(io.BytesIO(request.mask.data)) as mask:  # transparente = editar
         assert mask.getpixel((400, 400))[3] == 0 and mask.getpixel((10, 10))[3] == 255
 
-    # Fuera de la zona (y de su borde suavizado), idéntica al original píxel a píxel.
+    # Sin recomponer (B-038): la imagen es la que devuelve el modelo, completa.
     original, edited = pixels(api, project, composition["id"]), pixels(api, project, retouch["id"])
-    assert (
-        edited.crop((700, 700, 1536, 1024)).tobytes()
-        == original.crop((700, 700, 1536, 1024)).tobytes()
-    )
-    assert edited.crop((0, 0, 150, 150)).tobytes() == original.crop((0, 0, 150, 150)).tobytes()
-    assert edited.getpixel((400, 400)) != original.getpixel((400, 400))
+    assert edited.size == original.size == (1536, 1024)
+    assert edited.tobytes() != original.tobytes()
 
     assert "fit entirely inside" in request.prompt and "% of the width" in request.prompt
 
-    # Se guardan la máscara y la salida en bruto del modelo (sin guía: hay máscara nativa).
+    # Solo se guarda la máscara: sin salida en bruto ni guía.
     folder = tmp_path / "data" / project["url"].rsplit("/", 1)[1] / "renders_historico"
-    assert (folder / info["mask_file"]).is_file() and (folder / info["raw_file"]).is_file()
-    assert info["guide_file"] is None
+    assert (folder / info["mask_file"]).is_file()
+    assert info["raw_file"] is None and info["guide_file"] is None and info["feather_px"] is None
     url = f"{project['url']}/renders/{retouch['id']}/inpaint"
-    raw = api.get(f"{url}/bruto")
-    assert raw.status_code == 200 and raw.headers["content-type"] == "image/png"
-    with Image.open(io.BytesIO(raw.content)) as image:
-        assert image.size == (1536, 1024)
-    assert api.get(f"{url}/mascara").status_code == 200
-    assert api.get(f"{url}/guia").status_code == 404
-    assert api.get(f"{project['url']}/renders/{composition['id']}/inpaint/bruto").status_code == 404
+    mask = api.get(f"{url}/mascara")
+    assert mask.status_code == 200 and mask.headers["content-type"] == "image/png"
+    assert api.get(f"{url}/bruto").status_code == 422  # solo la máscara (B-038)
+    assert api.get(f"{url}/guia").status_code == 422
+    source_mask = f"{project['url']}/renders/{composition['id']}/inpaint/mascara"
+    assert api.get(source_mask).status_code == 404  # la original no es un retoque
 
 
-def test_inpaint_final_regenerates_with_a_guide(
-    api: TestClient, spy: SpyClient, project: dict
-) -> None:
+def test_final_render_cannot_be_retouched(api: TestClient, spy: SpyClient, project: dict) -> None:
     composition = selected_composition(api, project)
     final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
-    # Máscara en blanco y negro (sin transparencia): lo claro es la zona a editar.
-    bw = Image.new("L", (1920, 1080), 0)
-    bw.paste(255, (800, 400, 1200, 800))
-    buffer = io.BytesIO()
-    bw.save(buffer, "PNG")
-    response = inpaint(api, project, final["id"], buffer.getvalue())
-    assert response.status_code == 201, response.text
-    retouch = response.json()["renders"][0]
-    assert retouch["role"] == "PHOTOREALISTIC_RENDERER" and retouch["quality"] is None
-    assert retouch["size"] == "1920x1080" and retouch["inpaint"]["method"] == "regeneracion"
-    assert retouch["cost_eur"] > 0
-
-    role, request = spy.edits[-1]
-    assert role is Role.PHOTOREALISTIC_RENDERER
-    assert request.mask is None and len(request.images) == 2 and request.size == "1920x1088"
-    with Image.open(io.BytesIO(request.images[1].data)) as guide:
-        assert max(guide.size) == 1024  # guía reducida (coste por MP de referencia)
-    # Posición de la zona en texto: x 800-1200 de 1920 (42-62 %), y 400-800 de 1080 (37-74 %).
-    assert "from 42% to 62% of the width" in request.prompt
-    assert "from 37% to 74% of the height" in request.prompt
-    url = f"{project['url']}/renders/{retouch['id']}/inpaint"
-    guide = api.get(f"{url}/guia")
-    assert guide.status_code == 200 and guide.content == request.images[1].data
-    raw = api.get(f"{url}/bruto")
-    assert raw.status_code == 200
-    assert raw.content != api.get(f"{project['url']}/assets/{retouch['id']}/content").content
-
-    original, edited = pixels(api, project, final["id"]), pixels(api, project, retouch["id"])
-    assert edited.crop((0, 0, 700, 300)).tobytes() == original.crop((0, 0, 700, 300)).tobytes()
-    assert edited.getpixel((1000, 600)) != original.getpixel((1000, 600))
+    calls = len(spy.edits)
+    response = inpaint(api, project, final["id"], zone_mask((1920, 1080), (800, 400, 1200, 800)))
+    assert response.status_code == 422  # solo composiciones (B-038)
+    assert "composiciones" in response.json()["detail"]
+    assert len(spy.edits) == calls
+    assert api.post(f"{project['url']}/renders/{final['id']}/raw").status_code in {404, 405}
 
 
 def test_inpaint_validation(api: TestClient, spy: SpyClient, project: dict) -> None:
@@ -464,66 +447,19 @@ def test_inpaint_validation(api: TestClient, spy: SpyClient, project: dict) -> N
     assert len(spy.edits) == 2  # ninguna petición inválida llega al modelo
 
 
-def test_rejecting_a_retouch_repeats_it_with_the_same_mask(
+def test_deleting_a_retouch_moves_its_files_to_the_trash(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
     composition = run(api, project, "compositions")["renders"][0]
     retouch = inpaint(
         api, project, composition["id"], zone_mask((1536, 1024), (100, 100, 300, 300))
     ).json()["renders"][0]
-    response = api.post(
-        f"{project['url']}/renders/{retouch['id']}/reject", json={"feedback": "Más oscuro"}
-    )
-    assert response.status_code == 200, response.text
-    [again] = response.json()["new_renders"]
-    assert again["previous_attempt_id"] == retouch["id"]
-    assert again["inpaint"]["source_render_id"] == composition["id"]
-    assert "Más oscuro" in again["inpaint"]["instruction"]
-    assert spy.edits[-1][1].mask is not None
 
     # Borrar el retoque se lleva también su máscara a la papelera.
-    assert api.delete(f"{project['url']}/assets/{again['id']}").status_code == 204
+    assert api.delete(f"{project['url']}/assets/{retouch['id']}").status_code == 204
     trash = tmp_path / "data" / ".papelera" / project["url"].rsplit("/", 1)[1]
     names = [p.name for p in trash.iterdir()]
-    for name in (again["inpaint"]["mask_file"], again["inpaint"]["raw_file"]):
-        assert any(n.endswith(name) for n in names)
-
-
-def test_use_raw_output_as_a_new_image(api: TestClient, spy: SpyClient, project: dict) -> None:
-    composition = selected_composition(api, project)
-    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
-    select(api, project, final["id"])
-    retouch = inpaint(
-        api, project, final["id"], zone_mask((1920, 1080), (100, 600, 600, 1000))
-    ).json()["renders"][0]
-    calls = len(spy.edits)
-
-    response = api.post(f"{project['url']}/renders/{retouch['id']}/raw")
-    assert response.status_code == 201, response.text
-    raw = response.json()
-    assert raw["stage"] == "render_final" and raw["status"] == "generado"
-    assert raw["raw_of_render_id"] == retouch["id"] and raw["inpaint"] is None
-    assert raw["cost_eur"] == 0 and len(spy.edits) == calls  # sin llamada al modelo
-    content = api.get(f"{project['url']}/assets/{raw['id']}/content").content
-    bruto = api.get(f"{project['url']}/renders/{retouch['id']}/inpaint/bruto").content
-    with Image.open(io.BytesIO(bruto)) as generated, Image.open(io.BytesIO(content)) as image:
-        assert generated.size == (1920, 1088)  # tal cual lo devolvió el modelo
-        assert image.size == (1920, 1080) and raw["size"] == "1920x1080"
-        assert image.tobytes() == generated.crop((0, 4, 1920, 1084)).tobytes()  # solo recorte
-
-    assert api.post(f"{project['url']}/renders/{retouch['id']}/raw").status_code == 409
-    assert api.post(f"{project['url']}/renders/{final['id']}/raw").status_code == 422
-    assert select(api, project, raw["id"])["status"] == "seleccionado"
-    statuses = {r["id"]: r["status"] for r in api.get(f"{project['url']}/renders").json()}
-    assert statuses[final["id"]] == "descartado"  # un único render final seleccionado
-
-    # Rechazarla con comentarios repite el retoque (misma imagen y máscara).
-    response = api.post(
-        f"{project['url']}/renders/{raw['id']}/reject", json={"feedback": "Alfombra más clara"}
-    )
-    [again] = response.json()["new_renders"]
-    assert again["inpaint"]["source_render_id"] == final["id"]
-    assert again["previous_attempt_id"] == raw["id"]
+    assert any(n.endswith(retouch["inpaint"]["mask_file"]) for n in names)
 
 
 def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> None:
@@ -551,8 +487,11 @@ def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: Spy
     indexed = api.post(f"{project['url']}/references/index", json={})
     assert indexed.status_code == 200, indexed.text
     assert len(indexed.json()["indexed"]) == 2
-    analyses = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
-    assert all(a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses)
+    assets = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
+    analyses = [a for a in assets if a["legacy_kind"] is None]  # la captura no se indexa
+    assert len(analyses) == 2 and all(
+        a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses
+    )
     brief = approve_brief(api, project)
     assert len(brief["reference_asset_ids"]) == 2
     composition = run(api, project, "compositions")["renders"][0]

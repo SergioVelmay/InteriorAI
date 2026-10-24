@@ -53,7 +53,7 @@ def test_caption_and_status() -> None:
     assert asset_caption(asset(status=None)) == "sofa.png · 949x535 · Sin indexar"
     assert analysis_status(asset(status="proposed")) == "Propuesta (IA)"
     assert analysis_status(asset(status="validated")) == "Validada ✓"
-    assert asset_caption(asset(AssetKind.CAPTURA_SKETCHUP)) == "sofa.png · 949x535"
+    assert asset_caption(asset(AssetKind.RENDER)) == "sofa.png · 949x535"
     info = asset_info_md(asset(status="validated"))
     assert "2.38 MB" in info and "949x535 px" in info and "Validada ✓" in info
 
@@ -114,7 +114,7 @@ async def test_asset_client_requests() -> None:
     client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
     pid, aid = uuid4(), uuid4()
     await client.list_assets(pid, AssetKind.REFERENCIA)
-    await client.upload_asset(pid, AssetKind.PLANO, "plano.png", b"bytes", "nota")
+    await client.upload_asset(pid, AssetKind.REFERENCIA, "plano.png", b"bytes", "nota")
     await client.update_asset_note(pid, aid, "nueva")
     await client.delete_asset(pid, aid)
     await client.index_references(pid)
@@ -122,7 +122,7 @@ async def test_asset_client_requests() -> None:
 
     assert [(r.method, r.url.path.removeprefix(f"/api/v1/projects/{pid}")) for r in seen] == [
         ("GET", "/assets"),
-        ("POST", "/assets/plano"),
+        ("POST", "/assets/referencia"),
         ("PATCH", f"/assets/{aid}"),
         ("DELETE", f"/assets/{aid}"),
         ("POST", "/references/index"),
@@ -140,8 +140,8 @@ async def test_asset_client_requests() -> None:
 
 async def test_assets_tab_refresh(tmp_path: Path) -> None:
     project_id = str(uuid4())
-    reference, capture = asset(status="validated"), asset(AssetKind.CAPTURA_SKETCHUP)
-    by_kind = {"referencia": [reference], "captura_sketchup": [capture], "plano": []}
+    reference = asset(status="validated")
+    by_kind = {"referencia": [reference]}
     now = utc_now().isoformat()
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -149,9 +149,8 @@ async def test_assets_tab_refresh(tmp_path: Path) -> None:
             items = by_kind[request.url.params["kind"]]
             return httpx.Response(200, json=[a.model_dump(mode="json") for a in items])
         return httpx.Response(200, json={
-            "schema_version": 1, "id": project_id, "name": "Salón", "space_type": "salon",
-            "description": "", "design_notes": "", "dimensions": None, "style": "",
-            "budget_eur": None, "created_at": now, "updated_at": now, "assets": [], "briefs": [],
+            "schema_version": 2, "id": project_id, "name": "Salón",
+            "description": "", "created_at": now, "updated_at": now, "assets": [], "briefs": [],
             "renders": [],
         })  # fmt: skip
 
@@ -167,4 +166,4 @@ async def test_assets_tab_refresh(tmp_path: Path) -> None:
     assert result[tab.all_outputs[0]] == "### Assets de «Salón»"
     galleries = [v for k, v in result.items() if isinstance(k, gr.Gallery)]
     captions = [[item[1] for item in g["value"]] for g in galleries]
-    assert captions == [["sofa.png · 949x535"], [], ["sofa.png · 949x535 · Validada ✓"]]
+    assert captions == [["sofa.png · 949x535 · Validada ✓"]]  # una sola galería (B-028)

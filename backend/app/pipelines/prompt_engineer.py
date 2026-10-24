@@ -1,4 +1,4 @@
-"""PROMPT_ENGINEER: notas + planos/capturas + fichas de referencias → brief de diseño."""
+"""PROMPT_ENGINEER: descripción + imagen base + fichas de referencias → brief de diseño."""
 
 from __future__ import annotations
 
@@ -13,9 +13,11 @@ from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
+from app.pipelines.sources import base_candidates, legacy_sources
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
+    LEGACY_KIND_LABELS,
     Asset,
     AssetKind,
     DesignBrief,
@@ -27,7 +29,6 @@ from shared.roles import Role
 MAX_SOURCE_IMAGES = 4
 MAX_OUTPUT_TOKENS = 6_000  # incluye el razonamiento del despliegue
 SCHEMA = strict_schema(DesignBriefContent)
-_SOURCE_ORDER = {AssetKind.CAPTURA_SKETCHUP: 0, AssetKind.PLANO: 1}
 
 
 @dataclass
@@ -40,18 +41,7 @@ class BriefContext:
 
 
 def _project_section(project: ProjectMetadata) -> str:
-    lines = [f"- Nombre: {project.name}", f"- Tipo de espacio: {project.space_type.label}"]
-    if project.description:
-        lines.append(f"- Descripción: {project.description}")
-    if project.dimensions:
-        d = project.dimensions
-        height = f" x {d.height_m} m de alto" if d.height_m else ""
-        lines.append(f"- Dimensiones: {d.width_m} x {d.length_m} m{height}")
-    if project.style:
-        lines.append(f"- Estilo deseado: {project.style}")
-    if project.budget_eur is not None:
-        lines.append(f"- Presupuesto: {project.budget_eur:.0f} EUR")
-    return "\n".join(lines)
+    return f"- Nombre: {project.name}"
 
 
 def _reference_entry(asset: Asset) -> dict:
@@ -71,10 +61,8 @@ async def build_context(
     parent: DesignBrief | None,
 ) -> BriefContext:
     warnings: list[str] = []
-    sources = sorted(
-        (a for a in project.assets if a.kind in _SOURCE_ORDER),
-        key=lambda a: (_SOURCE_ORDER[a.kind], a.created_at),
-    )
+    # Capturas y planos de la v1; si no hay, la imagen base de los bocetos (`sources`).
+    sources = legacy_sources(project) or base_candidates(project)[:1]
     for asset in sources:
         if asset.mime_type not in VISION_MIME_TYPES:
             warnings.append(f"'{asset.original_name}' no es una imagen y no se envía")
@@ -86,27 +74,31 @@ async def build_context(
         )
         usable = usable[:MAX_SOURCE_IMAGES]
 
-    references = [a for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    # Fichas: las demás referencias (la imagen base va como imagen, no como ficha).
+    source_ids = {a.id for a in sources}
+    references = [
+        a
+        for a in project.assets
+        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None and a.id not in source_ids
+    ]
     for asset in references:
         if asset.analysis is None:
             warnings.append(f"La referencia '{asset.original_name}' no está indexada")
 
-    if not usable and not references and not project.design_notes.strip():
-        raise PipelineInputError(
-            "Añade notas de diseño, una captura de SketchUp, un plano o referencias"
-        )
+    if not usable and not references and not project.description.strip():
+        raise PipelineInputError("Añade una descripción del proyecto o imágenes de referencia")
 
     images = [await prepare_image(await repo.read_asset_bytes(project.id, a.id)) for a in usable]
     image_list = "\n".join(
-        f"- Imagen {i}: {a.kind.label} '{a.original_name}'"
-        + (f" — nota: {a.description}" if a.description else "")
+        f"- Imagen {i}: {LEGACY_KIND_LABELS.get(a.legacy_kind or '', a.kind.label)} "
+        f"'{a.original_name}'" + (f" — nota: {a.description}" if a.description else "")
         for i, a in enumerate(usable, start=1)
     )
     sections = [
         "## Proyecto",
         _project_section(project),
-        "## Notas de diseño del usuario",
-        project.design_notes.strip() or "(sin notas)",
+        "## Descripción del proyecto (escrita por el usuario)",
+        project.description.strip() or "(sin descripción)",
         "## Imágenes adjuntas (en este orden)",
         image_list or "(ninguna)",
         "## Fichas de las referencias",
