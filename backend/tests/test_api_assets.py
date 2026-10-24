@@ -34,10 +34,13 @@ def upload_b64(api: TestClient, url: str, kind: str, data: str, name: str = "ref
 
 
 def test_multipart_upload_detects_type_and_dimensions(api: TestClient, project_url: str) -> None:
-    response = upload(api, project_url, "plano", image_bytes(size=(320, 200)), "Plano Salón.png")
+    response = upload(
+        api, project_url, "referencia", image_bytes(size=(320, 200)), "Plano Salón.png"
+    )
     assert response.status_code == 201, response.text
     asset = response.json()
-    assert asset["kind"] == "plano"
+    assert asset["kind"] == "referencia"
+    assert asset["legacy_kind"] is None
     assert asset["mime_type"] == "image/png"
     assert (asset["width_px"], asset["height_px"]) == (320, 200)
     assert asset["original_name"] == "Plano Salón.png"
@@ -52,13 +55,12 @@ def test_type_comes_from_content_not_from_name(api: TestClient, project_url: str
 
 @pytest.mark.parametrize("fmt", ["PNG", "JPEG", "WEBP"])
 def test_image_formats_accepted(api: TestClient, project_url: str, fmt: str) -> None:
-    assert upload(api, project_url, "captura_sketchup", image_bytes(fmt)).status_code == 201
+    assert upload(api, project_url, "referencia", image_bytes(fmt)).status_code == 201
 
 
-@pytest.mark.parametrize("kind", ["plano", "referencia", "captura_sketchup"])
-def test_pdf_is_rejected_for_every_kind(api: TestClient, project_url: str, kind: str) -> None:
-    """Los planos son imágenes (Paso 12): un PDF nunca llegaba a los modelos."""
-    rejected = upload(api, project_url, kind, PDF, "documento.pdf")
+def test_pdf_is_rejected(api: TestClient, project_url: str) -> None:
+    """Solo imágenes (Paso 12): un PDF nunca llegaba a los modelos."""
+    rejected = upload(api, project_url, "referencia", PDF, "documento.pdf")
     assert rejected.status_code == 415
     assert "PNG" in rejected.json()["detail"]
 
@@ -79,14 +81,19 @@ def test_render_cannot_be_uploaded(api: TestClient, project_url: str) -> None:
     assert upload_b64(api, project_url, "render", "aGVsbG8=").status_code == 422
 
 
+@pytest.mark.parametrize("kind", ["plano", "captura_sketchup"])
+def test_v1_kinds_cannot_be_uploaded(api: TestClient, project_url: str, kind: str) -> None:
+    assert upload(api, project_url, kind, image_bytes()).status_code == 422  # B-028
+
+
 def test_text_disguised_as_png_is_rejected(api: TestClient, project_url: str) -> None:
-    response = upload(api, project_url, "plano", b"no soy una imagen", "plano.png")
+    response = upload(api, project_url, "referencia", b"no soy una imagen", "plano.png")
     assert response.status_code == 415
 
 
 def test_corrupt_image_is_rejected(api: TestClient, project_url: str) -> None:
     truncated = image_bytes(size=(400, 400), mode="RGB", color="#123456")[:-60]
-    response = upload(api, project_url, "plano", truncated)
+    response = upload(api, project_url, "referencia", truncated)
     assert response.status_code == 415
     assert "dañada" in response.json()["detail"]
 
@@ -105,11 +112,11 @@ def test_invalid_base64(api: TestClient, project_url: str, payload: str) -> None
 
 
 def test_empty_file_is_rejected(api: TestClient, project_url: str) -> None:
-    assert upload(api, project_url, "plano", b"").status_code == 422
+    assert upload(api, project_url, "referencia", b"").status_code == 422
 
 
 def test_upload_to_missing_project(api: TestClient) -> None:
-    response = upload(api, f"/api/v1/projects/{uuid4()}", "plano", image_bytes())
+    response = upload(api, f"/api/v1/projects/{uuid4()}", "referencia", image_bytes())
     assert response.status_code == 404
 
 
@@ -135,7 +142,7 @@ def test_duplicate_returns_409_unless_allowed(api: TestClient, project_url: str)
 def test_file_over_limit_is_rejected(make_api: Callable[..., TestClient]) -> None:
     api = make_api(max_upload_mb=1)
     url = new_project_url(api)
-    response = upload(api, url, "plano", b"\x89PNG\r\n\x1a\n" + b"0" * (1024 * 1024 + 1))
+    response = upload(api, url, "referencia", b"\x89PNG\r\n\x1a\n" + b"0" * (1024 * 1024 + 1))
     assert response.status_code == 413
     assert "1 MB" in response.json()["detail"]
 
@@ -146,7 +153,7 @@ def test_base64_over_limit_is_rejected_before_decoding(
     api = make_api(max_upload_mb=1)
     url = new_project_url(api)
     big = base64.b64encode(b"0" * (1024 * 1024 + 10)).decode()
-    assert upload_b64(api, url, "plano", big).status_code == 413
+    assert upload_b64(api, url, "referencia", big).status_code == 413
 
 
 def test_body_over_global_limit_is_rejected_by_middleware(
@@ -173,12 +180,12 @@ def test_chunked_body_over_limit_is_rejected(make_api: Callable[..., TestClient]
 
 def test_list_filter_get_and_download(api: TestClient, project_url: str) -> None:
     content = image_bytes(size=(10, 10))
-    plano = upload(api, project_url, "plano", content, "Cocina ñ.png").json()
+    plano = upload(api, project_url, "referencia", content, "Cocina ñ.png").json()
     upload(api, project_url, "referencia", image_bytes(color="#000000"))
 
     assert len(api.get(f"{project_url}/assets").json()) == 2
-    only_planos = api.get(f"{project_url}/assets", params={"kind": "plano"}).json()
-    assert [a["id"] for a in only_planos] == [plano["id"]]
+    assert len(api.get(f"{project_url}/assets", params={"kind": "referencia"}).json()) == 2
+    assert api.get(f"{project_url}/assets", params={"kind": "render"}).json() == []
     assert api.get(f"{project_url}/assets/{plano['id']}").json()["sha256"] == plano["sha256"]
 
     download = api.get(f"{project_url}/assets/{plano['id']}/content")
@@ -192,7 +199,7 @@ def test_list_filter_get_and_download(api: TestClient, project_url: str) -> None
 
 def test_malicious_filename_cannot_inject_headers(api: TestClient, project_url: str) -> None:
     raw = base64.b64encode(image_bytes()).decode()
-    asset = upload_b64(api, project_url, "plano", raw, 'x"\r\nX-Evil: 1\r\n.png').json()
+    asset = upload_b64(api, project_url, "referencia", raw, 'x"\r\nX-Evil: 1\r\n.png').json()
     assert "\r" not in asset["original_name"]
     assert '"' not in asset["original_name"]
     download = api.get(f"{project_url}/assets/{asset['id']}/content")
@@ -201,7 +208,7 @@ def test_malicious_filename_cannot_inject_headers(api: TestClient, project_url: 
 
 
 def test_delete_asset(api: TestClient, project_url: str) -> None:
-    asset = upload(api, project_url, "plano", image_bytes()).json()
+    asset = upload(api, project_url, "referencia", image_bytes()).json()
     assert api.delete(f"{project_url}/assets/{asset['id']}").status_code == 204
     assert api.get(f"{project_url}/assets/{asset['id']}").status_code == 404
     assert api.get(f"{project_url}/assets/{asset['id']}/content").status_code == 404

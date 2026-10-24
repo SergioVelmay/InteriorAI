@@ -64,7 +64,7 @@ class Projects:
         ).json()  # fmt: skip
         url = f"/projects/{project['id']}"
         if capture:
-            self.upload(url, "captura_sketchup", "vista.png", png((1600, 900), "#b45309"))
+            self.upload(url, "referencia", "vista.png", png((1600, 900), "#b45309"))
         if reference:
             self.upload(url, "referencia", "sofa.png", png((900, 500), "#556b2f"))
         return project | {"url": url}

@@ -25,9 +25,9 @@ def utc_now() -> datetime:
 
 
 class AssetKind(StrEnum):
-    PLANO = "plano"
+    """Tipo de asset. Desde la v2 (B-028), toda imagen subida es una referencia."""
+
     REFERENCIA = "referencia"
-    CAPTURA_SKETCHUP = "captura_sketchup"
     RENDER = "render"
 
     @property
@@ -41,18 +41,19 @@ class AssetKind(StrEnum):
 
 
 _ASSET_FOLDERS: dict[AssetKind, str] = {
-    AssetKind.PLANO: "planos",
     AssetKind.REFERENCIA: "referencias",
-    AssetKind.CAPTURA_SKETCHUP: "capturas_sketchup",
     AssetKind.RENDER: "renders_historico",
 }
 
 _ASSET_LABELS: dict[AssetKind, str] = {
-    AssetKind.PLANO: "Plano",
     AssetKind.REFERENCIA: "Referencia",
-    AssetKind.CAPTURA_SKETCHUP: "Captura de SketchUp",
     AssetKind.RENDER: "Render",
 }
+
+# Tipo que tenía en la v1 una imagen migrada: puente hasta el Paso 22, donde se elige la imagen
+# de partida. Mientras tanto sigue siendo la base de los bocetos, del brief y de la auditoría.
+LegacyKind = Literal["captura_sketchup", "plano"]
+LEGACY_KIND_LABELS: dict[str, str] = {"captura_sketchup": "Captura de SketchUp", "plano": "Plano"}
 
 
 class _Model(BaseModel):
@@ -126,6 +127,7 @@ class Asset(_Model):
     height_px: int | None = Field(default=None, gt=0)
     description: str = Field(default="", max_length=2_000)  # nota del usuario (p. ej. medidas)
     analysis: AssetAnalysis | None = None  # solo referencias indexadas
+    legacy_kind: LegacyKind | None = None  # solo imágenes migradas de la v1 (ver arriba)
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -180,7 +182,7 @@ class DesignBrief(_Model):
     instructions: str = ""  # indicaciones del usuario para esta versión
     feedback: str | None = None  # motivo del rechazo (alimenta la siguiente versión)
     parent_id: UUID | None = None
-    source_asset_ids: list[UUID] = Field(default_factory=list)  # planos/capturas enviados
+    source_asset_ids: list[UUID] = Field(default_factory=list)  # imágenes base enviadas
     reference_asset_ids: list[UUID] = Field(default_factory=list)  # fichas incluidas
     warnings: list[str] = Field(default_factory=list)
     prompt_version: str | None = None

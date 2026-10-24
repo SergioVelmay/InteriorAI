@@ -1,4 +1,4 @@
-"""PROMPT_ENGINEER: descripción + planos/capturas + fichas de referencias → brief de diseño."""
+"""PROMPT_ENGINEER: descripción + imagen base + fichas de referencias → brief de diseño."""
 
 from __future__ import annotations
 
@@ -13,9 +13,11 @@ from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
+from app.pipelines.sources import base_candidates, legacy_sources
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
+    LEGACY_KIND_LABELS,
     Asset,
     AssetKind,
     DesignBrief,
@@ -27,7 +29,6 @@ from shared.roles import Role
 MAX_SOURCE_IMAGES = 4
 MAX_OUTPUT_TOKENS = 6_000  # incluye el razonamiento del despliegue
 SCHEMA = strict_schema(DesignBriefContent)
-_SOURCE_ORDER = {AssetKind.CAPTURA_SKETCHUP: 0, AssetKind.PLANO: 1}
 
 
 @dataclass
@@ -60,10 +61,8 @@ async def build_context(
     parent: DesignBrief | None,
 ) -> BriefContext:
     warnings: list[str] = []
-    sources = sorted(
-        (a for a in project.assets if a.kind in _SOURCE_ORDER),
-        key=lambda a: (_SOURCE_ORDER[a.kind], a.created_at),
-    )
+    # Capturas y planos de la v1; si no hay, la imagen base de los bocetos (`sources`).
+    sources = legacy_sources(project) or base_candidates(project)[:1]
     for asset in sources:
         if asset.mime_type not in VISION_MIME_TYPES:
             warnings.append(f"'{asset.original_name}' no es una imagen y no se envía")
@@ -75,20 +74,24 @@ async def build_context(
         )
         usable = usable[:MAX_SOURCE_IMAGES]
 
-    references = [a for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    # Fichas: las demás referencias (la imagen base va como imagen, no como ficha).
+    source_ids = {a.id for a in sources}
+    references = [
+        a
+        for a in project.assets
+        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None and a.id not in source_ids
+    ]
     for asset in references:
         if asset.analysis is None:
             warnings.append(f"La referencia '{asset.original_name}' no está indexada")
 
     if not usable and not references and not project.description.strip():
-        raise PipelineInputError(
-            "Añade una descripción del proyecto, una captura de SketchUp, un plano o referencias"
-        )
+        raise PipelineInputError("Añade una descripción del proyecto o imágenes de referencia")
 
     images = [await prepare_image(await repo.read_asset_bytes(project.id, a.id)) for a in usable]
     image_list = "\n".join(
-        f"- Imagen {i}: {a.kind.label} '{a.original_name}'"
-        + (f" — nota: {a.description}" if a.description else "")
+        f"- Imagen {i}: {LEGACY_KIND_LABELS.get(a.legacy_kind or '', a.kind.label)} "
+        f"'{a.original_name}'" + (f" — nota: {a.description}" if a.description else "")
         for i, a in enumerate(usable, start=1)
     )
     sections = [

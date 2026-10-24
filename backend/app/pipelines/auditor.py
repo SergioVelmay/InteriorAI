@@ -37,15 +37,15 @@ AUDITABLE = frozenset({RenderStage.COMPOSITION, RenderStage.FINAL})
 
 
 def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
-    """Captura/plano de origen: se sigue la cadena de renders hasta la imagen subida."""
+    """Imagen base de origen: se sigue la cadena de renders hasta la imagen subida."""
     renders = {r.id: r for r in project.renders}
     assets = {a.id: a for a in project.assets}
     current = render.input_asset_ids[0]
     while current in renders:
         current = renders[current].input_asset_ids[0]
     asset = assets.get(current)
-    if asset is None or asset.kind not in {AssetKind.CAPTURA_SKETCHUP, AssetKind.PLANO}:
-        raise PipelineInputError("No se encuentra la captura o el plano de origen del render")
+    if asset is None or asset.kind is not AssetKind.REFERENCIA:
+        raise PipelineInputError("No se encuentra la imagen base de origen del render")
     return current
 
 

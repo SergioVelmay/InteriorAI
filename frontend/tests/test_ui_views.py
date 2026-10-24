@@ -82,14 +82,13 @@ def test_header_shows_spending_alerts() -> None:
 def test_summary_counts_and_costs() -> None:
     final = asset(AssetKind.RENDER)
     p = project(
-        assets=[asset(AssetKind.CAPTURA_SKETCHUP), asset(AssetKind.REFERENCIA), final],
+        assets=[asset(AssetKind.REFERENCIA), asset(AssetKind.REFERENCIA), final],
         renders=[render(final.id, RenderStage.FINAL, RenderStatus.SELECTED)],
     )
     md = project_summary_md(
         p, {"totals": {"cost_eur": 0.27, "calls": 9}, "includes_simulated": True}
     )
-    assert "Capturas de SketchUp: **1**" in md
-    assert "referencias: **1**" in md
+    assert "Imágenes de referencia: **2**" in md
     assert "renders finales: **1**" in md
     assert "Render final elegido: **sí**" in md
     assert "**0.2700 €** en 9 llamadas (incluye simulaciones)" in md
@@ -113,7 +112,9 @@ def test_form_empty_description() -> None:
 
 
 def test_cover_priority() -> None:
-    capture, plan = asset(AssetKind.CAPTURA_SKETCHUP), asset(AssetKind.PLANO)
+    plan = asset(AssetKind.REFERENCIA, legacy_kind="plano")
+    capture = asset(AssetKind.REFERENCIA, legacy_kind="captura_sketchup")
+    reference = asset(AssetKind.REFERENCIA)  # de la v2: después de las imágenes de la v1
     draft, final, rejected = (
         asset(AssetKind.RENDER),
         asset(AssetKind.RENDER),
@@ -127,13 +128,16 @@ def test_cover_priority() -> None:
     assets = [plan, capture, draft, final, rejected]
     assert cover_asset(project(assets=assets, renders=renders)) == final
     assert cover_asset(project(assets=assets, renders=renders[::2])) == draft  # sin final elegido
-    assert cover_asset(project(assets=[plan, capture])) == capture
-    assert cover_asset(project(assets=[asset(AssetKind.PLANO, "application/pdf"), plan])) == plan
+    assert cover_asset(project(assets=[reference, plan, capture])) == capture
+    assert cover_asset(project(assets=[reference, plan])) == plan
+    assert cover_asset(project(assets=[reference])) == reference
+    pdf = asset(AssetKind.REFERENCIA, "application/pdf", legacy_kind="plano")
+    assert cover_asset(project(assets=[pdf, reference])) == reference
     assert cover_asset(project()) is None
 
 
 def test_cover_image_path_or_placeholder(tmp_path: Path) -> None:
-    capture = asset(AssetKind.CAPTURA_SKETCHUP)
+    capture = asset(AssetKind.REFERENCIA)
     p = project(assets=[capture])
     placeholder = cover_image(p, tmp_path)  # el archivo aún no existe
     assert isinstance(placeholder, Image.Image)

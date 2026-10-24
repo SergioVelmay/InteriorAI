@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -50,6 +51,15 @@ def make_api(
 @pytest.fixture
 def api(make_api: Callable[..., TestClient]) -> TestClient:
     return make_api()
+
+
+def mark_legacy(api: TestClient, project_id: str, kinds: dict[str, str]) -> None:
+    """Simula imágenes migradas de la v1 (B-028): `legacy_kind` por id de asset."""
+    path = api.app.state.settings.storage.data_dir / project_id / "metadatos.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for asset in data["assets"]:
+        asset["legacy_kind"] = kinds.get(asset["id"], asset.get("legacy_kind"))
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def image_bytes(

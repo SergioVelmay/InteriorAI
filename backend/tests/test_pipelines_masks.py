@@ -87,7 +87,7 @@ def test_guide_image_highlights_the_zone_and_is_small() -> None:
 
 def asset(width: int | None, height: int | None) -> Asset:
     return Asset(
-        id=uuid4(), kind=AssetKind.CAPTURA_SKETCHUP, stored_name="x.png", original_name="x.png",
+        id=uuid4(), kind=AssetKind.REFERENCIA, stored_name="x.png", original_name="x.png",
         mime_type="image/png", size_bytes=1, sha256="0" * 64, width_px=width, height_px=height,
     )  # fmt: skip
 

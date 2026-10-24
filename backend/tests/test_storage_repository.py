@@ -39,8 +39,7 @@ def read_index(repo: ProjectRepository) -> dict:
 async def test_create_builds_full_structure(repo: ProjectRepository) -> None:
     project = await repo.create(new_project())
     root = repo.data_dir / str(project.id)
-    for folder in ("planos", "referencias", "capturas_sketchup", "renders_historico"):
-        assert (root / folder).is_dir()
+    assert {p.name for p in root.iterdir() if p.is_dir()} == {"referencias", "renders_historico"}
     assert json.loads((root / "metadatos.json").read_text(encoding="utf-8"))["name"] == (
         "Salón principal"
     )
@@ -101,7 +100,7 @@ async def test_missing_and_invalid_ids(repo: ProjectRepository) -> None:
 async def test_add_list_and_resolve_asset(repo: ProjectRepository) -> None:
     project = await repo.create(new_project())
     asset = await repo.add_asset(
-        project.id, AssetKind.PLANO, PNG, "../../Plano Salón.PNG", "image/png"
+        project.id, AssetKind.REFERENCIA, PNG, "../../Plano Salón.PNG", "image/png"
     )
 
     assert asset.original_name == "Plano Salón.PNG"
@@ -110,11 +109,11 @@ async def test_add_list_and_resolve_asset(repo: ProjectRepository) -> None:
     assert len(asset.sha256) == 64
 
     path = await repo.asset_path(project.id, asset.id)
-    assert path == repo.data_dir / str(project.id) / "planos" / asset.stored_name
+    assert path == repo.data_dir / str(project.id) / "referencias" / asset.stored_name
     assert path.read_bytes() == PNG
 
     assert [a.id for a in await repo.list_assets(project.id)] == [asset.id]
-    assert await repo.list_assets(project.id, AssetKind.REFERENCIA) == []
+    assert await repo.list_assets(project.id, AssetKind.RENDER) == []
 
 
 async def test_remove_asset_moves_file_to_trash(repo: ProjectRepository) -> None:

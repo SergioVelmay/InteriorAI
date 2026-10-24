@@ -1,4 +1,4 @@
-"""Assets de un proyecto: planos, referencias y capturas de SketchUp."""
+"""Assets de un proyecto: imágenes subidas por el usuario (referencias) y renders."""
 
 import hashlib
 from typing import Annotated

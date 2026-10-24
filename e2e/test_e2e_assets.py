@@ -1,4 +1,4 @@
-"""Pestaña Assets: subir, rechazar un PDF en Planos, indexar, validar la ficha y borrar."""
+"""Pestaña Assets: subir, rechazar un PDF, indexar, validar la ficha y borrar."""
 
 import re
 from pathlib import Path
@@ -20,31 +20,29 @@ def test_assets_flow(ui: UI, projects: Projects, tmp_path: Path) -> None:
     ui.tab("Assets")
     expect(page.get_by_text(f"Assets de «{project['name']}»")).to_be_visible()
 
-    page.locator("#iai-captura-sketchup-files input[type=file]").set_input_files(
-        str(tmp_path / "captura-salon.png")
-    )
-    page.locator("#iai-captura-sketchup-upload").click()
-    ui.toast("1 imagen(es) subida(s) a Capturas de SketchUp")
+    # Un solo tipo de imagen (B-028): la captura también es una referencia.
+    files = page.locator("#iai-referencia-files input[type=file]")
+    files.set_input_files(str(tmp_path / "captura-salon.png"))
+    page.locator("#iai-referencia-upload").click()
+    ui.toast("1 imagen(es) subida(s)")
 
-    # Planos solo en imagen: el navegador lo filtra o el backend lo rechaza (415).
-    page.get_by_role("tab", name="Planos").click()
-    page.locator("#iai-plano-files input[type=file]").set_input_files(str(tmp_path / "plano.pdf"))
-    page.locator("#iai-plano-upload").click()
+    # Solo imágenes: el navegador filtra el PDF o el backend lo rechaza (415).
+    files.set_input_files(str(tmp_path / "plano.pdf"))
+    page.locator("#iai-referencia-upload").click()
     rejected = page.get_by_text(re.compile("Formato no admitido|Añade al menos una imagen"))
     expect(rejected.first).to_be_visible()
 
-    page.get_by_role("tab", name="Referencias").click()
-    page.locator("#iai-referencia-files input[type=file]").set_input_files(
+    files.set_input_files(
         [str(tmp_path / "sofa-planificador.png"), str(tmp_path / "inspiracion.jpg")]
     )
     page.get_by_label("Nota para las imágenes subidas (opcional)").last.fill("285 x 160 x 87 cm")
     page.locator("#iai-referencia-upload").click()
-    ui.toast("2 imagen(es) subida(s) a Referencias")
-    expect(page.locator(".iai-gallery .thumbnail-item", has_text="Sin indexar")).to_have_count(2)
+    ui.toast("2 imagen(es) subida(s)")
+    expect(page.locator(".iai-gallery .thumbnail-item", has_text="Sin indexar")).to_have_count(3)
 
     page.locator("#iai-index-references").click()
-    ui.toast("Indexadas: 2")
-    expect(page.locator(".iai-gallery .thumbnail-item", has_text="Propuesta (IA)")).to_have_count(2)
+    ui.toast("Indexadas: 3")
+    expect(page.locator(".iai-gallery .thumbnail-item", has_text="Propuesta (IA)")).to_have_count(3)
 
     page.locator(".iai-gallery .thumbnail-item", has_text="sofa-planificador").click()
     note = page.locator("#iai-referencia-note textarea")

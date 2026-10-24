@@ -158,7 +158,12 @@ def selected_choices(project: ProjectMetadata, stage: RenderStage) -> list[tuple
 
 
 def reference_choices(project: ProjectMetadata) -> list[tuple[str, str]]:
-    return [(a.original_name, str(a.id)) for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    """Referencias para el render final (sin las capturas y planos de la v1, B-028)."""
+    return [
+        (a.original_name, str(a.id))
+        for a in project.assets
+        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None
+    ]
 
 
 def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> str:

@@ -21,6 +21,7 @@ from app.hitl.briefs import BriefNotFoundError
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
+from app.pipelines.sources import base_candidates
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
@@ -100,17 +101,13 @@ def approved_brief(project: ProjectMetadata, brief_id: UUID | None) -> DesignBri
 
 
 def base_asset(project: ProjectMetadata, brief: DesignBrief) -> Asset:
-    """Imagen base: la primera captura/plano en imagen del brief (o del proyecto)."""
+    """Imagen base: la primera imagen base del brief o, si no, la del proyecto (`sources`)."""
     by_id = {a.id: a for a in project.assets}
     candidates = [by_id[i] for i in brief.source_asset_ids if i in by_id]
-    candidates += sorted(
-        (a for a in project.assets if a.kind in {AssetKind.CAPTURA_SKETCHUP, AssetKind.PLANO}),
-        key=lambda a: (a.kind is not AssetKind.CAPTURA_SKETCHUP, a.created_at),
-    )
-    for asset in candidates:
+    for asset in [*candidates, *base_candidates(project)]:
         if asset.mime_type in VISION_MIME_TYPES:
             return asset
-    raise PipelineInputError("Sube una captura de SketchUp o un plano en imagen como base")
+    raise PipelineInputError("Sube una imagen del espacio (p. ej. una captura de SketchUp)")
 
 
 def selected_render(project: ProjectMetadata, render_id: UUID, stage: RenderStage) -> RenderRecord:
@@ -346,7 +343,9 @@ async def generate_final(
     references_by_id = {
         a.id: a
         for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.mime_type in VISION_MIME_TYPES
+        if a.kind is AssetKind.REFERENCIA
+        and a.legacy_kind is None  # capturas y planos de la v1: no son texturas (B-028)
+        and a.mime_type in VISION_MIME_TYPES
     }
     wanted = brief.reference_asset_ids if reference_ids is None else reference_ids
     unknown = [str(i) for i in wanted if i not in references_by_id]

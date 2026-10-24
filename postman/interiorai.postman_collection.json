@@ -42,9 +42,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"render no se puede subir\", () => {",
-                  "  const render = pm.response.json().find(k => k.value === \"render\");",
-                  "  pm.expect(render.uploadable).to.be.false;",
+                  "pm.test(\"solo se suben referencias; render no se puede subir\", () => {",
+                  "  const kinds = pm.response.json();",
+                  "  pm.expect(kinds.map(k => k.value)).to.eql([\"referencia\", \"render\"]);",
+                  "  pm.expect(kinds.find(k => k.value === \"render\").uploadable).to.be.false;",
                   "});"
                 ]
               }
@@ -211,7 +212,7 @@
       "name": "03 Assets",
       "item": [
         {
-          "name": "Subir plano (multipart)",
+          "name": "Subir imagen del espacio (multipart)",
           "event": [
             {
               "listen": "test",
@@ -233,7 +234,7 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -247,7 +248,7 @@
           }
         },
         {
-          "name": "Subir plano duplicado",
+          "name": "Subir imagen duplicada",
           "event": [
             {
               "listen": "test",
@@ -266,7 +267,7 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano",
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/referencia",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -338,6 +339,34 @@
           }
         },
         {
+          "name": "Subir plano (tipo de la v1, no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/plano/base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"plano.png\",\n  \"data_base64\": \"iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAAJ0lEQVR42mPsjvnGQEvAxEBjMGrBqAWjFoxaMGrBqAWjFoxaQB0AANHqAg034bUdAAAAAElFTkSuQmCC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Subir archivo no válido",
           "event": [
             {
@@ -366,7 +395,7 @@
           }
         },
         {
-          "name": "Listar planos",
+          "name": "Listar referencias",
           "event": [
             {
               "listen": "test",
@@ -374,10 +403,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"solo el plano\", () => {",
+                  "pm.test(\"todas las imágenes subidas son referencias\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b).to.have.lengthOf(1);",
-                  "  pm.expect(b[0].id).to.eql(pm.collectionVariables.get(\"planoId\"));",
+                  "  pm.expect(b).to.have.lengthOf(2);",
+                  "  pm.expect(b.map(a => a.kind)).to.eql([\"referencia\", \"referencia\"]);",
+                  "  pm.expect(b.map(a => a.id)).to.include(pm.collectionVariables.get(\"planoId\"));",
                   "});"
                 ]
               }
@@ -386,11 +416,11 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets?kind=plano"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets?kind=referencia"
           }
         },
         {
-          "name": "Descargar plano",
+          "name": "Descargar imagen del espacio",
           "event": [
             {
               "listen": "test",
@@ -793,7 +823,7 @@
                   "pm.test(\"render final con composición + referencia\", () => {",
                   "  pm.expect(r.stage).to.eql(\"render_final\");",
                   "  pm.expect(r.input_asset_ids).to.have.lengthOf(2);",
-                  "  pm.expect(r.size).to.eql(\"1920x1440\"); // proporción del plano (4:3)",
+                  "  pm.expect(r.size).to.eql(\"1920x1440\"); // proporción de la imagen base (4:3)",
                   "});"
                 ]
               }

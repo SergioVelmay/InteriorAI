@@ -4,7 +4,7 @@ import io
 from collections.abc import Callable
 
 import pytest
-from conftest import image_bytes
+from conftest import image_bytes, mark_legacy
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -66,18 +66,22 @@ def project(api: TestClient) -> dict:
         assert response.status_code == 201, response.text
         return response.json()
 
-    return {
+    project = {
         "id": pid,
         "url": url,
         "capture": upload(
-            "captura_sketchup", image_bytes(size=(1600, 900)), "vista.png", "Vista del sofá"
+            "referencia", image_bytes(size=(1600, 900)), "vista.png", "Vista del sofá"
         ),
-        "plan": upload("plano", image_bytes(size=(800, 600), color="#dddddd"), "plano.png"),
+        "plan": upload("referencia", image_bytes(size=(800, 600), color="#dddddd"), "plano.png"),
         "product": upload(
             "referencia", image_bytes(color="#556b2f"), "planificador.png", "285 x 160 x 87 cm"
         ),
         "inspiration": upload("referencia", image_bytes(color="#6b8e23"), "inspiracion.jpg"),
     }
+    # Proyecto migrado de la v1: la captura y el plano conservan su tipo anterior (B-028).
+    legacy = {project["capture"]["id"]: "captura_sketchup", project["plan"]["id"]: "plano"}
+    mark_legacy(api, pid, legacy)
+    return project
 
 
 def image_size(data: bytes) -> tuple[int, int]:
@@ -203,6 +207,25 @@ def test_brief_context_and_creation(api: TestClient, spy: SpyClient, project: di
     assert project["product"]["id"] in request.input  # ficha como texto, con su id
     assert "285 x 160 x 87 cm" in request.input
     assert "Prueba tonos oliva" in request.input
+
+
+def test_brief_without_v1_images_uses_the_oldest_reference_as_base(
+    api: TestClient, spy: SpyClient
+) -> None:
+    pid = api.post("/api/v1/projects", json={"name": "Dormitorio"}).json()["id"]
+    url = f"/api/v1/projects/{pid}"
+    ids = [
+        api.post(f"{url}/assets/referencia", files={"file": (name, image_bytes(color=color))})
+        .json()["id"]
+        for name, color in (("vista.png", "#b45309"), ("cama.png", "#556b2f"))
+    ]  # fmt: skip
+
+    brief = api.post(f"{url}/briefs").json()["brief"]
+    assert brief["source_asset_ids"] == [ids[0]]  # la más antigua, como imagen
+    assert brief["reference_asset_ids"] == [ids[1]]  # el resto, como fichas
+    [(_, request)] = spy.requests
+    assert len(request.images) == 1
+    assert "Imagen 1: Referencia 'vista.png'" in request.input
 
 
 def test_brief_warns_about_unindexed_references(

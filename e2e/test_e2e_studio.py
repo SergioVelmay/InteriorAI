@@ -49,7 +49,7 @@ def test_studio_hitl_cycle(ui: UI, projects: Projects, api: httpx.Client) -> Non
     ui.toast("Render final: 1 imagen(es)")
     expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(1)
     final = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()[0]
-    assert final["size"] == "1920x1080"  # proporción de la captura (16:9)
+    assert final["size"] == "1920x1080"  # proporción de la imagen base (16:9)
 
     page.locator("#iai-audit").click()
     ui.toast("Auditoría: ")

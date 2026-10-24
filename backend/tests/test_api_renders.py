@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import image_bytes
+from conftest import image_bytes, mark_legacy
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -54,12 +54,14 @@ def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) ->
         assert response.status_code == 201, response.text
         return response.json()["id"]
 
-    return {
+    project = {
         "url": url,
-        "capture": upload("captura_sketchup", image_bytes(size=capture_size), "vista.png"),
+        "capture": upload("referencia", image_bytes(size=capture_size), "vista.png"),
         "product": upload("referencia", image_bytes(color="#556b2f"), "planificador.png"),
         "inspiration": upload("referencia", image_bytes(color="#6b8e23"), "inspiracion.jpg"),
     }
+    mark_legacy(api, pid, {project["capture"]: "captura_sketchup"})  # migrada de la v1 (B-028)
+    return project
 
 
 def approve_brief(api: TestClient, project: dict) -> dict:
@@ -551,8 +553,11 @@ def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: Spy
     indexed = api.post(f"{project['url']}/references/index", json={})
     assert indexed.status_code == 200, indexed.text
     assert len(indexed.json()["indexed"]) == 2
-    analyses = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
-    assert all(a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses)
+    assets = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
+    analyses = [a for a in assets if a["legacy_kind"] is None]  # la captura no se indexa
+    assert len(analyses) == 2 and all(
+        a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses
+    )
     brief = approve_brief(api, project)
     assert len(brief["reference_asset_ids"]) == 2
     composition = run(api, project, "compositions")["renders"][0]

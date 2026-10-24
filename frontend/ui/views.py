@@ -84,8 +84,7 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
         f"### {html.escape(project.name)}",
         f"Actualizado el {project.updated_at:%d/%m/%Y %H:%M} UTC",
         "",
-        f"- Capturas de SketchUp: **{kinds[AssetKind.CAPTURA_SKETCHUP]}** · "
-        f"planos: **{kinds[AssetKind.PLANO]}** · referencias: **{kinds[AssetKind.REFERENCIA]}**",
+        f"- Imágenes de referencia: **{kinds[AssetKind.REFERENCIA]}**",
         f"- Brief: **{brief}**",
         f"- Bocetos: **{stages[RenderStage.DRAFT]}** · composiciones: "
         f"**{stages[RenderStage.COMPOSITION]}** · renders finales: **{stages[RenderStage.FINAL]}**",

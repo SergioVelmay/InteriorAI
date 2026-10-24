@@ -14,12 +14,7 @@ from shared.models import (
 
 
 def test_every_asset_kind_has_folder() -> None:
-    assert {k.folder for k in AssetKind} == {
-        "planos",
-        "referencias",
-        "capturas_sketchup",
-        "renders_historico",
-    }
+    assert {k.folder for k in AssetKind} == {"referencias", "renders_historico"}
 
 
 def test_project_create_strips_and_validates_name() -> None:

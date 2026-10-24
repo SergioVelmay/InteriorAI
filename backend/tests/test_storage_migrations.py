@@ -45,7 +45,7 @@ async def repo(tmp_path: Path) -> ProjectRepository:
 
 
 def test_description_keeps_removed_fields_with_value() -> None:
-    data = upgrade_v1(
+    data, _ = upgrade_v1(
         v1(
             description="Salón de 25 m².",
             design_notes="Sofá en L.\nTonos verdes.",
@@ -67,10 +67,10 @@ def test_description_keeps_removed_fields_with_value() -> None:
 
 
 def test_description_only_adds_fields_with_value() -> None:
-    assert upgrade_v1(v1(description="Cocina.", space_type="cocina"))["description"] == (
+    assert upgrade_v1(v1(description="Cocina.", space_type="cocina"))[0]["description"] == (
         "Cocina.\n\nTipo de espacio: Cocina"
     )
-    assert upgrade_v1(v1(design_notes="Isla"))["description"] == (
+    assert upgrade_v1(v1(design_notes="Isla"))[0]["description"] == (
         "Tipo de espacio: Salón-cocina-comedor\nNotas de diseño: Isla"
     )
 
@@ -135,3 +135,52 @@ async def test_restored_v1_project_is_migrated(repo: ProjectRepository) -> None:
     restored = await repo.restore_project(trashed.name)
     assert restored.name == "Salón antiguo"
     assert (repo.data_dir / str(project.id) / BACKUP_FILE).is_file()
+
+
+# --- B-028: un solo tipo de imagen -----------------------------------------------------------
+
+
+def v1_asset(kind: str, name: str) -> dict:
+    return {
+        "id": name.split(".")[0], "kind": kind, "stored_name": name, "original_name": name,
+        "mime_type": "image/png", "size_bytes": 3, "sha256": "0" * 64, "description": "",
+        "analysis": None, "created_at": "2026-10-18T07:40:00Z",
+    }  # fmt: skip
+
+
+async def test_captures_and_plans_become_references(repo: ProjectRepository) -> None:
+    project = await repo.create(ProjectCreate(name="Cocina"))
+    root = repo.data_dir / str(project.id)
+    capture, plan, reference = (
+        v1_asset("captura_sketchup", "0e8a6d5e-8d0c-4c51-9a55-0d6f3e6a1a01.png"),
+        v1_asset("plano", "0e8a6d5e-8d0c-4c51-9a55-0d6f3e6a1a02.png"),
+        v1_asset("referencia", "0e8a6d5e-8d0c-4c51-9a55-0d6f3e6a1a03.png"),
+    )
+    for folder, asset in (("capturas_sketchup", capture), ("planos", plan)):
+        (root / folder).mkdir()
+        (root / folder / asset["stored_name"]).write_bytes(b"png")
+    (root / "referencias" / reference["stored_name"]).write_bytes(b"ref")
+    write_v1(root, assets=[capture, plan, reference])
+
+    assert migrate(root) is True
+    migrated = await repo.get(project.id)
+    assert [(a.kind.value, a.legacy_kind) for a in migrated.assets] == [
+        ("referencia", "captura_sketchup"),
+        ("referencia", "plano"),
+        ("referencia", None),
+    ]
+    for asset in migrated.assets:
+        assert (await repo.asset_path(project.id, asset.id)).read_bytes() in {b"png", b"ref"}
+    assert not (root / "capturas_sketchup").exists() and not (root / "planos").exists()
+
+
+async def test_interrupted_file_moves_are_completed(repo: ProjectRepository) -> None:
+    project = await repo.create(ProjectCreate(name="Cocina"))
+    root = repo.data_dir / str(project.id)
+    capture = v1_asset("captura_sketchup", "0e8a6d5e-8d0c-4c51-9a55-0d6f3e6a1a01.png")
+    (root / "capturas_sketchup").mkdir()
+    (root / "referencias" / capture["stored_name"]).write_bytes(b"png")  # ya movida
+    write_v1(root, assets=[capture])
+
+    assert migrate(root) is True
+    assert (await repo.read_asset_bytes(project.id, capture["id"])) == b"png"

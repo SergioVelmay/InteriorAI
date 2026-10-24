@@ -1,7 +1,7 @@
-"""Pestaña Assets: capturas de SketchUp, planos y referencias del proyecto activo.
+"""Pestaña Assets: las imágenes del proyecto activo, todas referencias desde la v2 (B-028).
 
-Subir (vía API), ver, anotar y borrar (papelera); en las referencias, indexar con el
-CONTEXT_MANAGER (botón manual, con coste en modo azure) y validar la ficha.
+Subir (vía API), ver, anotar y borrar (papelera); indexar con el CONTEXT_MANAGER (botón
+manual, con coste en modo azure) y validar la ficha.
 """
 
 from __future__ import annotations
@@ -27,12 +27,6 @@ from ui.views import (
     parse_analysis_form,
 )
 
-UPLOAD_KINDS = (AssetKind.CAPTURA_SKETCHUP, AssetKind.PLANO, AssetKind.REFERENCIA)
-TAB_TITLES = {
-    AssetKind.CAPTURA_SKETCHUP: "Capturas de SketchUp",
-    AssetKind.PLANO: "Planos",
-    AssetKind.REFERENCIA: "Referencias",
-}
 FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"]
 NO_PROJECT = "### Ningún proyecto activo\nElige o crea un proyecto en la pestaña **Proyectos**."
 NO_SELECTION = "Selecciona una imagen de la galería para ver su detalle."
@@ -42,13 +36,6 @@ INDEX_HINT = (
 )
 
 Handler = Callable[..., Awaitable[dict]]
-
-
-@dataclass
-class AssetPanel:
-    kind: AssetKind
-    refresh: Callable[[str | None], Awaitable[dict]]
-    outputs: list[gr.components.Component]
 
 
 @dataclass
@@ -63,11 +50,9 @@ def gallery_item(data_dir: Path, project_id: str, asset: Asset) -> tuple[Any, st
     return image, asset_caption(asset)
 
 
-def _build_panel(
-    kind: AssetKind, client: BackendClient, data_dir: Path, active: gr.BrowserState
-) -> AssetPanel:
-    is_reference = kind is AssetKind.REFERENCIA
-    slug = kind.value.replace("_", "-")
+def build_assets_tab(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> AssetsTab:
+    heading = gr.Markdown(NO_PROJECT)
+    kind, slug = AssetKind.REFERENCIA, "referencia"
     with gr.Row(equal_height=False):
         with gr.Column(scale=3):
             gallery = gr.Gallery(
@@ -75,13 +60,12 @@ def _build_panel(
                 allow_preview=False, buttons=[], elem_classes="iai-gallery",
             )  # fmt: skip
             ids = gr.State([])
-            if is_reference:
-                with gr.Row(equal_height=True):
-                    index_btn = gr.Button(
-                        "Indexar referencias pendientes", variant="primary", scale=0,
-                        min_width=280, elem_id="iai-index-references",
-                    )  # fmt: skip
-                    gr.Markdown(INDEX_HINT)
+            with gr.Row(equal_height=True):
+                index_btn = gr.Button(
+                    "Indexar referencias pendientes", variant="primary", scale=0,
+                    min_width=280, elem_id="iai-index-references",
+                )  # fmt: skip
+                gr.Markdown(INDEX_HINT)
             with gr.Accordion("Subir imágenes", open=True):
                 files = gr.File(
                     label="PNG, JPEG o WebP", file_count="multiple", file_types=FILE_TYPES,
@@ -107,38 +91,34 @@ def _build_panel(
                     "Confirmar: mover a la papelera", visible=False, elem_classes="iai-danger"
                 )
                 cancel = gr.Button("Cancelar", visible=False, variant="secondary")
-            ficha: list[gr.components.Component] = []
-            if is_reference:
-                with gr.Accordion("Ficha de la referencia", open=True):
-                    status = gr.Markdown("")
-                    with gr.Row():
-                        category = gr.Dropdown(CATEGORY_CHOICES, label="Categoría")
-                        item_name = gr.Textbox(label="Objeto", elem_id="iai-ficha-item")
-                    with gr.Row():
-                        brand = gr.Textbox(label="Marca")
-                        product = gr.Textbox(label="Producto")
-                    style_tags = gr.Textbox(label="Estilos (separados por comas)")
-                    colors = gr.Textbox(label="Colores (separados por comas)")
-                    materials = gr.Textbox(
-                        label="Materiales (separados por comas)", elem_id="iai-ficha-materials"
-                    )
-                    with gr.Row():
-                        width = gr.Number(label="Ancho (cm)", minimum=0)
-                        depth = gr.Number(label="Fondo (cm)", minimum=0)
-                        height = gr.Number(label="Alto (cm)", minimum=0)
-                    source = gr.Dropdown(DIMENSION_SOURCE_CHOICES, label="Origen de las medidas")
-                    summary = gr.Textbox(label="Resumen", lines=2)
-                    relevance = gr.Textbox(label="Qué aporta al diseño", lines=2)
-                    validate = gr.Button(
-                        "Validar ficha", variant="primary", interactive=False,
-                        elem_id="iai-validate-ficha",
-                    )  # fmt: skip
-                ficha = [category, item_name, brand, product, style_tags, colors, materials,
-                         width, depth, height, source, summary, relevance]  # fmt: skip
+            with gr.Accordion("Ficha de la referencia", open=True):
+                status = gr.Markdown("")
+                with gr.Row():
+                    category = gr.Dropdown(CATEGORY_CHOICES, label="Categoría")
+                    item_name = gr.Textbox(label="Objeto", elem_id="iai-ficha-item")
+                with gr.Row():
+                    brand = gr.Textbox(label="Marca")
+                    product = gr.Textbox(label="Producto")
+                style_tags = gr.Textbox(label="Estilos (separados por comas)")
+                colors = gr.Textbox(label="Colores (separados por comas)")
+                materials = gr.Textbox(
+                    label="Materiales (separados por comas)", elem_id="iai-ficha-materials"
+                )
+                with gr.Row():
+                    width = gr.Number(label="Ancho (cm)", minimum=0)
+                    depth = gr.Number(label="Fondo (cm)", minimum=0)
+                    height = gr.Number(label="Alto (cm)", minimum=0)
+                source = gr.Dropdown(DIMENSION_SOURCE_CHOICES, label="Origen de las medidas")
+                summary = gr.Textbox(label="Resumen", lines=2)
+                relevance = gr.Textbox(label="Qué aporta al diseño", lines=2)
+                validate = gr.Button(
+                    "Validar ficha", variant="primary", interactive=False,
+                    elem_id="iai-validate-ficha",
+                )  # fmt: skip
+            ficha = [category, item_name, brand, product, style_tags, colors, materials,
+                     width, depth, height, source, summary, relevance]  # fmt: skip
 
-    detail_outputs = [selected, info, preview, note, save_note, delete]
-    if is_reference:
-        detail_outputs += [status, *ficha, validate]
+    detail_outputs = [selected, info, preview, note, save_note, delete, status, *ficha, validate]
 
     # --- Manejadores ---------------------------------------------------------------------
 
@@ -158,13 +138,12 @@ def _build_panel(
             save_note: gr.update(interactive=asset is not None),
             delete: gr.update(interactive=asset is not None),
         }
-        if is_reference:
-            values = analysis_form_values(asset) if asset else [None] * len(ficha)
-            updates |= {
-                status: f"Estado de la ficha: **{analysis_status(asset)}**" if asset else "",
-                **dict(zip(ficha, values, strict=True)),
-                validate: gr.update(interactive=asset is not None),
-            }
+        values = analysis_form_values(asset) if asset else [None] * len(ficha)
+        updates |= {
+            status: f"Estado de la ficha: **{analysis_status(asset)}**" if asset else "",
+            **dict(zip(ficha, values, strict=True)),
+            validate: gr.update(interactive=asset is not None),
+        }
         return updates
 
     async def refresh(active_id: str | None, keep: str | None = None) -> dict:
@@ -213,7 +192,7 @@ def _build_panel(
             except ApiError as exc:
                 gr.Warning(f"{path.name}: {exc.detail}")
         if uploaded:
-            gr.Info(f"{uploaded} imagen(es) subida(s) a {TAB_TITLES[kind]}")
+            gr.Info(f"{uploaded} imagen(es) subida(s)")
         return {**await refresh(active_id), files: None, upload_note: ""}
 
     async def on_save_note(active_id: str | None, asset_id: str | None, note_v: str) -> dict:
@@ -254,50 +233,37 @@ def _build_panel(
         on_confirm_delete, inputs=[active, selected], outputs=[*panel_outputs, confirm, cancel]
     )
 
-    if is_reference:
+    async def on_index(active_id: str | None, asset_id: str | None) -> dict:
+        if not active_id:
+            return unchanged()
+        try:
+            result = await client.index_references(active_id)
+        except ApiError as exc:
+            gr.Warning(exc.detail)
+            return unchanged()
+        failed = result.get("failed", [])
+        for failure in failed:
+            gr.Warning(f"No se pudo indexar: {failure['error']}")
+        gr.Info(
+            f"Indexadas: {len(result['indexed'])} · ya indexadas: {len(result['skipped'])}"
+            f" · coste: {result['cost_eur']:.4f} €"
+        )
+        return await refresh(active_id, keep=asset_id)
 
-        async def on_index(active_id: str | None, asset_id: str | None) -> dict:
-            if not active_id:
-                return unchanged()
-            try:
-                result = await client.index_references(active_id)
-            except ApiError as exc:
-                gr.Warning(exc.detail)
-                return unchanged()
-            failed = result.get("failed", [])
-            for failure in failed:
-                gr.Warning(f"No se pudo indexar: {failure['error']}")
-            gr.Info(
-                f"Indexadas: {len(result['indexed'])} · ya indexadas: {len(result['skipped'])}"
-                f" · coste: {result['cost_eur']:.4f} €"
-            )
-            return await refresh(active_id, keep=asset_id)
+    async def on_validate(active_id: str | None, asset_id: str | None, *values: Any) -> dict:
+        if not (active_id and asset_id):
+            return unchanged()
+        try:
+            analysis = parse_analysis_form(list(values))
+            await client.validate_analysis(active_id, asset_id, analysis)
+        except (ApiError, ValueError) as exc:
+            gr.Warning(getattr(exc, "detail", str(exc)))
+            return unchanged()
+        gr.Info("Ficha validada")
+        return await refresh(active_id, keep=asset_id)
 
-        async def on_validate(active_id: str | None, asset_id: str | None, *values: Any) -> dict:
-            if not (active_id and asset_id):
-                return unchanged()
-            try:
-                analysis = parse_analysis_form(list(values))
-                await client.validate_analysis(active_id, asset_id, analysis)
-            except (ApiError, ValueError) as exc:
-                gr.Warning(getattr(exc, "detail", str(exc)))
-                return unchanged()
-            gr.Info("Ficha validada")
-            return await refresh(active_id, keep=asset_id)
-
-        index_btn.click(on_index, inputs=[active, selected], outputs=panel_outputs)
-        validate.click(on_validate, inputs=[active, selected, *ficha], outputs=panel_outputs)
-
-    return AssetPanel(kind, refresh, panel_outputs)
-
-
-def build_assets_tab(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> AssetsTab:
-    heading = gr.Markdown(NO_PROJECT)
-    panels: list[AssetPanel] = []
-    with gr.Tabs():
-        for kind in UPLOAD_KINDS:
-            with gr.Tab(TAB_TITLES[kind]):
-                panels.append(_build_panel(kind, client, data_dir, active))
+    index_btn.click(on_index, inputs=[active, selected], outputs=panel_outputs)
+    validate.click(on_validate, inputs=[active, selected, *ficha], outputs=panel_outputs)
 
     async def refresh_all(active_id: str | None) -> dict:
         updates: dict = {heading: NO_PROJECT}
@@ -307,9 +273,6 @@ def build_assets_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 updates[heading] = f"### Assets de «{project.name}»"
             except ApiError:
                 active_id = None
-        for panel in panels:
-            updates |= await panel.refresh(active_id)
-        return updates
+        return updates | await refresh(active_id)
 
-    outputs = [heading, *(c for panel in panels for c in panel.outputs)]
-    return AssetsTab(refresh_all, outputs)
+    return AssetsTab(refresh_all, [heading, *panel_outputs])

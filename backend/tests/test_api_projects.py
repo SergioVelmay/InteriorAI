@@ -20,10 +20,10 @@ def test_space_types_catalog_was_removed(api: TestClient) -> None:
 def test_catalog_asset_kinds_marks_render_as_not_uploadable(api: TestClient) -> None:
     kinds = {k["value"]: k for k in api.get("/api/v1/asset-kinds").json()}
     assert kinds["render"]["uploadable"] is False
-    assert kinds["plano"]["uploadable"] is True
+    assert kinds["referencia"]["uploadable"] is True
+    assert set(kinds) == {"referencia", "render"}  # un solo tipo de imagen subida (B-028)
     images = ["image/jpeg", "image/png", "image/webp"]
-    assert kinds["plano"]["accepted_mime_types"] == images  # solo imágenes (Paso 12)
-    assert kinds["referencia"]["accepted_mime_types"] == images
+    assert kinds["referencia"]["accepted_mime_types"] == images  # solo imágenes (Paso 12)
 
 
 def test_create_returns_201_with_location(api: TestClient) -> None:

@@ -1,7 +1,7 @@
 """Portadas de los proyectos, leídas directamente del volumen compartido (solo lectura).
 
 Prioridad: render final seleccionado → último render no rechazado ni descartado →
-captura de SketchUp → plano en imagen → imagen de relleno.
+captura de SketchUp → plano (imágenes de la v1) → referencia más antigua → imagen de relleno.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from shared.models import (
 
 IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 PLACEHOLDER_SIZE = (960, 640)
+_LEGACY_ORDER = {"captura_sketchup": 0, "plano": 1}  # tipo de la v1 (B-028)
 
 
 def asset_path(data_dir: Path, project_id: object, asset: Asset) -> Path:
@@ -37,11 +38,11 @@ def cover_asset(project: ProjectMetadata) -> Asset | None:
     for render in [*finals, *usable]:
         if render.id in assets:
             return assets[render.id]
-    for kind in (AssetKind.CAPTURA_SKETCHUP, AssetKind.PLANO):
-        for asset in project.assets:
-            if asset.kind is kind and asset.mime_type in IMAGE_TYPES:
-                return asset
-    return None
+    uploaded = sorted(
+        (a for a in project.assets if a.kind is AssetKind.REFERENCIA),
+        key=lambda a: (_LEGACY_ORDER.get(a.legacy_kind or "", 2), a.created_at),
+    )
+    return next((a for a in uploaded if a.mime_type in IMAGE_TYPES), None)
 
 
 def placeholder(name: str) -> Image.Image:
