@@ -24,7 +24,10 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 14 | [UI: dashboard de costes](paso-14-ui-costes.md) | `feat/paso-14` | ✅ Cerrado |
 | 15a | [CI, Dependabot y seguridad del repositorio](paso-15a-ci-seguridad.md) | `feat/paso-15a` | ✅ Cerrado |
 | 15b | [Contenedores, papelera y versión 1.0.0](paso-15b-version-1.md) | `feat/paso-15b` | ✅ Cerrado |
-| 16 | [Mejoras del backlog](paso-16-mejoras.md) | `feat/paso-16` | 🧪 En validación |
+| 16 | [Mejoras del backlog](paso-16-mejoras.md) | `feat/paso-16` | ✅ Cerrado |
+
+Versión 2.0.0 (en curso): [plan de acción](plan-version-2.md), Pasos 17 a 25, entradas B-023 a B-054
+del [backlog](BACKLOG.md).
 
 Mantenimiento posterior a la 1.0.0:
 
