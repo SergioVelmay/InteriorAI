@@ -106,7 +106,7 @@ class ProjectRepository:
                     indexed = {p.id for p in await self._run(self._read_index)}
                     reason = "" if indexed == on_disk else "desincronizado"
                 except CorruptDataError:
-                    reason = "corrupto"
+                    reason = "corrupto o de un esquema anterior"
         if reason:
             logger.warning("Índice %s (%d proyectos en disco): reindexando", reason, len(on_disk))
             await self.reindex()

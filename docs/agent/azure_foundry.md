@@ -86,7 +86,8 @@ y no se limita a la zona aunque se le marque en rojo y en texto (puso la alfombr
 chaise longue); el resto cambia sutilmente (≈ 17 % de píxeles: textura de la pana más blanda,
 geometría desplazada). Por eso se guarda también la salida en bruto y el usuario elige. Para
 **añadir objetos**, mejor retocar la composición y regenerar el final a partir de ella.
-Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €.
+Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €. Desde el Paso 17
+(B-038) solo se retocan composiciones, sin recomponer: la imagen es la que devuelve sunburst.
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 
