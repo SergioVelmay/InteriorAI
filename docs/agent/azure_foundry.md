@@ -119,8 +119,9 @@ referencias.
   `tokens` (por 1M; entrada sin caché, caché, escritura en caché, salida), `image_tokens` (texto vs
   imagen de entrada, salida) y `megapixels` (primer MP, MP adicionales, MP de referencia).
   Despliegue sin precio → `cost_eur=None` (aviso al arrancar). Montado en solo lectura.
-- Persistencia: `ProjectRepository.append_telemetry/read_telemetry` (`costes_telemetria.json`,
-  escritura atómica bajo el bloqueo del proyecto).
+- Persistencia: `ProjectRepository.append_telemetry/read_telemetry` bajo el bloqueo del proyecto.
+  Desde el Paso 16, `costes_telemetria.jsonl` (una línea por llamada, solo se añade; B-012); el
+  `costes_telemetria.json` anterior se migra solo y se conserva como `.json.migrado`.
 - CLI (solo mock): `python -m app.telemetry simular <id> [--llamadas N]`.
 - **Coste estimado** con precios de lista: la cifra real está en Azure Cost Management.
 

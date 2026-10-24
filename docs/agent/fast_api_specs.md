@@ -31,7 +31,7 @@ data/
 ├── .locks/                           # filelocks (index.lock, {uuid}.lock)
 └── {id_proyecto}/                    # id = UUID (protección path traversal)
     ├── metadatos.json
-    ├── costes_telemetria.json
+    ├── costes_telemetria.jsonl       # una línea por llamada a la IA (Paso 16)
     ├── planos/
     ├── referencias/
     ├── capturas_sketchup/

@@ -23,7 +23,9 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    `STRUCTURAL_COMPOSER`, `PHOTOREALISTIC_RENDERER`). Los nombres solo aparecen en
    `.env.example` y `config/pricing.yaml`. Despliegue de un rol: `settings.deployment_for(role)`.
 3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto:
-   usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano.
+   usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano. Única
+   excepción: la telemetría (`costes_telemetria.jsonl`) solo añade líneas; una línea cortada al
+   final se ignora al leer (`app/storage/telemetry_log.py`).
 4. **Toda llamada a IA pasa por `FoundryClient`** (`backend/app/foundry/`, dependencia `FoundryDep`)
    para que la telemetría de costes la registre. Nunca llamar a Azure por otra vía. Las llamadas
    hechas por un proyecto van dentro de `with telemetry_scope(project_id):`. **Nunca reintentar

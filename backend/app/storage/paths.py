@@ -14,7 +14,7 @@ from shared.models import AssetKind
 
 INDEX_FILE = "proyectos.json"
 METADATA_FILE = "metadatos.json"
-TELEMETRY_FILE = "costes_telemetria.json"
+TELEMETRY_FILE = "costes_telemetria.jsonl"  # una línea por llamada (B-012)
 TRASH_DIR = ".papelera"
 LOCKS_DIR = ".locks"
 

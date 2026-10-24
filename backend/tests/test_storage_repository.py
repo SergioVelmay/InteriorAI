@@ -44,10 +44,7 @@ async def test_create_builds_full_structure(repo: ProjectRepository) -> None:
     assert json.loads((root / "metadatos.json").read_text(encoding="utf-8"))["name"] == (
         "Salón principal"
     )
-    assert json.loads((root / "costes_telemetria.json").read_text(encoding="utf-8")) == {
-        "schema_version": 1,
-        "records": [],
-    }
+    assert (root / "costes_telemetria.jsonl").read_bytes() == b""  # JSONL vacío (B-012)
     index = read_index(repo)
     assert index["schema_version"] == 1
     assert [p["id"] for p in index["projects"]] == [str(project.id)]
