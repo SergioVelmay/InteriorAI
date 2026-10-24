@@ -148,12 +148,13 @@ async def test_role_and_operation_must_match(
             await client.generate_image(role, ImageRequest(prompt="x"))
 
 
-async def test_renderer_rejects_mask(client: MockFoundryClient) -> None:
+@pytest.mark.parametrize("role", [Role.PHOTOREALISTIC_RENDERER, Role.FAST_DRAFT])
+async def test_only_the_composer_accepts_a_mask(client: MockFoundryClient, role: Role) -> None:
     request = ImageEditRequest(
         prompt="x", images=[InputImage(data=png())], mask=InputImage(data=png())
     )
     with pytest.raises(FoundryUnsupportedError, match="STRUCTURAL_COMPOSER"):
-        await client.edit_image(Role.PHOTOREALISTIC_RENDERER, request)
+        await client.edit_image(role, request)  # especialización (B-037)
 
 
 def test_invalid_image_size_is_rejected() -> None:

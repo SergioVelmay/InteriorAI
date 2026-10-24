@@ -274,6 +274,7 @@ async def test_edit_image_sends_multipart_with_mask(make_client) -> None:
     assert request.headers["content-type"].startswith("multipart/form-data")
     assert b'name="mask"' in request.content
     assert b"dep-structural_composer" in request.content
+    assert b"input_fidelity" not in request.content  # el despliegue lo rechaza (B-041)
 
 
 # --- Renderizador (API del proveedor) ----------------------------------------------------------

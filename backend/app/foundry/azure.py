@@ -310,6 +310,8 @@ class AzureFoundryClient(FoundryClient):
         }
         if request.mask is not None:
             kwargs["mask"] = ("mascara.png", request.mask.data, request.mask.mime_type)
+            # Sin `input_fidelity` (B-041): el despliegue de retoques lo rechaza con un 400
+            # (comprobado en el Paso 18) y conserva bien lo que queda fuera de la máscara.
         start = time.perf_counter()
         response = await self._openai_call(role, lambda c: c.images.edit(**kwargs))
         return await self._openai_image_result(role, deployment, response, start)
