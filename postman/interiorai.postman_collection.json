@@ -538,9 +538,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"ficha propuesta\", () => {",
+                  "pm.test(\"fichas propuestas: la imagen del espacio también es una referencia (B-028)\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b.indexed).to.have.lengthOf(1);",
+                  "  pm.expect(b.indexed).to.have.lengthOf(2);",
                   "  pm.expect(b.indexed[0].analysis.status).to.eql(\"proposed\");",
                   "});"
                 ]
@@ -980,6 +980,10 @@
                   "  pm.expect(r.inpaint.source_render_id).to.eql(pm.collectionVariables.get(\"compositionId\"));",
                   "  pm.expect(r.inpaint.method).to.eql(\"mascara\");",
                   "  pm.expect(r.inpaint.coverage).to.be.within(0.05, 0.1);",
+                  "});",
+                  "pm.test(\"imagen completa del modelo: sin salida en bruto ni guía (B-038)\", () => {",
+                  "  pm.expect(r.inpaint.raw_file).to.be.null;",
+                  "  pm.expect(r.inpaint.guide_file).to.be.null;",
                   "});"
                 ]
               }
@@ -1007,7 +1011,7 @@
           }
         },
         {
-          "name": "Descargar salida en bruto del retoque",
+          "name": "Descargar máscara del retoque",
           "event": [
             {
               "listen": "test",
@@ -1023,51 +1027,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/inpaint/bruto"
-          }
-        },
-        {
-          "name": "Usar salida en bruto como imagen",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-                  "const r = pm.response.json();",
-                  "pm.test(\"imagen nueva enlazada al retoque, sin coste\", () => {",
-                  "  pm.expect(r.raw_of_render_id).to.eql(pm.collectionVariables.get(\"retouchId\"));",
-                  "  pm.expect(r.status).to.eql(\"generado\");",
-                  "  pm.expect(r.cost_eur).to.eql(0);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
-          }
-        },
-        {
-          "name": "Usar salida en bruto dos veces (no permitido)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/raw"
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{retouchId}}/inpaint/mascara"
           }
         },
         {
@@ -1079,7 +1039,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
-                  "pm.test(\"solo composición y render final\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
+                  "pm.test(\"solo composiciones\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
                 ]
               }
             }
@@ -1088,6 +1048,41 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/inpaint",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mask",
+                  "type": "file",
+                  "src": "fixtures/mascara.png"
+                },
+                {
+                  "key": "instruction",
+                  "type": "text",
+                  "value": "Cojines en mostaza"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retocar render final (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"solo composiciones (B-038)\", () => pm.expect(pm.response.json().detail).to.include(\"composiciones\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/inpaint",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -1228,7 +1223,8 @@
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(1);",
                   "  pm.expect(b.references).to.eql(1);  // la ficha indexada que usa el brief (B-022)",
-                  "  pm.expect(b.simulated_calls).to.eql(6);",
+                  "  // 2 fichas indexadas en la misma petición + brief + boceto + composición + final + auditoría",
+                  "  pm.expect(b.simulated_calls).to.eql(7);",
                   "});"
                 ]
               }

@@ -18,7 +18,6 @@ from app.pipelines.renders import (
     generate_final,
     inpaint_render,
     select_render,
-    use_raw_output,
 )
 from app.telemetry import current_request_id, request_cost, telemetry_scope
 from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage
@@ -195,11 +194,11 @@ async def inpaint(
     settings: SettingsDep,
     quality: Annotated[Literal["low", "medium", "high", "auto"] | None, Form()] = None,
 ) -> RenderRunResponse:
-    """Retoque de una zona de una composición o render final (multipart).
+    """Retoque de una zona de una composición (multipart).
 
-    Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se regenera con la
-    instrucción; el resto queda idéntico al original (recomposición local). Crea una imagen
-    nueva de la misma etapa, sin seleccionar; la original no cambia.
+    Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se edita con la
+    instrucción mediante la máscara nativa del modelo, que devuelve la imagen completa (B-038).
+    Crea una imagen nueva de la misma etapa, sin seleccionar; la original no cambia.
     """
     content = await read_upload(mask, settings.storage.max_upload_bytes)
     await inspect_upload(content, AssetKind.RENDER)  # imagen real y sin daños
@@ -210,32 +209,22 @@ async def inpaint(
     return await _response(repo, project_id, [record])
 
 
-InpaintFile = Literal["mascara", "bruto", "guia"]
+InpaintFile = Literal["mascara"]
 
 
 @router.get("/{render_id}/inpaint/{file}", response_class=FileResponse)
 async def inpaint_file(
     project_id: UUID, render_id: UUID, file: InpaintFile, repo: RepositoryDep
 ) -> FileResponse:
-    """Archivos de un retoque: la máscara (blanco = zona), la salida **en bruto** del modelo
-    (antes de recomponer) y la guía enviada al renderizador (solo en el render final)."""
+    """Máscara de un retoque (blanco = zona editada)."""
     project = await repo.get(project_id)
     render = next((r for r in project.renders if r.id == render_id), None)
     if render is None:
         raise RenderNotFoundError(str(render_id))
     info = render.inpaint
-    name = None
-    if info is not None:
-        name = {"mascara": info.mask_file, "bruto": info.raw_file, "guia": info.guide_file}[file]
+    name = info.mask_file if info is not None else None
     if name is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Este render no tiene ese archivo")
     path = repo.render_file_path(project_id, name)
     media_type = "image/jpeg" if name.endswith(".jpeg") else "image/png"
     return FileResponse(path, media_type=media_type, filename=name)
-
-
-@router.post("/{render_id}/raw", status_code=status.HTTP_201_CREATED, response_model=RenderRecord)
-async def use_raw(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
-    """Usa la salida en bruto de un retoque (la imagen completa del modelo, sin recomponer) como
-    imagen nueva de la etapa, sin seleccionar. Sin coste."""
-    return await use_raw_output(repo, project_id, render_id)

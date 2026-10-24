@@ -34,7 +34,6 @@ from ui.studio_views import (
     audit_markdown,
     brief_choices,
     brief_markdown,
-    can_use_raw,
     cost_hint,
     editor_mask,
     euros,
@@ -121,7 +120,6 @@ def test_costs_and_confirmation_threshold() -> None:
         ({"kind": "boceto", "n": 3}, 0.045),
         ({"kind": "render_final"}, 0.095),
         ({"kind": "inpaint", "stage": "composicion"}, 0.035),
-        ({"kind": "inpaint", "stage": "render_final"}, 0.09),
     ],
 )
 def test_action_estimates(action: dict, cost: float) -> None:
@@ -358,8 +356,8 @@ async def test_inpaint_client_request() -> None:
         (None, "azure", None),
         (RenderStage.DRAFT, "azure", None),
         (RenderStage.COMPOSITION, "azure", "Azure: ≈ 0.035 €"),
-        (RenderStage.FINAL, "azure", "Azure: ≈ 0.090 €"),
-        (RenderStage.FINAL, "mock", "Simulación: sin coste"),
+        (RenderStage.COMPOSITION, "mock", "Simulación: sin coste"),
+        (RenderStage.FINAL, "azure", None),  # solo composiciones (B-038)
     ],
 )
 def test_inpaint_hint(stage: RenderStage | None, mode: str, hint: str | None) -> None:
@@ -377,7 +375,7 @@ async def test_show_render_opens_any_stage_in_the_viewer(tmp_path: Path) -> None
     assert "**Coste acumulado de la cadena:** 0.2969 € · 5 llamada(s)" in detail
 
 
-def test_raw_output_helpers() -> None:
+def test_v1_raw_output_is_still_described() -> None:
     source = render(RenderStage.FINAL)
     retouch = render(
         RenderStage.FINAL,
@@ -386,29 +384,7 @@ def test_raw_output_helpers() -> None:
             raw_file="b.png", coverage=0.1, feather_px=12, method="regeneracion",
         ),
     )  # fmt: skip
-    p = project(renders=[source, retouch])
-    assert can_use_raw(p, retouch) and not can_use_raw(p, source) and not can_use_raw(p, None)
-
     raw = render(RenderStage.FINAL, raw_of_render_id=retouch.id)
     p = project(renders=[source, retouch, raw])
-    assert not can_use_raw(p, retouch)  # ya usada
     assert render_caption(raw) == "○ generado · bruto · 0.0105 €"
     assert f"**Salida en bruto del retoque** `{retouch.id.hex[:8]}`" in render_detail_md(p, raw)
-
-
-async def test_use_raw_output_client_request() -> None:
-    seen: list[httpx.Request] = []
-    body = render(RenderStage.FINAL).model_dump(mode="json")
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        return httpx.Response(201, json=body)
-
-    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
-    pid, rid = uuid4(), uuid4()
-    record = await client.use_raw_output(pid, rid)
-    assert record.id.hex == body["id"].replace("-", "")
-    assert (seen[0].method, seen[0].url.path) == (
-        "POST",
-        f"/api/v1/projects/{pid}/renders/{rid}/raw",
-    )

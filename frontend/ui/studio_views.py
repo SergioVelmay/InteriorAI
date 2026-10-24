@@ -26,8 +26,8 @@ COST_PER_IMAGE = {
     RenderStage.COMPOSITION: 0.035,
     RenderStage.FINAL: 0.095,
 }
-# Retoque: la composición edita con máscara; el final regenera la imagen (+ guía de ~0,7 MP).
-COST_INPAINT = {RenderStage.COMPOSITION: 0.035, RenderStage.FINAL: 0.09}
+# Retoque: solo la composición, con máscara nativa (B-038).
+COST_INPAINT = {RenderStage.COMPOSITION: 0.035}
 INPAINT_STAGES = frozenset(COST_INPAINT)
 COST_BRIEF = 0.05
 COST_AUDIT = 0.25
@@ -254,20 +254,14 @@ def editor_mask(value: dict[str, Any] | None) -> bytes | None:
 
 
 def inpaint_file_captions(render: RenderRecord | None) -> list[tuple[str, str]]:
-    """Archivos de un retoque para el visor: (nombre en `renders_historico/`, pie)."""
+    """Archivos de un retoque para el visor: (nombre en `renders_historico/`, pie). La salida
+    en bruto y la guía solo existen en los retoques de la v1."""
     info = render.inpaint if render else None
     if info is None:
         return []
     files = [
-        (info.raw_file, "Salida en bruto del modelo (antes de recomponer)"),
-        (info.guide_file, "Guía enviada al renderizador (zona en rojo)"),
+        (info.raw_file, "Salida en bruto del modelo (v1, antes de recomponer)"),
+        (info.guide_file, "Guía enviada al renderizador (v1, zona en rojo)"),
         (info.mask_file, "Máscara (blanco = zona retocada)"),
     ]
     return [(name, caption) for name, caption in files if name]
-
-
-def can_use_raw(project: ProjectMetadata, render: RenderRecord | None) -> bool:
-    """Retoque con salida en bruto guardada que aún no se ha usado como imagen propia."""
-    if render is None or render.inpaint is None or render.inpaint.raw_file is None:
-        return False
-    return not any(r.raw_of_render_id == render.id for r in project.renders)

@@ -303,10 +303,3 @@ class BackendClient:
             data={"instruction": instruction}, timeout=AI_TIMEOUT_S,
         )  # fmt: skip
         return response.json()
-
-    async def use_raw_output(self, project_id: UUID | str, render_id: UUID | str) -> RenderRecord:
-        """Salida en bruto de un retoque como imagen nueva de la etapa (sin coste)."""
-        response = await self._request(
-            "POST", f"{self._project(project_id)}/renders/{render_id}/raw"
-        )
-        return RenderRecord.model_validate(response.json())

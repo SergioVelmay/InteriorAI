@@ -1,8 +1,8 @@
 """Pestaña Estudio: ciclo Human-in-the-Loop completo del proyecto activo.
 
 ① Brief (generar, editar prompts, aprobar, rechazar) → ② Bocetos → ③ Composición →
-④ Render final, con un visor común para seleccionar, auditar y retocar una zona pintada
-(composición y render final). Las acciones de IA muestran
+④ Render final, con un visor común para seleccionar, auditar y retocar una zona pintada de
+una composición. Las acciones de IA muestran
 su coste; en modo Azure, las de más de 0,05 € piden un segundo clic de confirmación.
 """
 
@@ -28,7 +28,6 @@ from ui.studio_views import (
     audit_markdown,
     brief_choices,
     brief_markdown,
-    can_use_raw,
     cost_hint,
     editor_mask,
     euros,
@@ -185,23 +184,16 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                     audit_btn = gr.Button("Auditar", variant="secondary", elem_id="iai-audit")
                     audit_cost = gr.Markdown()
         audit_md = gr.Markdown()
-        # Si la imagen es un retoque: lo que hizo el modelo frente a lo que conservamos.
+        # Si la imagen es un retoque: su máscara (y, en los de la v1, la salida en bruto y la guía).
         inpaint_files = gr.Gallery(
-            label="Retoque: salida en bruto del modelo, guía enviada y máscara", columns=3,
-            height="auto", object_fit="contain", visible=False, elem_classes="iai-gallery",
-            elem_id="iai-inpaint-files",
+            label="Archivos del retoque", columns=3, height="auto", object_fit="contain",
+            visible=False, elem_classes="iai-gallery", elem_id="iai-inpaint-files",
         )  # fmt: skip
-        use_raw_btn = gr.Button(
-            "Usar salida en bruto como imagen nueva (sin coste)", variant="secondary",
-            visible=False, elem_id="iai-use-raw",
-        )  # fmt: skip
-        with gr.Accordion("Retocar zona (composición y render final)", open=False):
+        with gr.Accordion("Retocar zona (composición)", open=False):
             gr.Markdown(
-                "Pinta la zona que quieres cambiar y describe el cambio; si añades un objeto, "
-                "pinta **algo más grande que el objeto** (lo que se salga de la zona se corta). "
-                "Fuera de lo pintado la imagen queda **idéntica**; el retoque es una imagen nueva "
-                "de la misma etapa que puedes seleccionar. La salida en bruto del modelo también "
-                "se guarda."
+                "Pinta la zona que quieres cambiar y describe el cambio. El modelo edita esa zona "
+                "con la máscara y devuelve la imagen completa: el retoque es una composición "
+                "nueva que puedes seleccionar; la original no cambia."
             )
 
             # Un editor nuevo por imagen: cambiar por código el valor de un ImageEditor ya
@@ -215,7 +207,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 hint = inpaint_hint(RenderStage(stage) if stage else None, current_mode)
                 image = shown_images.get(render_id or "")
                 if hint is None or image is None:
-                    gr.Markdown("_Elige en el visor una composición o un render final._")
+                    gr.Markdown("_Elige una composición en el visor._")
                     return
                 editor = gr.ImageEditor(
                     value={"background": image, "layers": [], "composite": None},
@@ -259,7 +251,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             brief_select: gr.update(choices=[], value=None), brief_md: "",
             viewer: None, viewer_md: "", audit_md: "",
             inpaint_files: gr.update(value=[], visible=False),
-            use_raw_btn: gr.update(visible=False),
         }  # fmt: skip
         for gallery, ids in galleries.values():
             updates |= {gallery: [], ids: []}
@@ -354,7 +345,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 ],
                 visible=bool(render and render.inpaint),
             ),
-            use_raw_btn: gr.update(visible=can_use_raw(project, render)),
             select_btn: gr.update(
                 interactive=bool(render) and render.status is RenderStatus.GENERATED
             ),
@@ -479,7 +469,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         generate_brief, brief_cost, generate_drafts, drafts_cost, draft_choice,
         generate_composition,
         composition_cost, composition_choice, references, generate_final, final_cost, viewer,
-        viewer_md, audit_md, select_btn, audit_btn, audit_cost, inpaint_files, use_raw_btn,
+        viewer_md, audit_md, select_btn, audit_btn, audit_cost, inpaint_files,
         *(c for pair in galleries.values() for c in pair),
     ]  # fmt: skip
 
@@ -595,16 +585,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
     approve.click(on_approve, inputs=common, outputs=outputs)
     select_btn.click(on_select, inputs=common, outputs=outputs)
 
-    async def on_use_raw(active_id, current_mode, brief_id, render_id):
-        try:
-            record = await client.use_raw_output(active_id, render_id)
-        except ApiError as exc:
-            gr.Warning(exc.detail)
-            return await view(active_id, brief_id, render_id)
-        gr.Info("Salida en bruto añadida como imagen nueva (sin coste)")
-        return await view(active_id, brief_id, str(record.id))
-
-    use_raw_btn.click(on_use_raw, inputs=common, outputs=outputs)
     brief_select.input(on_brief_change, inputs=[*common, brief_select], outputs=outputs)
     for stage, (gallery, ids) in galleries.items():
         gallery.select(gallery_handler(stage), inputs=[*common, ids], outputs=outputs)

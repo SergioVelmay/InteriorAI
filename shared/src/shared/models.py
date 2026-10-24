@@ -261,16 +261,18 @@ class RenderAudit(_Model):
 
 
 class RenderInpaint(_Model):
-    """Retoque de una zona: la imagen es `source_render_id` con solo la zona pintada cambiada."""
+    """Retoque de una zona de una composición con máscara nativa (B-038): la imagen es la que
+    devuelve el modelo, completa. Los retoques de la v1 recomponían solo la zona pintada sobre
+    `source_render_id` y podían ser de renders finales (`regeneracion`)."""
 
     source_render_id: UUID  # imagen retocada (no cambia)
     instruction: str  # cambio pedido por el usuario
     mask_file: str  # máscara normalizada junto al render (blanco = zona editada)
-    raw_file: str | None = None  # salida del modelo tal cual, antes de recomponer
-    guide_file: str | None = None  # imagen guía enviada al renderizador (zona en rojo)
+    raw_file: str | None = None  # histórico (v1): salida del modelo antes de recomponer
+    guide_file: str | None = None  # histórico (v1): guía enviada al renderizador (zona en rojo)
     coverage: float = Field(ge=0, le=1)  # fracción de la imagen pintada
-    feather_px: int = Field(ge=0)  # suavizado del borde al recomponer
-    method: Literal["mascara", "regeneracion"]  # máscara nativa o imagen completa + recorte
+    feather_px: int | None = Field(default=None, ge=0)  # histórico (v1): borde al recomponer
+    method: Literal["mascara", "regeneracion"] = "mascara"  # regeneracion: render final (v1)
 
     @property
     def files(self) -> list[str]:
@@ -301,7 +303,7 @@ class RenderRecord(_Model):
     feedback: str | None = None  # histórico (v1): comentarios del usuario al rechazarla
     previous_attempt_id: UUID | None = None  # histórico (v1): render rechazado al que sustituye
     inpaint: RenderInpaint | None = None  # solo si es un retoque de zona (Paso 13b)
-    raw_of_render_id: UUID | None = None  # salida en bruto de ese retoque, como imagen propia
+    raw_of_render_id: UUID | None = None  # histórico (v1): salida en bruto de ese retoque
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
 

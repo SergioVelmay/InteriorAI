@@ -2,7 +2,7 @@
 
 Cada etapa exige como entrada el render `seleccionado` por el usuario en la etapa anterior (uno
 solo por etapa, B-043).
-Las composiciones y los renders finales admiten retoques de una zona (`inpaint_render`).
+Las composiciones admiten retoques de una zona con máscara (`inpaint_render`, B-038).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ MAX_RENDERER_REFERENCES = 7  # el renderizador admite 8 imágenes: composición 
 GPT_IMAGE_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
 RENDERER_MAX_PIXELS = 4_000_000  # 4 MP
 RENDERER_LONG_SIDE_PX = 1_920
-INPAINT_STAGES = frozenset({RenderStage.COMPOSITION, RenderStage.FINAL})
+INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativa (B-038)
 _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 
 Quality = Literal["low", "medium", "high", "auto"]
@@ -388,26 +388,18 @@ async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UU
 # --- Retoque de una zona (inpainting, Paso 13b) ---------------------------------------------
 
 
-def inpaint_prompt(instruction: str, method: str, bounds: str) -> str:
-    """Prompt del retoque. Lo que se añada debe caber entero en la zona: fuera de ella se
-    descarta al recomponer, y un objeto que se salga quedaría cortado por el borde."""
+def inpaint_prompt(instruction: str, bounds: str) -> str:
+    """Prompt del retoque con máscara: el cambio debe quedar dentro de la zona pintada."""
     change = instruction.strip()
     keep = "same framing, geometry, perspective, camera, lighting, materials and colors"
     contain = (
         f"The area spans {bounds}. Everything you add or change must fit entirely inside "
         "that area, with a clear margin to its edges: nothing new may cross or touch them."
     )
-    if method == "mascara":
-        return (
-            "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
-            f"it): {change}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
-            "Blend the edit seamlessly with its surroundings."
-        )
     return (
-        "Image 1 is the photo to edit. Image 2 is the same photo with the area to change "
-        "highlighted in red. Apply this change only inside that area (in Spanish): "
-        f"{change}\n\n{contain}\n\nReproduce the rest of image 1 exactly: {keep}. "
-        "Do not draw the red highlight."
+        "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
+        f"it): {change}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
+        "Blend the edit seamlessly with its surroundings."
     )
 
 
@@ -421,12 +413,10 @@ async def inpaint_render(
     *,
     quality: Quality | None = None,
 ) -> RenderRecord:
-    """Retoca la zona pintada de una composición o render final.
+    """Retoca la zona pintada de una composición con la máscara nativa del STRUCTURAL_COMPOSER.
 
-    Composición: edición con máscara nativa (STRUCTURAL_COMPOSER). Render final: el renderizador
-    no admite máscara, así que regenera la imagen completa con una guía de la zona. En ambos
-    casos solo se conserva la zona pintada (recomposición local exacta, B-009): la imagen
-    original no cambia y el retoque es una imagen nueva de la misma etapa, sin seleccionar.
+    El resultado es la imagen completa que devuelve el modelo (B-038: sin recomponer), como
+    imagen nueva de la misma etapa y sin seleccionar; la original no cambia.
     """
     if not instruction.strip():
         raise PipelineInputError("Describe el cambio que quieres en la zona pintada")
@@ -435,7 +425,7 @@ async def inpaint_render(
     if source is None:
         raise RenderNotFoundError(str(render_id))
     if source.stage not in INPAINT_STAGES:
-        raise PipelineInputError("Solo se pueden retocar composiciones y renders finales")
+        raise PipelineInputError("Solo se pueden retocar composiciones")
 
     source_data = await repo.read_asset_bytes(project.id, source.id)
     width, height = _size_of(source_data)
@@ -443,48 +433,23 @@ async def inpaint_render(
     covered = masks.check_coverage(zone)
     role, output_format = _STAGE_ROLES[source.stage]
     source_image = await prepare_image(source_data, INPUT_MAX_SIDE_PX)
-    bounds = masks.zone_bounds_text(zone)
-    guide: bytes | None = None
-
-    if role is Role.PHOTOREALISTIC_RENDERER:
-        method, quality_used = "regeneracion", None
-        guide = await anyio.to_thread.run_sync(masks.guide_image, source_data, zone)
-        images = [source_image, InputImage(data=guide, mime_type="image/jpeg")]
-        request = ImageEditRequest(
-            prompt=inpaint_prompt(instruction, method, bounds),
-            size=generation_size(role, f"{width}x{height}"),
-            output_format=output_format, images=images,
-        )  # fmt: skip
-    else:
-        method, quality_used = "mascara", quality or source.quality or "medium"
-        size = f"{width}x{height}"
-        if size not in GPT_IMAGE_SIZES:
-            size = _DEFAULT_SIZES["gpt"][_orientation_of(width, height)]
-        model_mask = await anyio.to_thread.run_sync(
-            masks.model_mask, zone, _size_of(source_image.data)
-        )
-        images = [source_image]
-        request = ImageEditRequest(
-            prompt=inpaint_prompt(instruction, method, bounds), size=size,
-            quality=quality_used,
-            output_format=output_format, images=images,
-            mask=InputImage(data=model_mask, mime_type="image/png"),
-        )  # fmt: skip
+    quality_used = quality or source.quality or "medium"
+    size = f"{width}x{height}"
+    if size not in GPT_IMAGE_SIZES:
+        size = _DEFAULT_SIZES["gpt"][_orientation_of(width, height)]
+    model_mask = await anyio.to_thread.run_sync(masks.model_mask, zone, _size_of(source_image.data))
+    images = [source_image]
+    request = ImageEditRequest(
+        prompt=inpaint_prompt(instruction, masks.zone_bounds_text(zone)), size=size,
+        quality=quality_used, output_format=output_format, images=images,
+        mask=InputImage(data=model_mask, mime_type="image/png"),
+    )  # fmt: skip
 
     result = await client.edit_image(role, request)
-    raw = result.images[0]
-    content = await anyio.to_thread.run_sync(
-        masks.recompose, source_data, raw.data, zone, masks.FEATHER_PX
-    )
+    content = await anyio.to_thread.run_sync(masks.fit_png, result.images[0].data, (width, height))
     total = _call_cost(client, role, result, images)
     record_id = uuid4()
-    raw_ext = "jpeg" if raw.mime_type == "image/jpeg" else "png"
-    files = {
-        f"{record_id}-mascara.png": await anyio.to_thread.run_sync(masks.zone_png, zone),
-        f"{record_id}-bruto.{raw_ext}": raw.data,  # para comparar con la recomposición
-    }
-    if guide is not None:
-        files[f"{record_id}-guia.jpeg"] = guide
+    mask_file = f"{record_id}-mascara.png"
     record = RenderRecord(
         id=record_id,
         stage=source.stage,
@@ -503,50 +468,10 @@ async def inpaint_render(
         inpaint=RenderInpaint(
             source_render_id=source.id,
             instruction=instruction.strip(),
-            mask_file=f"{record_id}-mascara.png",
-            raw_file=f"{record_id}-bruto.{raw_ext}",
-            guide_file=f"{record_id}-guia.jpeg" if guide is not None else None,
+            mask_file=mask_file,
             coverage=covered,
-            feather_px=masks.FEATHER_PX,
-            method=method,
         ),
     )
+    files = {mask_file: await anyio.to_thread.run_sync(masks.zone_png, zone)}
     await repo.add_render(project.id, record, content, "image/png", width, height, sidecars=files)
-    return record
-
-
-async def use_raw_output(
-    repo: ProjectRepository, project_id: UUID, render_id: UUID
-) -> RenderRecord:
-    """Guarda la salida en bruto de un retoque (la imagen completa que generó el modelo, sin
-    recomponer) como imagen nueva de la misma etapa. Sin coste: la llamada ya se pagó."""
-    project = await repo.get(project_id)
-    retouch = next((r for r in project.renders if r.id == render_id), None)
-    if retouch is None:
-        raise RenderNotFoundError(str(render_id))
-    if retouch.inpaint is None or retouch.inpaint.raw_file is None:
-        raise PipelineInputError("Esta imagen no es un retoque con salida en bruto guardada")
-    if any(r.raw_of_render_id == retouch.id for r in project.renders):
-        raise TransitionError("La salida en bruto de este retoque ya es una imagen del proyecto")
-    content = await repo.read_render_file(project_id, retouch.inpaint.raw_file)
-    # La salida en bruto puede venir en múltiplos de 16 (1920x1088): se entrega al tamaño exacto.
-    width, height = (int(v) for v in retouch.size.split("x"))
-    content = await anyio.to_thread.run_sync(masks.fit_png, content, (width, height))
-    record = retouch.model_copy(
-        update={
-            "id": uuid4(),
-            "status": RenderStatus.GENERATED,
-            "size": f"{width}x{height}",
-            "cost_eur": 0.0,  # ya contado en el retoque
-            "audits": [],
-            "feedback": None,
-            "previous_attempt_id": None,
-            "inpaint": None,
-            "raw_of_render_id": retouch.id,
-            "created_at": utc_now(),
-            "decided_at": None,
-        }
-    )
-    mime = "image/jpeg" if content[:3] == b"\xff\xd8\xff" else "image/png"
-    await repo.add_render(project.id, record, content, mime, width, height)
     return record
