@@ -170,6 +170,15 @@ class AuditorSettings(BaseSettings):
         return value.strip().lower() if isinstance(value, str) else value
 
 
+class CostAlertSettings(BaseSettings):
+    """Umbrales de aviso de gasto real de IA (B-021): solo avisan, nunca bloquean."""
+
+    model_config = _config("COST_ALERT_")
+
+    project_eur: float = Field(default=3.0, gt=0)  # por proyecto
+    total_eur: float = Field(default=10.0, gt=0)  # suma de todos los proyectos
+
+
 class StorageSettings(BaseSettings):
     model_config = _config()
 
@@ -208,6 +217,7 @@ class Settings(BaseModel):
     foundry: FoundrySettings
     deployments: DeploymentSettings
     auditor: AuditorSettings
+    cost_alerts: CostAlertSettings
     storage: StorageSettings
     network: NetworkSettings
 
@@ -220,6 +230,7 @@ class Settings(BaseModel):
             foundry=FoundrySettings(**kwargs),
             deployments=DeploymentSettings(**kwargs),
             auditor=AuditorSettings(**kwargs),
+            cost_alerts=CostAlertSettings(**kwargs),
             storage=StorageSettings(**kwargs),
             network=NetworkSettings(**kwargs),
         )
@@ -307,6 +318,8 @@ def render_report(s: Settings) -> str:
         "",
         f"  Auditor: reasoning_effort {s.auditor.reasoning_effort} "
         f"| timeout {s.auditor.timeout_s:g}s",
+        f"  Avisos de gasto: {s.cost_alerts.project_eur:g} € por proyecto "
+        f"| {s.cost_alerts.total_eur:g} € en total",
         f"  Datos: {s.storage.data_dir.as_posix()} | precios: {s.storage.pricing_file.as_posix()} "
         f"| upload máx: {s.storage.max_upload_mb} MB",
         f"  Backend: {s.network.backend_host}:{s.network.backend_port} "

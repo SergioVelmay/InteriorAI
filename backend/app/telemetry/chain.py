@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from pydantic import BaseModel
 
 from app.telemetry.summary import CostTotals, GroupTotals, _accumulate, _group, _rounded
-from shared.models import ProjectMetadata, RenderRecord, TelemetryRecord
+from shared.models import DesignBrief, ProjectMetadata, RenderRecord, TelemetryRecord
 from shared.roles import Role
 
-# Briefs anteriores al Paso 14 (sin `request_id`): su llamada se empareja por la hora.
-LEGACY_BRIEF_WINDOW = timedelta(seconds=10)
+# Briefs (Paso 14) y fichas (Paso 16) anteriores sin `request_id`: su llamada se empareja
+# por la hora.
+LEGACY_WINDOW = timedelta(seconds=10)
 
 
 class RenderChainCost(BaseModel):
     render_id: UUID
     renders: int  # imágenes de la cadena (incluidos intentos rechazados y retoques)
     briefs: int
+    references: int = 0  # fichas de referencias que usó el brief
     totals: CostTotals  # llamadas reales (sin simulación)
     by_role: list[GroupTotals]
     simulated_calls: int = 0
@@ -52,9 +54,17 @@ def render_chain(project: ProjectMetadata, render_id: UUID) -> list[RenderRecord
     return list(chain.values())
 
 
+def _legacy_ids(records: list[TelemetryRecord], role: Role, when: datetime) -> set[str]:
+    return {
+        r.request_id
+        for r in records
+        if r.role is role and r.request_id and abs(r.timestamp - when) <= LEGACY_WINDOW
+    }
+
+
 def _brief_request_ids(
     project: ProjectMetadata, brief_ids: set[UUID], records: list[TelemetryRecord]
-) -> tuple[set[str], int]:
+) -> tuple[set[str], list[DesignBrief]]:
     by_id = {b.id: b for b in project.briefs}
     briefs, pending = {}, list(brief_ids)
     while pending:  # versiones rechazadas que llevaron al brief usado
@@ -68,15 +78,25 @@ def _brief_request_ids(
     for brief in briefs.values():
         if brief.request_id:
             ids.add(brief.request_id)
-            continue
-        ids |= {
-            r.request_id
-            for r in records
-            if r.role is Role.PROMPT_ENGINEER
-            and r.request_id
-            and abs(r.timestamp - brief.created_at) <= LEGACY_BRIEF_WINDOW
-        }
-    return ids, len(briefs)
+        else:
+            ids |= _legacy_ids(records, Role.PROMPT_ENGINEER, brief.created_at)
+    return ids, list(briefs.values())
+
+
+def _reference_request_ids(
+    project: ProjectMetadata, briefs: list[DesignBrief], records: list[TelemetryRecord]
+) -> tuple[set[str], int]:
+    """Peticiones que indexaron las fichas usadas por los briefs (B-022). Si una petición indexó
+    a la vez otras referencias, cuentan también (fracciones de céntimo)."""
+    wanted = {i for brief in briefs for i in brief.reference_asset_ids}
+    analyses = [a.analysis for a in project.assets if a.id in wanted and a.analysis]
+    ids: set[str] = set()
+    for analysis in analyses:
+        if analysis.request_id:
+            ids.add(analysis.request_id)
+        else:
+            ids |= _legacy_ids(records, Role.CONTEXT_MANAGER, analysis.analyzed_at)
+    return ids, len(analyses)
 
 
 def chain_cost(
@@ -89,7 +109,8 @@ def chain_cost(
         return None
     request_ids = {r.request_id for r in chain} | {a.request_id for r in chain for a in r.audits}
     brief_ids, briefs = _brief_request_ids(project, {r.brief_id for r in chain}, records)
-    request_ids = (request_ids | brief_ids) - {None}
+    reference_ids, references = _reference_request_ids(project, briefs, records)
+    request_ids = (request_ids | brief_ids | reference_ids) - {None}
     calls = [r for r in records if r.request_id in request_ids]
     real = [r for r in calls if not r.simulated]
     simulated = [r for r in calls if r.simulated]
@@ -99,7 +120,8 @@ def chain_cost(
     return RenderChainCost(
         render_id=render_id,
         renders=len(chain),
-        briefs=briefs,
+        briefs=len(briefs),
+        references=references,
         totals=_rounded(totals),
         by_role=_group(real, lambda r: r.role.value),  # type: ignore[arg-type]
         simulated_calls=len(simulated),

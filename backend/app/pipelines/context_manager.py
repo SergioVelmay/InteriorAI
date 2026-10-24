@@ -15,6 +15,7 @@ from app.pipelines.images import prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
 from app.storage import AssetNotFoundError, ProjectRepository
+from app.telemetry import current_request_id
 from shared.models import (
     Asset,
     AssetAnalysis,
@@ -69,7 +70,9 @@ async def analyze_reference(
         analysis = ReferenceAnalysis.model_validate(result.data)
     except ValidationError as exc:
         raise PipelineError("La ficha devuelta por el modelo no cumple el esquema") from exc
-    return AssetAnalysis(result=analysis, prompt_version=prompt.version)
+    return AssetAnalysis(
+        result=analysis, prompt_version=prompt.version, request_id=current_request_id()
+    )
 
 
 async def _save(
@@ -150,6 +153,7 @@ async def validate_analysis(
                 prompt_version=previous.prompt_version if previous else None,
                 analyzed_at=previous.analyzed_at if previous else now,
                 validated_at=now,
+                request_id=previous.request_id if previous else None,
             )
             assets[i] = asset.model_copy(update={"analysis": analysis})
             return metadata.model_copy(update={"assets": assets}), assets[i]

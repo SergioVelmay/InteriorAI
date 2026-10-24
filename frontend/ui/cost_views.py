@@ -179,9 +179,36 @@ def chain_cost_md(cost: dict[str, Any] | None) -> str:
     totals = cost["totals"]
     text = (
         f"**Coste acumulado de la cadena:** {money(totals['cost_eur'])} · "
-        f"{totals['calls']} llamada(s) (brief, etapas, retoques y auditorías que llevan a esta "
-        "imagen; sin ramas descartadas)"
+        f"{totals['calls']} llamada(s) (fichas de referencias, brief, etapas, retoques y "
+        "auditorías que llevan a esta imagen; sin ramas descartadas)"
     )
     if cost["simulated_calls"]:
         text += f" · simulación: {cost['simulated_calls']} llamada(s) sin coste real"
     return text
+
+
+def alert_lines(alerts: dict[str, Any] | None, project_id: str | None) -> list[str]:
+    """Avisos de gasto real (B-021): del proyecto indicado (o, sin proyecto, de todos los que
+    superan su umbral) y del total. Vacío si no se supera nada."""
+    if not alerts:
+        return []
+    lines = []
+    projects = [p for p in alerts["projects"] if p["exceeded"]]
+    if project_id is not None:
+        projects = [p for p in projects if p["project_id"] == project_id]
+        lines += [
+            f"⚠️ Este proyecto lleva {p['cost_eur']:.2f} € de IA "
+            f"(aviso a partir de {p['threshold_eur']:g} €)."
+            for p in projects
+        ]
+    elif projects:
+        names = ", ".join(f"{p['name']} ({p['cost_eur']:.2f} €)" for p in projects)
+        limit = projects[0]["threshold_eur"]
+        lines.append(f"⚠️ Proyectos por encima de {limit:g} €: {names}.")
+    total = alerts["total"]
+    if total["exceeded"]:
+        lines.append(
+            f"⚠️ El gasto total de IA es {total['cost_eur']:.2f} € "
+            f"(aviso a partir de {total['threshold_eur']:g} €)."
+        )
+    return lines

@@ -144,6 +144,7 @@ class AssetAnalysis(_Model):
     prompt_version: str | None = None
     analyzed_at: datetime = Field(default_factory=utc_now)
     validated_at: datetime | None = None
+    request_id: str | None = None  # petición que la generó (coste en la telemetría)
 
 
 class Asset(_Model):
@@ -443,7 +444,8 @@ class TelemetryRecord(_Model):
 
 
 class TelemetryLog(_Model):
-    """Contenido de `{id}/costes_telemetria.json`."""
+    """Telemetría de un proyecto (en disco, `{id}/costes_telemetria.jsonl`: un registro por
+    línea; ver `app.storage.telemetry_log`)."""
 
     schema_version: Literal[1] = SCHEMA_VERSION
     records: list[TelemetryRecord] = Field(default_factory=list)

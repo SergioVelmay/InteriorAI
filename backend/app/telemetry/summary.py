@@ -122,3 +122,43 @@ def with_project(
         CostRecord(**r.model_dump(), project_id=project_id, project_name=project_name)
         for r in records
     ]
+
+
+class CostAlert(BaseModel):
+    project_id: UUID | None  # None = total de todos los proyectos
+    name: str | None
+    cost_eur: float  # gasto real (sin llamadas simuladas)
+    threshold_eur: float
+    exceeded: bool
+
+
+class CostAlerts(BaseModel):
+    """Aviso de gasto real (B-021): por proyecto y total. Solo informa, nunca bloquea."""
+
+    currency: str
+    total: CostAlert
+    projects: list[CostAlert]  # de mayor a menor gasto
+
+
+def cost_alerts(
+    records: list[CostRecord], projects: dict[UUID, str], currency: str,
+    project_eur: float, total_eur: float,
+) -> CostAlerts:  # fmt: skip
+    spent: dict[UUID, float] = dict.fromkeys(projects, 0.0)
+    for record in records:
+        if not record.simulated and record.project_id in spent:
+            spent[record.project_id] += record.cost_eur or 0.0
+
+    def alert(project_id: UUID | None, name: str | None, cost: float, limit: float) -> CostAlert:
+        cost = round(cost, 6)
+        return CostAlert(
+            project_id=project_id, name=name, cost_eur=cost, threshold_eur=limit,
+            exceeded=cost > limit,
+        )  # fmt: skip
+
+    items = [alert(pid, projects[pid], cost, project_eur) for pid, cost in spent.items()]
+    return CostAlerts(
+        currency=currency,
+        total=alert(None, None, sum(spent.values()), total_eur),
+        projects=sorted(items, key=lambda a: a.cost_eur, reverse=True),
+    )

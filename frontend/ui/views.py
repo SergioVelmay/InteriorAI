@@ -30,7 +30,11 @@ def badge(level: BadgeLevel, text: str) -> str:
     )
 
 
-def header_html(health: Health | None, active: ProjectSummary | ProjectMetadata | None) -> str:
+def header_html(
+    health: Health | None,
+    active: ProjectSummary | ProjectMetadata | None,
+    alerts: dict[str, Any] | None = None,
+) -> str:
     if health is None:
         status = badge("error", "Backend no disponible")
         mode = ""
@@ -47,11 +51,20 @@ def header_html(health: Health | None, active: ProjectSummary | ProjectMetadata 
         if active
         else badge("pending", "Sin proyecto activo")
     )
+    spending = ""  # avisos de gasto real (B-021): solo informan
+    if alerts:
+        current = next(
+            (p for p in alerts["projects"] if active and p["project_id"] == str(active.id)), None
+        )
+        if current and current["exceeded"]:
+            spending += badge("warn", f"Gasto del proyecto: {current['cost_eur']:.2f} €")
+        if alerts["total"]["exceeded"]:
+            spending += badge("warn", f"Gasto total: {alerts['total']['cost_eur']:.2f} €")
     return (
         '<div class="iai-header">'
         '<div class="iai-brand"><h1>InteriorAI</h1>'
         "<p>Estudio de interiorismo asistido por IA · supervisión humana en cada etapa</p></div>"
-        f'<div class="iai-badges">{status}{mode}{project}</div>'
+        f'<div class="iai-badges">{status}{mode}{project}{spending}</div>'
         "</div>"
     )
 

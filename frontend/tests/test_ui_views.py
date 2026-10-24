@@ -61,6 +61,21 @@ def test_header_shows_mode_and_active_project() -> None:
     assert "Backend no disponible" in header_html(None, None)
 
 
+def test_header_shows_spending_alerts() -> None:
+    health = Health(status="ok", version="1", mode="azure", data_dir_writable=True)
+    current = project()
+    alerts = {
+        "total": {"cost_eur": 10.4, "threshold_eur": 10.0, "exceeded": True},
+        "projects": [{"project_id": str(current.id), "cost_eur": 3.2, "threshold_eur": 3.0,
+                      "exceeded": True}],
+    }  # fmt: skip
+    html = header_html(health, current, alerts)
+    assert "Gasto del proyecto: 3.20 €" in html and "Gasto total: 10.40 €" in html
+    calm = header_html(health, current, {**alerts, "total": {**alerts["total"], "exceeded": False},
+                                         "projects": []})  # fmt: skip
+    assert "Gasto" not in calm
+
+
 # --- Resumen y formulario ---------------------------------------------------------------------
 
 

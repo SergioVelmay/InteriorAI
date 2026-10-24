@@ -96,6 +96,10 @@ los tokens coinciden con la telemetría y el precio en euros es la lista × 0,98
 referencia (`reference_mode: per_image`); `gpt-6.1-sol` salió a 0 €, pero se mantiene su precio
 de lista a propósito. Un timeout no se facturó.
 
+Renderizador y tamaños (B-020, Paso 16): acepta medidas que no son múltiplo de 16, pero las
+**redondea hacia abajo en silencio** (pedida 1920×1080 → devuelta 1920×1072). Por eso se pide el
+múltiplo superior y se recorta (`generation_size` + `masks.fit`).
+
 Paso 14: `summary.py` filtra las llamadas simuladas (`include_simulated`; la API las incluye
 por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el coste de la
 cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,
@@ -119,8 +123,9 @@ referencias.
   `tokens` (por 1M; entrada sin caché, caché, escritura en caché, salida), `image_tokens` (texto vs
   imagen de entrada, salida) y `megapixels` (primer MP, MP adicionales, MP de referencia).
   Despliegue sin precio → `cost_eur=None` (aviso al arrancar). Montado en solo lectura.
-- Persistencia: `ProjectRepository.append_telemetry/read_telemetry` (`costes_telemetria.json`,
-  escritura atómica bajo el bloqueo del proyecto).
+- Persistencia: `ProjectRepository.append_telemetry/read_telemetry` bajo el bloqueo del proyecto.
+  Desde el Paso 16, `costes_telemetria.jsonl` (una línea por llamada, solo se añade; B-012); el
+  `costes_telemetria.json` anterior se migra solo y se conserva como `.json.migrado`.
 - CLI (solo mock): `python -m app.telemetry simular <id> [--llamadas N]`.
 - **Coste estimado** con precios de lista: la cifra real está en Azure Cost Management.
 

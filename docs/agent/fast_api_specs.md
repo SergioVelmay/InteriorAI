@@ -31,7 +31,7 @@ data/
 ├── .locks/                           # filelocks (index.lock, {uuid}.lock)
 └── {id_proyecto}/                    # id = UUID (protección path traversal)
     ├── metadatos.json
-    ├── costes_telemetria.json
+    ├── costes_telemetria.jsonl       # una línea por llamada a la IA (Paso 16)
     ├── planos/
     ├── referencias/
     ├── capturas_sketchup/
@@ -71,6 +71,7 @@ data/
 | GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
 | GET | `/projects/{id}/costs?limit=50&include_simulated=true` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, `by_project`, últimos registros (con proyecto) y `simulated_excluded` | 7 · 14 ✅ |
 | GET | `/costs?limit=50&include_simulated=true` | Igual para **todos los proyectos** (`project_id: null`, desglose `by_project`) | 14 ✅ |
+| GET | `/costs/alerts` | `CostAlerts`: gasto real (sin simulación) por proyecto y total frente a `COST_ALERT_PROJECT_EUR` / `COST_ALERT_TOTAL_EUR`; solo informa | 16 ✅ |
 | GET | `/projects/{id}/renders/{render_id}/cost` | `RenderChainCost`: coste acumulado de la cadena que lleva al render (sin simulación; la simulada aparte) | 14 ✅ |
 | GET | `/pricing` | `PricingTable` (404 si no hay tabla) | 7 ✅ |
 | PATCH | `/projects/{id}/assets/{asset_id}` | `{description}` → `Asset` | 8 ✅ |

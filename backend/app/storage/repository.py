@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
-from app.storage import trash
+from app.storage import telemetry_log, trash
 from app.storage.atomic import (
     CorruptDataError,
     read_json,
@@ -95,6 +95,10 @@ class ProjectRepository:
         await self._run(self._init_dirs)
         async with self._locks.hold(INDEX_KEY):
             on_disk = set(await self._run(self._scan_project_ids))
+        for project_id in on_disk:  # telemetría en el formato anterior → JSONL (B-012)
+            async with self._locks.hold(str(project_id)):
+                await self._run(telemetry_log.migrate, self._paths(project_id).root)
+        async with self._locks.hold(INDEX_KEY):
             if not self.index_path.exists():
                 reason = "no existe"
             else:
@@ -180,7 +184,7 @@ class ProjectRepository:
         paths.root.mkdir()
         for kind in AssetKind:
             paths.folder(kind).mkdir()
-        write_json_atomic(paths.telemetry, TelemetryLog())
+        telemetry_log.create(paths.root)
         # metadatos.json en último lugar: su presencia marca el proyecto como completo.
         write_json_atomic(paths.metadata, metadata)
 
@@ -403,9 +407,7 @@ class ProjectRepository:
 
     def _read_telemetry_sync(self, paths: ProjectPaths) -> TelemetryLog:
         self._read_metadata(paths)  # 404 si el proyecto no existe
-        if not paths.telemetry.is_file():
-            return TelemetryLog()
-        return read_json(paths.telemetry, TelemetryLog)
+        return TelemetryLog(records=telemetry_log.read(paths.root))
 
     # --- Papelera ---------------------------------------------------------------------
 
@@ -445,6 +447,5 @@ class ProjectRepository:
     async def append_telemetry(self, project_id: str | UUID, record: TelemetryRecord) -> None:
         paths = self._paths(project_id)
         async with self._locks.hold(str(paths.project_id)):
-            log = await self._run(self._read_telemetry_sync, paths)
-            updated = log.model_copy(update={"records": [*log.records, record]})
-            await self._run(write_json_atomic, paths.telemetry, updated)
+            await self._run(self._read_metadata, paths)  # 404 si el proyecto no existe
+            await self._run(telemetry_log.append, paths.root, record)

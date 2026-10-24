@@ -20,7 +20,7 @@ AZURE_ENV = {
 
 _PREFIXES = (
     "APP_", "LOG_", "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_",
-    "DATA_DIR", "PRICING_", "MAX_UPLOAD", "BACKEND_", "FRONTEND_",
+    "DATA_DIR", "PRICING_", "MAX_UPLOAD", "BACKEND_", "FRONTEND_", "COST_ALERT_",
 )  # fmt: skip
 
 
@@ -215,3 +215,12 @@ def test_auditor_defaults_medium_effort_and_own_timeout() -> None:
     s = Settings.load(env_file=None)
     assert s.auditor.reasoning_effort == "medium"
     assert s.auditor.timeout_s == 900
+
+
+def test_cost_alert_thresholds(tmp_path: Path) -> None:
+    defaults = Settings.load(env_file=None).cost_alerts
+    assert (defaults.project_eur, defaults.total_eur) == (3.0, 10.0)
+    custom = load(tmp_path, {"COST_ALERT_PROJECT_EUR": "1.5", "COST_ALERT_TOTAL_EUR": "20"})
+    assert (custom.cost_alerts.project_eur, custom.cost_alerts.total_eur) == (1.5, 20.0)
+    with pytest.raises(ValidationError):
+        load(tmp_path, {"COST_ALERT_PROJECT_EUR": "0"})

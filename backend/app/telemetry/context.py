@@ -2,7 +2,7 @@
 
 - `request_id`: lo fija el middleware HTTP para cada petición.
 - `project_id`: lo fija quien llama a la IA con `telemetry_scope(project_id)`; sin él, las
-  llamadas solo se registran en el log, no en `costes_telemetria.json`.
+  llamadas solo se registran en el log, no en `costes_telemetria.jsonl`.
 """
 
 from __future__ import annotations

@@ -8,6 +8,7 @@ import pandas as pd
 
 from ui.api_client import BackendClient
 from ui.cost_views import (
+    alert_lines,
     chain_cost_md,
     day_role_frame,
     filter_records,
@@ -127,6 +128,8 @@ def fake_client(seen: list[httpx.Request]) -> BackendClient:
             return httpx.Response(200, json=PRICING)
         if request.url.path.endswith("/cost"):
             return httpx.Response(200, json={"totals": {"cost_eur": 0.1}})
+        if request.url.path == "/api/v1/costs/alerts":
+            return httpx.Response(200, json=ALERTS)
         if request.url.path == "/api/v1/costs":
             return httpx.Response(200, json=summary(project_id=None))
         return httpx.Response(200, json=summary())
@@ -178,5 +181,41 @@ async def test_costs_tab_scopes(tmp_path: Path) -> None:
     assert result[tab.all_outputs[0]] == "### Costes de IA de todos los proyectos"
     assert by_id(result, "iai-cost-project")["visible"] is True
     assert len(by_id(result, "iai-cost-table")) == 1  # filtro de estado
-    assert seen[-2].url.path == "/api/v1/costs"
+    assert "/api/v1/costs" in [r.url.path for r in seen]
+    assert "Proyectos por encima de 3 €" in result[tab.all_outputs[2]]  # aviso en las notas
     assert ACTIVE != EVERYTHING
+
+
+ALERTS = {
+    "currency": "EUR",
+    "total": {"project_id": None, "name": None, "cost_eur": 10.4, "threshold_eur": 10.0,
+              "exceeded": True},
+    "projects": [
+        {"project_id": PROJECT, "name": "Salón", "cost_eur": 3.2, "threshold_eur": 3.0,
+         "exceeded": True},
+        {"project_id": "otro", "name": "Baño", "cost_eur": 0.4, "threshold_eur": 3.0,
+         "exceeded": False},
+    ],
+}  # fmt: skip
+
+
+def test_alert_lines() -> None:
+    assert alert_lines(None, PROJECT) == []
+    project = alert_lines(ALERTS, PROJECT)
+    assert project == [
+        "⚠️ Este proyecto lleva 3.20 € de IA (aviso a partir de 3 €).",
+        "⚠️ El gasto total de IA es 10.40 € (aviso a partir de 10 €).",
+    ]
+    assert alert_lines(ALERTS, "otro") == project[1:]  # el otro proyecto no lo supera
+    everything = alert_lines(ALERTS, None)
+    assert everything[0] == "⚠️ Proyectos por encima de 3 €: Salón (3.20 €)."
+    calm = {**ALERTS, "total": {**ALERTS["total"], "exceeded": False}}
+    assert alert_lines(calm, "otro") == []
+
+
+async def test_cost_alerts_client_never_fails() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"detail": "caído"})
+
+    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
+    assert await client.cost_alerts() is None  # un aviso nunca impide usar la app

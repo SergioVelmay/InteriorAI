@@ -543,3 +543,20 @@ def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> No
     assert cost["simulated_cost_eur"] == pytest.approx(expected, abs=1e-6)
     missing = "00000000-0000-0000-0000-000000000000"
     assert api.get(f"{project['url']}/renders/{missing}/cost").status_code == 404
+
+
+def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: SpyClient) -> None:
+    """B-022: las fichas que usa el brief cuentan en el coste de la cadena."""
+    project = new_project(api)
+    indexed = api.post(f"{project['url']}/references/index", json={})
+    assert indexed.status_code == 200, indexed.text
+    assert len(indexed.json()["indexed"]) == 2
+    analyses = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
+    assert all(a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses)
+    brief = approve_brief(api, project)
+    assert len(brief["reference_asset_ids"]) == 2
+    composition = run(api, project, "compositions")["renders"][0]
+
+    cost = api.get(f"{project['url']}/renders/{composition['id']}/cost").json()
+    assert cost["references"] == 2 and cost["briefs"] == 1
+    assert cost["simulated_calls"] == 4  # 2 fichas + brief + composición

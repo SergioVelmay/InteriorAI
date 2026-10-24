@@ -1207,6 +1207,32 @@
           }
         },
         {
+          "name": "Avisos de gasto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"umbrales por proyecto y total; en mock no hay gasto real\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.total.threshold_eur).to.be.above(0);",
+                  "  pm.expect(b.total.exceeded).to.be.false;",
+                  "  const p = b.projects.find(x => x.project_id === pm.collectionVariables.get(\"projectId\"));",
+                  "  pm.expect(p.cost_eur).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/costs/alerts"
+          }
+        },
+        {
           "name": "Coste acumulado del render final",
           "event": [
             {
@@ -1215,11 +1241,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"cadena: brief, boceto, composición, final y su auditoría (simulados)\", () => {",
+                  "pm.test(\"cadena: ficha de referencia, brief, boceto, composición, final y su auditoría (simulados)\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(1);",
-                  "  pm.expect(b.simulated_calls).to.eql(5);",
+                  "  pm.expect(b.references).to.eql(1);  // la ficha indexada que usa el brief (B-022)",
+                  "  pm.expect(b.simulated_calls).to.eql(6);",
                   "});"
                 ]
               }
