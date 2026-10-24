@@ -43,7 +43,7 @@ class IndexResult:
 def _input_text(project: ProjectMetadata, asset: Asset) -> str:
     note = asset.description or "(sin nota)"
     return (
-        f"Proyecto: {project.name} ({project.space_type.label}).\n"
+        f"Proyecto: {project.name}.\n"
         f"Archivo: {asset.original_name}\n"
         f"Nota del usuario sobre esta referencia: {note}\n"
         "Analiza la imagen adjunta y devuelve la ficha."

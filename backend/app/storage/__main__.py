@@ -1,6 +1,6 @@
 """CLI de mantenimiento del almacenamiento.
 
-python -m app.storage crear "Salón principal" --tipo salon_cocina_comedor
+python -m app.storage crear "Salón principal" [--descripcion "..."]
 python -m app.storage listar
 python -m app.storage ver <id>
 python -m app.storage reindexar
@@ -20,7 +20,7 @@ from pathlib import Path
 from app.storage import CorruptDataError, InvalidPathError, ProjectNotFoundError, ProjectRepository
 from app.storage.trash import TrashError, selection
 from shared import get_settings
-from shared.models import ProjectCreate, SpaceType
+from shared.models import ProjectCreate
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -32,7 +32,6 @@ def _parser() -> argparse.ArgumentParser:
 
     crear = sub.add_parser("crear", help="Crea un proyecto")
     crear.add_argument("nombre")
-    crear.add_argument("--tipo", required=True, choices=[t.value for t in SpaceType])
     crear.add_argument("--descripcion", default="")
 
     sub.add_parser("listar", help="Lista los proyectos del índice")
@@ -106,9 +105,7 @@ async def _run(args: argparse.Namespace) -> int:
     await repo.init()
 
     if args.command == "crear":
-        project = await repo.create(
-            ProjectCreate(name=args.nombre, space_type=args.tipo, description=args.descripcion)
-        )
+        project = await repo.create(ProjectCreate(name=args.nombre, description=args.descripcion))
         print(f"Proyecto creado: {project.id}")
         print(f"Carpeta: {(data_dir / str(project.id)).as_posix()}")
     elif args.command == "listar":
@@ -116,7 +113,7 @@ async def _run(args: argparse.Namespace) -> int:
         if not projects:
             print("No hay proyectos.")
         for p in projects:
-            print(f"{p.id}  {p.space_type.label:<22} {p.name}  ({p.updated_at:%Y-%m-%d %H:%M} UTC)")
+            print(f"{p.id}  {p.name}  ({p.updated_at:%Y-%m-%d %H:%M} UTC)")
     elif args.command == "ver":
         print((await repo.get(args.id)).model_dump_json(indent=2))
     elif args.command == "reindexar":

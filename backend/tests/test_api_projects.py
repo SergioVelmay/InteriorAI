@@ -7,16 +7,14 @@ BASE = "/api/v1/projects"
 
 
 def create(api: TestClient, **overrides: object) -> dict:
-    body = {"name": "Salón principal", "space_type": "salon_cocina_comedor"} | overrides
+    body = {"name": "Salón principal"} | overrides
     response = api.post(BASE, json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
 
-def test_catalog_space_types(api: TestClient) -> None:
-    types = api.get("/api/v1/space-types").json()
-    assert {"value": "dormitorio", "label": "Dormitorio"} in types
-    assert len(types) == 9
+def test_space_types_catalog_was_removed(api: TestClient) -> None:
+    assert api.get("/api/v1/space-types").status_code == 404  # B-026
 
 
 def test_catalog_asset_kinds_marks_render_as_not_uploadable(api: TestClient) -> None:
@@ -29,25 +27,25 @@ def test_catalog_asset_kinds_marks_render_as_not_uploadable(api: TestClient) -> 
 
 
 def test_create_returns_201_with_location(api: TestClient) -> None:
-    response = api.post(BASE, json={"name": "Estudio", "space_type": "estudio"})
+    response = api.post(BASE, json={"name": "Estudio"})
     assert response.status_code == 201
     project = response.json()
     assert response.headers["location"].endswith(f"{BASE}/{project['id']}")
     assert project["assets"] == []
-    assert project["schema_version"] == 1
+    assert project["schema_version"] == 2
 
 
 def test_full_project_lifecycle(api: TestClient) -> None:
-    project = create(api, design_notes="Luz natural", dimensions={"width_m": 4, "length_m": 6.5})
+    project = create(api, description="Luz natural; 4 x 6,5 m")
     pid = project["id"]
 
     assert [p["id"] for p in api.get(BASE).json()] == [pid]
-    assert api.get(f"{BASE}/{pid}").json()["dimensions"]["length_m"] == 6.5
+    assert api.get(f"{BASE}/{pid}").json()["description"] == "Luz natural; 4 x 6,5 m"
 
     patched = api.patch(f"{BASE}/{pid}", json={"name": "Salón renovado"})
     assert patched.status_code == 200
     assert patched.json()["name"] == "Salón renovado"
-    assert patched.json()["design_notes"] == "Luz natural"
+    assert patched.json()["description"] == "Luz natural; 4 x 6,5 m"
 
     assert api.delete(f"{BASE}/{pid}").status_code == 204
     assert api.get(f"{BASE}/{pid}").status_code == 404
@@ -57,11 +55,11 @@ def test_full_project_lifecycle(api: TestClient) -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        {"name": "", "space_type": "salon"},
-        {"name": "x", "space_type": "garaje"},
-        {"name": "x"},
-        {"name": "x", "space_type": "salon", "is_admin": True},
-        {"name": "x", "space_type": "salon", "dimensions": {"width_m": -1, "length_m": 2}},
+        {"name": ""},
+        {"name": "x", "is_admin": True},
+        {"name": "x", "space_type": "salon"},  # campos eliminados en la v2 (B-026)
+        {"name": "x", "design_notes": "Luz"},
+        {"name": "x", "description": "x" * 25_001},
     ],
 )
 def test_create_validation_errors(api: TestClient, body: dict) -> None:
@@ -71,6 +69,7 @@ def test_create_validation_errors(api: TestClient, body: dict) -> None:
 def test_patch_cannot_null_required_fields(api: TestClient) -> None:
     pid = create(api)["id"]
     assert api.patch(f"{BASE}/{pid}", json={"name": None}).status_code == 422
+    assert api.patch(f"{BASE}/{pid}", json={"description": None}).status_code == 422
 
 
 def test_not_found_and_invalid_ids(api: TestClient) -> None:

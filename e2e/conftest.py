@@ -59,8 +59,8 @@ class Projects:
 
     def create(self, label: str, capture: bool = True, reference: bool = True) -> dict:
         project = self.api.post(
-            "/projects", json={"name": self.name(label), "space_type": "salon",
-                               "design_notes": "Sofá en L, tonos verdes"},
+            "/projects", json={"name": self.name(label),
+                               "description": "Sofá en L, tonos verdes"},
         ).json()  # fmt: skip
         url = f"/projects/{project['id']}"
         if capture:

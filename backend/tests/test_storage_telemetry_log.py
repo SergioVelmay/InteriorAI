@@ -7,7 +7,7 @@ import pytest
 
 from app.storage import ProjectRepository
 from app.storage.telemetry_log import LEGACY_TELEMETRY_FILE, TELEMETRY_FILE
-from shared.models import ProjectCreate, SpaceType, TelemetryRecord
+from shared.models import ProjectCreate, TelemetryRecord
 from shared.roles import Role
 
 
@@ -26,7 +26,7 @@ async def repo(tmp_path: Path) -> ProjectRepository:
 
 
 async def new_project(repo: ProjectRepository) -> Path:
-    project = await repo.create(ProjectCreate(name="x", space_type=SpaceType.OTRO))
+    project = await repo.create(ProjectCreate(name="x"))
     return repo.data_dir / str(project.id)
 
 

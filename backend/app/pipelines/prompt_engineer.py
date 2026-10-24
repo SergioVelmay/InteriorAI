@@ -1,4 +1,4 @@
-"""PROMPT_ENGINEER: notas + planos/capturas + fichas de referencias → brief de diseño."""
+"""PROMPT_ENGINEER: descripción + planos/capturas + fichas de referencias → brief de diseño."""
 
 from __future__ import annotations
 
@@ -40,18 +40,7 @@ class BriefContext:
 
 
 def _project_section(project: ProjectMetadata) -> str:
-    lines = [f"- Nombre: {project.name}", f"- Tipo de espacio: {project.space_type.label}"]
-    if project.description:
-        lines.append(f"- Descripción: {project.description}")
-    if project.dimensions:
-        d = project.dimensions
-        height = f" x {d.height_m} m de alto" if d.height_m else ""
-        lines.append(f"- Dimensiones: {d.width_m} x {d.length_m} m{height}")
-    if project.style:
-        lines.append(f"- Estilo deseado: {project.style}")
-    if project.budget_eur is not None:
-        lines.append(f"- Presupuesto: {project.budget_eur:.0f} EUR")
-    return "\n".join(lines)
+    return f"- Nombre: {project.name}"
 
 
 def _reference_entry(asset: Asset) -> dict:
@@ -91,9 +80,9 @@ async def build_context(
         if asset.analysis is None:
             warnings.append(f"La referencia '{asset.original_name}' no está indexada")
 
-    if not usable and not references and not project.design_notes.strip():
+    if not usable and not references and not project.description.strip():
         raise PipelineInputError(
-            "Añade notas de diseño, una captura de SketchUp, un plano o referencias"
+            "Añade una descripción del proyecto, una captura de SketchUp, un plano o referencias"
         )
 
     images = [await prepare_image(await repo.read_asset_bytes(project.id, a.id)) for a in usable]
@@ -105,8 +94,8 @@ async def build_context(
     sections = [
         "## Proyecto",
         _project_section(project),
-        "## Notas de diseño del usuario",
-        project.design_notes.strip() or "(sin notas)",
+        "## Descripción del proyecto (escrita por el usuario)",
+        project.description.strip() or "(sin descripción)",
         "## Imágenes adjuntas (en este orden)",
         image_list or "(ninguna)",
         "## Fichas de las referencias",

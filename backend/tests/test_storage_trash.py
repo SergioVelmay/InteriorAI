@@ -10,7 +10,7 @@ import pytest
 from app.storage import ProjectRepository
 from app.storage.__main__ import main as cli_main
 from app.storage.trash import TrashError, scan, selection
-from shared.models import AssetKind, ProjectCreate, SpaceType
+from shared.models import AssetKind, ProjectCreate
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
@@ -23,14 +23,14 @@ async def repo(tmp_path: Path) -> ProjectRepository:
 
 
 async def deleted_project(repo: ProjectRepository, name: str = "Dormitorio") -> str:
-    project = await repo.create(ProjectCreate(name=name, space_type=SpaceType.DORMITORIO))
+    project = await repo.create(ProjectCreate(name=name))
     await repo.add_asset(project.id, AssetKind.REFERENCIA, PNG, "cama.png", "image/png")
     return (await repo.delete(project.id)).name
 
 
 async def test_list_and_restore_a_project(repo: ProjectRepository) -> None:
     entry = await deleted_project(repo)
-    kept = await repo.create(ProjectCreate(name="Salón", space_type=SpaceType.SALON))
+    kept = await repo.create(ProjectCreate(name="Salón"))
     asset = await repo.add_asset(kept.id, AssetKind.REFERENCIA, PNG, "sofa.png", "image/png")
     await repo.remove_asset(kept.id, asset.id)
 
@@ -79,7 +79,7 @@ async def test_empty_by_age_and_unknown_entries_are_kept(repo: ProjectRepository
 
 
 async def test_empty_removes_asset_files_and_their_folder(repo: ProjectRepository) -> None:
-    project = await repo.create(ProjectCreate(name="Salón", space_type=SpaceType.SALON))
+    project = await repo.create(ProjectCreate(name="Salón"))
     asset = await repo.add_asset(project.id, AssetKind.REFERENCIA, PNG, "sofa.png", "image/png")
     await repo.remove_asset(project.id, asset.id)
     await repo.empty_trash(*selection(repo.trash_dir, None))

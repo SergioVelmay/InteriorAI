@@ -24,7 +24,7 @@ def fake_backend(projects: list[dict], mode: str = "mock") -> BackendClient:
             )
         if path == "/api/v1/projects":
             return httpx.Response(200, json=[
-                {k: p[k] for k in ("id", "name", "space_type", "created_at", "updated_at")}
+                {k: p[k] for k in ("id", "name", "created_at", "updated_at")}
                 for p in projects
             ])  # fmt: skip
         if path.endswith("/costs"):
@@ -40,9 +40,8 @@ def fake_backend(projects: list[dict], mode: str = "mock") -> BackendClient:
 def project_json(name: str) -> dict:
     now = utc_now().isoformat()
     return {
-        "schema_version": 1, "id": str(uuid4()), "name": name, "space_type": "dormitorio",
-        "description": "", "design_notes": "", "dimensions": None, "style": "",
-        "budget_eur": None, "created_at": now, "updated_at": now, "assets": [], "briefs": [],
+        "schema_version": 2, "id": str(uuid4()), "name": name,
+        "description": "", "created_at": now, "updated_at": now, "assets": [], "briefs": [],
         "renders": [],
     }  # fmt: skip
 
@@ -83,8 +82,8 @@ async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:
     gallery = result[tab.gallery]
     assert len(gallery["value"]) == 2
     assert gallery["selected_index"] == 1
-    assert gallery["value"][0][1].startswith("Dormitorio · ")  # nombre = tipo: sin repetir
-    assert gallery["value"][1][1].startswith("Estudio · Dormitorio · ")
+    assert gallery["value"][0][1].startswith("Dormitorio · ")
+    assert gallery["value"][1][1].startswith("Estudio · ")
     assert "**0.1000 €** en 2 llamadas" in result[tab.summary]
     assert result[tab.fields[0]] == "Estudio"
 

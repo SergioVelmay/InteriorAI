@@ -34,30 +34,6 @@
           }
         },
         {
-          "name": "Tipos de espacio",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"9 tipos con etiqueta\", () => {",
-                  "  const b = pm.response.json();",
-                  "  pm.expect(b).to.have.lengthOf(9);",
-                  "  pm.expect(b[0]).to.have.keys(\"value\", \"label\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/space-types"
-          }
-        },
-        {
           "name": "Tipos de asset",
           "event": [
             {
@@ -100,9 +76,9 @@
                   "  pm.expect(pm.response.headers.get(\"Location\")).to.include(b.id);",
                   "});",
                   "pm.test(\"estructura inicial\", () => {",
-                  "  pm.expect(b.space_type).to.eql(\"salon_cocina_comedor\");",
+                  "  pm.expect(b).to.not.have.property(\"space_type\");",
                   "  pm.expect(b.assets).to.eql([]);",
-                  "  pm.expect(b.schema_version).to.eql(1);",
+                  "  pm.expect(b.schema_version).to.eql(2);",
                   "});"
                 ]
               }
@@ -114,7 +90,7 @@
             "url": "{{baseUrl}}/api/v1/projects",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Salón principal (Postman)\",\n  \"space_type\": \"salon_cocina_comedor\",\n  \"description\": \"Proyecto creado por la colección de Postman\",\n  \"design_notes\": \"Estilo nórdico, tonos cálidos, mucha luz natural\",\n  \"dimensions\": {\n    \"width_m\": 4.2,\n    \"length_m\": 7.5,\n    \"height_m\": 2.6\n  }\n}",
+              "raw": "{\n  \"name\": \"Salón principal (Postman)\",\n  \"description\": \"Proyecto creado por la colección de Postman.\\n\\nEstilo nórdico, tonos cálidos, mucha luz natural. 4,2 x 7,5 m.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -142,7 +118,7 @@
             "url": "{{baseUrl}}/api/v1/projects",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"space_type\": \"garaje\"\n}",
+              "raw": "{\n  \"name\": \"\",\n  \"space_type\": \"salon\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -183,8 +159,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"dimensiones guardadas\", () => {",
-                  "  pm.expect(pm.response.json().dimensions.length_m).to.eql(7.5);",
+                  "pm.test(\"descripción guardada\", () => {",
+                  "  pm.expect(pm.response.json().description).to.include(\"7,5 m\");",
                   "});"
                 ]
               }
@@ -205,10 +181,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"nombre actualizado y notas intactas\", () => {",
+                  "pm.test(\"nombre actualizado y descripción intacta\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.name).to.eql(\"Salón principal (editado)\");",
-                  "  pm.expect(b.design_notes).to.include(\"nórdico\");",
+                  "  pm.expect(b.description).to.include(\"nórdico\");",
                   "});"
                 ]
               }

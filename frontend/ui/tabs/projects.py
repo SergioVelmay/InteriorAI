@@ -10,12 +10,11 @@ from typing import Any
 
 import gradio as gr
 
-from shared.models import ProjectCreate, ProjectMetadata, SpaceType
+from shared.models import ProjectCreate, ProjectMetadata
 from ui.api_client import ApiError, BackendClient, Health
 from ui.covers import cover_image
 from ui.views import form_values, gallery_caption, header_html, parse_form, project_summary_md
 
-SPACE_CHOICES = [(t.label, t.value) for t in SpaceType]
 EMPTY_SUMMARY = (
     "### Ningún proyecto seleccionado\nElige una tarjeta de la galería o crea un proyecto nuevo."
 )
@@ -70,26 +69,15 @@ def build_projects_tab(
                 new_name = gr.Textbox(
                     label="Nombre", placeholder="Salón-cocina-comedor", elem_id="iai-new-name"
                 )
-                new_type = gr.Dropdown(SPACE_CHOICES, label="Tipo de espacio", value="salon")
-                new_description = gr.Textbox(label="Descripción", lines=2)
-                new_notes = gr.Textbox(label="Notas de diseño", lines=4)
+                new_description = gr.Textbox(label="Descripción", lines=4)
                 create = gr.Button("Crear proyecto", variant="primary")
         with gr.Column(scale=2):
             summary = gr.Markdown(EMPTY_SUMMARY)
             with gr.Group():
                 name = gr.Textbox(label="Nombre", elem_id="iai-project-name")
-                space_type = gr.Dropdown(SPACE_CHOICES, label="Tipo de espacio")
                 description = gr.Textbox(
-                    label="Descripción", lines=2, elem_id="iai-project-description"
+                    label="Descripción", lines=8, elem_id="iai-project-description"
                 )
-                design_notes = gr.Textbox(label="Notas de diseño", lines=6)
-                with gr.Row():
-                    width = gr.Number(label="Ancho (m)", minimum=0)
-                    length = gr.Number(label="Largo (m)", minimum=0)
-                    height = gr.Number(label="Alto (m)", minimum=0)
-                with gr.Row():
-                    style = gr.Textbox(label="Estilo")
-                    budget = gr.Number(label="Presupuesto (€)", minimum=0)
             with gr.Row():
                 save = gr.Button("Guardar cambios", variant="primary", interactive=False)
                 delete = gr.Button("Mover a la papelera", variant="secondary", interactive=False)
@@ -99,7 +87,7 @@ def build_projects_tab(
                 )
                 cancel_delete = gr.Button("Cancelar", visible=False, variant="secondary")
 
-    fields = [name, space_type, description, design_notes, width, length, height, style, budget]
+    fields = [name, description]
     detail_outputs = [summary, *fields, save, delete]
 
     # --- Manejadores ---------------------------------------------------------------------
@@ -157,15 +145,12 @@ def build_projects_tab(
             **detail(project, costs),
         }
 
-    async def on_create(name_v: str, type_v: str, description_v: str, notes_v: str) -> dict:
+    async def on_create(name_v: str, description_v: str) -> dict:
         if not (name_v or "").strip():
             gr.Warning("Ponle un nombre al proyecto")
             return unchanged()
         try:
-            data = ProjectCreate(
-                name=name_v, space_type=type_v, description=description_v or "",
-                design_notes=notes_v or "",
-            )  # fmt: skip
+            data = ProjectCreate(name=name_v, description=description_v or "")
             project = await client.create_project(data)
         except (ApiError, ValueError) as exc:
             gr.Warning(getattr(exc, "detail", str(exc)))
@@ -175,7 +160,6 @@ def build_projects_tab(
             **await refresh_all(str(project.id)),
             new_name: "",
             new_description: "",
-            new_notes: "",
         }
 
     async def on_save(active_id: str | None, *values: Any) -> dict:
@@ -209,14 +193,12 @@ def build_projects_tab(
     # --- Eventos ---------------------------------------------------------------------------
 
     all_outputs = [header, gallery, ids, active, *detail_outputs]
-    create_outputs = [*all_outputs, new_name, new_description, new_notes]
+    create_outputs = [*all_outputs, new_name, new_description]
     delete_outputs = [*all_outputs, confirm_delete, cancel_delete]
 
     refresh.click(refresh_all, inputs=active, outputs=all_outputs)
     gallery.select(on_select, inputs=ids, outputs=[active, header, *detail_outputs])
-    create.click(
-        on_create, inputs=[new_name, new_type, new_description, new_notes], outputs=create_outputs
-    )
+    create.click(on_create, inputs=[new_name, new_description], outputs=create_outputs)
     save.click(on_save, inputs=[active, *fields], outputs=all_outputs)
     delete.click(ask_delete, outputs=[confirm_delete, cancel_delete])
     cancel_delete.click(hide_delete, outputs=[confirm_delete, cancel_delete])

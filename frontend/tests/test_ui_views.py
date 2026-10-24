@@ -41,7 +41,7 @@ def render(asset_id, stage: RenderStage, status: RenderStatus, minutes: int = 0)
 def project(**extra) -> ProjectMetadata:
     now = utc_now()
     return ProjectMetadata(
-        id=uuid4(), name="Salón <cocina>", space_type="salon_cocina_comedor",
+        id=uuid4(), name="Salón <cocina>",
         created_at=now, updated_at=now, **extra,
     )  # fmt: skip
 
@@ -96,25 +96,17 @@ def test_summary_counts_and_costs() -> None:
 
 
 def test_form_roundtrip() -> None:
-    p = project(dimensions={"width_m": 4, "length_m": 6.5, "height_m": 2.6}, style="nórdico")
-    update = parse_form(form_values(p))
-    assert update.dimensions is not None and update.dimensions.length_m == 6.5
-    assert update.style == "nórdico"
+    update = parse_form(form_values(project(description="Tonos nórdicos")))
+    assert update.changes() == {"name": "Salón <cocina>", "description": "Tonos nórdicos"}
 
 
-@pytest.mark.parametrize(
-    ("index", "value", "message"),
-    [(4, 4.0, "ancho y largo"), (0, "  ", "nombre")],
-)
-def test_form_validation(index: int, value, message: str) -> None:
-    values = form_values(project())
-    values[index] = value
-    with pytest.raises(ValueError, match=message):
-        parse_form(values)
+def test_form_validation() -> None:
+    with pytest.raises(ValueError, match="nombre"):
+        parse_form(["  ", ""])
 
 
-def test_form_without_dimensions() -> None:
-    assert parse_form(form_values(project())).dimensions is None
+def test_form_empty_description() -> None:
+    assert parse_form(["Salón", None]).description == ""
 
 
 # --- Portadas -----------------------------------------------------------------------------------

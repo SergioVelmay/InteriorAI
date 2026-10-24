@@ -11,12 +11,12 @@ PDF = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>
 
 @pytest.fixture
 def project_url(api: TestClient) -> str:
-    response = api.post("/api/v1/projects", json={"name": "Dormitorio", "space_type": "dormitorio"})
+    response = api.post("/api/v1/projects", json={"name": "Dormitorio"})
     return f"/api/v1/projects/{response.json()['id']}"
 
 
 def new_project_url(api: TestClient) -> str:
-    response = api.post("/api/v1/projects", json={"name": "x", "space_type": "otro"})
+    response = api.post("/api/v1/projects", json={"name": "x"})
     return f"/api/v1/projects/{response.json()['id']}"
 
 

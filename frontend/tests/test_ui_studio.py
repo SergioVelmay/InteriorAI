@@ -98,9 +98,7 @@ def audit() -> RenderAudit:
 
 def project(**extra) -> ProjectMetadata:
     now = utc_now()
-    return ProjectMetadata(
-        id=uuid4(), name="Salón", space_type="salon", created_at=now, updated_at=now, **extra
-    )
+    return ProjectMetadata(id=uuid4(), name="Salón", created_at=now, updated_at=now, **extra)
 
 
 # --- Presentación ---------------------------------------------------------------------------

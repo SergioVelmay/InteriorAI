@@ -29,7 +29,7 @@ docker compose down
 ```bash
 # Almacenamiento (dentro del contenedor)
 docker compose exec backend python -m app.storage listar
-docker compose exec backend python -m app.storage crear "Nombre" --tipo dormitorio
+docker compose exec backend python -m app.storage crear "Nombre" --descripcion "Dormitorio principal"
 docker compose exec backend python -m app.storage reindexar
 # Papelera: vaciar es DEFINITIVO y pide escribir VACIAR (confirmar siempre con el usuario)
 docker compose exec backend python -m app.storage papelera listar

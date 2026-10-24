@@ -90,11 +90,6 @@ class BackendClient:
     async def health(self) -> Health:
         return Health.model_validate((await self._request("GET", "/health")).json())
 
-    async def space_types(self) -> list[tuple[str, str]]:
-        """[(etiqueta, valor)], el formato de `choices` de Gradio."""
-        items = (await self._request("GET", "/api/v1/space-types")).json()
-        return [(item["label"], item["value"]) for item in items]
-
     # --- Proyectos ------------------------------------------------------------------------
 
     async def list_projects(self) -> list[ProjectSummary]:

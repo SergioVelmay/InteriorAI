@@ -16,7 +16,7 @@ from shared.roles import Role
 
 
 def create_project(api: TestClient) -> str:
-    return api.post("/api/v1/projects", json={"name": "x", "space_type": "otro"}).json()["id"]
+    return api.post("/api/v1/projects", json={"name": "x"}).json()["id"]
 
 
 # --- X-Request-ID ------------------------------------------------------------------------
@@ -129,7 +129,7 @@ def _real_record(cost: float, role: Role = Role.FAST_DRAFT, **extra) -> Telemetr
 def test_costs_without_simulated_calls_and_for_all_projects(api: TestClient) -> None:
     repo: ProjectRepository = api.app.state.repository
     first = create_project(api)
-    second = api.post("/api/v1/projects", json={"name": "Dormitorio", "space_type": "otro"})
+    second = api.post("/api/v1/projects", json={"name": "Dormitorio"})
     second = second.json()["id"]
     api.portal.call(_simulate_calls, api, first)  # 3 llamadas simuladas
     api.portal.call(repo.append_telemetry, first, _real_record(0.1))
@@ -160,7 +160,7 @@ def test_cost_alerts_use_real_spend_only(
     api = make_api()
     repo: ProjectRepository = api.app.state.repository
     big = create_project(api)
-    small = api.post("/api/v1/projects", json={"name": "Baño", "space_type": "otro"})
+    small = api.post("/api/v1/projects", json={"name": "Baño"})
     small = small.json()["id"]
     for cost in (2.0, 1.2):
         api.portal.call(repo.append_telemetry, big, _real_record(cost))
@@ -221,7 +221,7 @@ def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
     )  # fmt: skip
     now = utc_now()
     project = ProjectMetadata(
-        id=uuid4(), name="x", space_type="otro", created_at=now, updated_at=now,
+        id=uuid4(), name="x", created_at=now, updated_at=now,
         briefs=[brief], renders=[draft], assets=[reference],
     )  # fmt: skip
     analyzed = reference.analysis.analyzed_at
@@ -264,7 +264,7 @@ async def test_concurrent_telemetry_appends_are_not_lost(tmp_path: Path) -> None
 
     repo = ProjectRepository(tmp_path / "data")
     await repo.init()
-    project = await repo.create(ProjectCreate(name="x", space_type="otro"))
+    project = await repo.create(ProjectCreate(name="x"))
     records = [
         TelemetryRecord(
             role=Role.FAST_DRAFT,

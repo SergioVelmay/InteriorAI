@@ -13,7 +13,7 @@ from app.storage import (
     ProjectRepository,
 )
 from app.storage.__main__ import main as cli_main
-from shared.models import AssetKind, ProjectCreate, ProjectUpdate, SpaceType
+from shared.models import AssetKind, ProjectCreate, ProjectUpdate
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
@@ -26,7 +26,7 @@ async def repo(tmp_path: Path) -> ProjectRepository:
 
 
 def new_project(name: str = "Salón principal") -> ProjectCreate:
-    return ProjectCreate(name=name, space_type=SpaceType.SALON_COCINA_COMEDOR)
+    return ProjectCreate(name=name)
 
 
 def read_index(repo: ProjectRepository) -> dict:
@@ -46,7 +46,7 @@ async def test_create_builds_full_structure(repo: ProjectRepository) -> None:
     )
     assert (root / "costes_telemetria.jsonl").read_bytes() == b""  # JSONL vacío (B-012)
     index = read_index(repo)
-    assert index["schema_version"] == 1
+    assert index["schema_version"] == 2
     assert [p["id"] for p in index["projects"]] == [str(project.id)]
 
 
@@ -57,11 +57,10 @@ async def test_get_list_update(repo: ProjectRepository) -> None:
     assert (await repo.get(str(first.id))).id == first.id
 
     updated = await repo.update(
-        first.id, ProjectUpdate(name="Primero (editado)", design_notes="Tonos cálidos")
+        first.id, ProjectUpdate(name="Primero (editado)", description="Tonos cálidos")
     )
     assert updated.name == "Primero (editado)"
-    assert updated.design_notes == "Tonos cálidos"
-    assert updated.space_type is SpaceType.SALON_COCINA_COMEDOR
+    assert updated.description == "Tonos cálidos"
     assert updated.updated_at > first.updated_at
 
     listed = await repo.list_projects()
@@ -183,7 +182,7 @@ async def test_init_repairs_desynchronized_index(tmp_path: Path) -> None:
 
 
 async def test_init_creates_empty_index(repo: ProjectRepository) -> None:
-    assert read_index(repo) == {"schema_version": 1, "projects": []}
+    assert read_index(repo) == {"schema_version": 2, "projects": []}
 
 
 async def test_init_repairs_corrupt_index(tmp_path: Path) -> None:
@@ -211,7 +210,7 @@ async def test_reindex_skips_corrupt_projects(repo: ProjectRepository) -> None:
 
 def test_cli_create_and_list(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data_dir = str(tmp_path / "data")
-    assert cli_main(["--data-dir", data_dir, "crear", "Dormitorio", "--tipo", "dormitorio"]) == 0
+    assert cli_main(["--data-dir", data_dir, "crear", "Dormitorio", "--descripcion", "Luz"]) == 0
     assert "Proyecto creado" in capsys.readouterr().out
     assert cli_main(["--data-dir", data_dir, "listar"]) == 0
     assert "Dormitorio" in capsys.readouterr().out

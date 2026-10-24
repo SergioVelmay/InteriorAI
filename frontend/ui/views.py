@@ -9,7 +9,6 @@ from typing import Any, Literal
 from shared.models import (
     Asset,
     AssetKind,
-    Dimensions,
     DimensionsCm,
     ProjectMetadata,
     ProjectSummary,
@@ -70,10 +69,7 @@ def header_html(
 
 
 def gallery_caption(project: ProjectMetadata) -> str:
-    parts = [project.name]
-    if project.space_type.label.casefold() != project.name.strip().casefold():
-        parts.append(project.space_type.label)  # sin repetir si el nombre ya es el tipo
-    return " · ".join([*parts, f"{project.updated_at:%d/%m/%Y}"])
+    return f"{project.name} · {project.updated_at:%d/%m/%Y}"
 
 
 def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -> str:
@@ -86,7 +82,7 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
     brief = f"v{latest_brief.version} · {latest_brief.status}" if latest_brief else "sin brief"
     lines = [
         f"### {html.escape(project.name)}",
-        f"**{project.space_type.label}** · actualizado el {project.updated_at:%d/%m/%Y %H:%M} UTC",
+        f"Actualizado el {project.updated_at:%d/%m/%Y %H:%M} UTC",
         "",
         f"- Capturas de SketchUp: **{kinds[AssetKind.CAPTURA_SKETCHUP]}** · "
         f"planos: **{kinds[AssetKind.PLANO]}** · referencias: **{kinds[AssetKind.REFERENCIA]}**",
@@ -107,48 +103,18 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
 
 def form_values(project: ProjectMetadata) -> list[Any]:
     """Valores del formulario de edición, en el orden de `FORM_FIELDS`."""
-    d = project.dimensions
-    return [
-        project.name,
-        project.space_type.value,
-        project.description,
-        project.design_notes,
-        d.width_m if d else None,
-        d.length_m if d else None,
-        d.height_m if d else None,
-        project.style,
-        project.budget_eur,
-    ]
+    return [project.name, project.description]
 
 
-FORM_FIELDS = (
-    "name", "space_type", "description", "design_notes", "width_m", "length_m", "height_m",
-    "style", "budget_eur",
-)  # fmt: skip
+FORM_FIELDS = ("name", "description")
 
 
 def parse_form(values: list[Any]) -> ProjectUpdate:
     """Formulario → `ProjectUpdate`. Lanza `ValueError` con un mensaje en español."""
     data = dict(zip(FORM_FIELDS, values, strict=True))
-    width, length, height = data.pop("width_m"), data.pop("length_m"), data.pop("height_m")
-    if (width is None) != (length is None):
-        raise ValueError("Indica ancho y largo juntos, o deja ambos vacíos")
-    dimensions = (
-        Dimensions(width_m=width, length_m=length, height_m=height or None)
-        if width is not None
-        else None
-    )
     if not (data["name"] or "").strip():
         raise ValueError("El nombre no puede estar vacío")
-    return ProjectUpdate(
-        name=data["name"],
-        space_type=data["space_type"],
-        description=data["description"] or "",
-        design_notes=data["design_notes"] or "",
-        dimensions=dimensions,
-        style=data["style"] or "",
-        budget_eur=data["budget_eur"],
-    )
+    return ProjectUpdate(name=data["name"], description=data["description"] or "")
 
 
 # --- Assets (Paso 12) ---------------------------------------------------------------------

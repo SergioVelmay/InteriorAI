@@ -52,8 +52,7 @@ def spy(api: TestClient) -> SpyClient:
 def project(api: TestClient) -> dict:
     body = {
         "name": "Salón-cocina-comedor",
-        "space_type": "salon_cocina_comedor",
-        "design_notes": "Sofá en L junto a la península; tonos verdes y madera clara.",
+        "description": "Sofá en L junto a la península; tonos verdes y madera clara.",
     }
     pid = api.post("/api/v1/projects", json=body).json()["id"]
     url = f"/api/v1/projects/{pid}"
@@ -135,7 +134,7 @@ def test_index_rejects_non_references_and_empty_projects(
         f"{project['url']}/references/index", json={"asset_ids": [project["capture"]["id"]]}
     )
     assert response.status_code == 422
-    empty = api.post("/api/v1/projects", json={"name": "x", "space_type": "otro"}).json()["id"]
+    empty = api.post("/api/v1/projects", json={"name": "x"}).json()["id"]
     assert api.post(f"/api/v1/projects/{empty}/references/index").status_code == 422
     assert spy.requests == []
 
@@ -214,7 +213,7 @@ def test_brief_warns_about_unindexed_references(
 
 
 def test_brief_requires_some_input(api: TestClient, spy: SpyClient) -> None:
-    pid = api.post("/api/v1/projects", json={"name": "x", "space_type": "otro"}).json()["id"]
+    pid = api.post("/api/v1/projects", json={"name": "x"}).json()["id"]
     response = api.post(f"/api/v1/projects/{pid}/briefs")
     assert response.status_code == 422
     assert spy.requests == []

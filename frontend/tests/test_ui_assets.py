@@ -149,9 +149,8 @@ async def test_assets_tab_refresh(tmp_path: Path) -> None:
             items = by_kind[request.url.params["kind"]]
             return httpx.Response(200, json=[a.model_dump(mode="json") for a in items])
         return httpx.Response(200, json={
-            "schema_version": 1, "id": project_id, "name": "Salón", "space_type": "salon",
-            "description": "", "design_notes": "", "dimensions": None, "style": "",
-            "budget_eur": None, "created_at": now, "updated_at": now, "assets": [], "briefs": [],
+            "schema_version": 2, "id": project_id, "name": "Salón",
+            "description": "", "created_at": now, "updated_at": now, "assets": [], "briefs": [],
             "renders": [],
         })  # fmt: skip
 

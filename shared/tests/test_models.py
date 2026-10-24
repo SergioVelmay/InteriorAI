@@ -9,14 +9,8 @@ from shared.models import (
     ProjectIndex,
     ProjectMetadata,
     ProjectUpdate,
-    SpaceType,
     utc_now,
 )
-
-
-def test_every_space_type_has_spanish_label() -> None:
-    assert SpaceType.SALON_COCINA_COMEDOR.label == "Salón-cocina-comedor"
-    assert all(t.label for t in SpaceType)
 
 
 def test_every_asset_kind_has_folder() -> None:
@@ -29,33 +23,26 @@ def test_every_asset_kind_has_folder() -> None:
 
 
 def test_project_create_strips_and_validates_name() -> None:
-    assert ProjectCreate(name="  Salón  ", space_type="salon").name == "Salón"
+    assert ProjectCreate(name="  Salón  ").name == "Salón"
     with pytest.raises(ValidationError):
-        ProjectCreate(name="   ", space_type="salon")
-    with pytest.raises(ValidationError):
-        ProjectCreate(name="x", space_type="garaje")
+        ProjectCreate(name="   ")
 
 
 def test_unknown_fields_are_rejected() -> None:
     with pytest.raises(ValidationError):
-        ProjectCreate(name="x", space_type="salon", admin=True)
-
-
-def test_dimensions_must_be_positive() -> None:
-    with pytest.raises(ValidationError):
-        ProjectCreate(name="x", space_type="salon", dimensions={"width_m": 0, "length_m": 3})
+        ProjectCreate(name="x", admin=True)
+    with pytest.raises(ValidationError):  # campo de la v1 (B-026)
+        ProjectCreate(name="x", space_type="salon")
 
 
 def test_update_only_reports_fields_sent() -> None:
     assert ProjectUpdate(name="Nuevo").changes() == {"name": "Nuevo"}
-    assert ProjectUpdate(dimensions=None).changes() == {"dimensions": None}
+    assert ProjectUpdate(description="").changes() == {"description": ""}
 
 
 def test_metadata_and_index_carry_schema_version() -> None:
     now = utc_now()
-    metadata = ProjectMetadata(
-        id=uuid4(), name="x", space_type="estudio", created_at=now, updated_at=now
-    )
-    assert metadata.schema_version == 1
-    assert ProjectIndex(projects=[metadata.summary()]).schema_version == 1
-    assert '"schema_version":1' in metadata.model_dump_json()
+    metadata = ProjectMetadata(id=uuid4(), name="x", created_at=now, updated_at=now)
+    assert metadata.schema_version == 2
+    assert ProjectIndex(projects=[metadata.summary()]).schema_version == 2
+    assert '"schema_version":2' in metadata.model_dump_json()

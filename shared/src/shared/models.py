@@ -15,40 +15,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from shared.roles import Role
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 1 → 2: modelo de datos de la versión 2.0.0 (Paso 17)
+# Cabe la descripción de cualquier proyecto migrado (descripción + notas de diseño de la v1).
+DESCRIPTION_MAX = 25_000
 
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
-
-
-class SpaceType(StrEnum):
-    SALON_COCINA_COMEDOR = "salon_cocina_comedor"
-    SALON = "salon"
-    COCINA = "cocina"
-    COMEDOR = "comedor"
-    DORMITORIO = "dormitorio"
-    ESTUDIO = "estudio"
-    BANO = "bano"
-    TERRAZA = "terraza"
-    OTRO = "otro"
-
-    @property
-    def label(self) -> str:
-        return _SPACE_LABELS[self]
-
-
-_SPACE_LABELS: dict[SpaceType, str] = {
-    SpaceType.SALON_COCINA_COMEDOR: "Salón-cocina-comedor",
-    SpaceType.SALON: "Salón",
-    SpaceType.COCINA: "Cocina",
-    SpaceType.COMEDOR: "Comedor",
-    SpaceType.DORMITORIO: "Dormitorio",
-    SpaceType.ESTUDIO: "Estudio",
-    SpaceType.BANO: "Baño",
-    SpaceType.TERRAZA: "Terraza",
-    SpaceType.OTRO: "Otro",
-}
 
 
 class AssetKind(StrEnum):
@@ -84,12 +57,6 @@ _ASSET_LABELS: dict[AssetKind, str] = {
 
 class _Model(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-
-
-class Dimensions(_Model):
-    width_m: float = Field(gt=0, le=100)
-    length_m: float = Field(gt=0, le=100)
-    height_m: float | None = Field(default=None, gt=0, le=20)
 
 
 # --- Ficha de una referencia (CONTEXT_MANAGER) ------------------------------------------
@@ -337,15 +304,10 @@ class RenderRecord(_Model):
 
 
 class ProjectFields(_Model):
-    """Campos editables por el usuario."""
+    """Campos editables por el usuario. La descripción es el contexto del diseño (B-026)."""
 
     name: str = Field(min_length=1, max_length=120)
-    space_type: SpaceType
-    description: str = Field(default="", max_length=2_000)
-    design_notes: str = Field(default="", max_length=20_000)
-    dimensions: Dimensions | None = None
-    style: str = Field(default="", max_length=200)
-    budget_eur: float | None = Field(default=None, ge=0)
+    description: str = Field(default="", max_length=DESCRIPTION_MAX)
 
 
 class ProjectCreate(ProjectFields):
@@ -356,16 +318,11 @@ class ProjectUpdate(_Model):
     """Actualización parcial: solo se aplican los campos enviados."""
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    space_type: SpaceType | None = None
-    description: str | None = Field(default=None, max_length=2_000)
-    design_notes: str | None = Field(default=None, max_length=20_000)
-    dimensions: Dimensions | None = None
-    style: str | None = Field(default=None, max_length=200)
-    budget_eur: float | None = Field(default=None, ge=0)
+    description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
 
     @model_validator(mode="after")
     def _required_fields_not_null(self) -> ProjectUpdate:
-        for field in ("name", "space_type"):
+        for field in ("name", "description"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"'{field}' no puede ser null")
         return self
@@ -379,7 +336,6 @@ class ProjectSummary(_Model):
 
     id: UUID
     name: str
-    space_type: SpaceType
     created_at: datetime
     updated_at: datetime
 
@@ -387,7 +343,7 @@ class ProjectSummary(_Model):
 class ProjectMetadata(ProjectFields):
     """Contenido de `{id}/metadatos.json`."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     id: UUID
     created_at: datetime
     updated_at: datetime
@@ -399,7 +355,6 @@ class ProjectMetadata(ProjectFields):
         return ProjectSummary(
             id=self.id,
             name=self.name,
-            space_type=self.space_type,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -408,7 +363,7 @@ class ProjectMetadata(ProjectFields):
 class ProjectIndex(_Model):
     """Contenido de `proyectos.json`."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     projects: list[ProjectSummary] = Field(default_factory=list)
 
 
@@ -447,5 +402,5 @@ class TelemetryLog(_Model):
     """Telemetría de un proyecto (en disco, `{id}/costes_telemetria.jsonl`: un registro por
     línea; ver `app.storage.telemetry_log`)."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[1] = 1  # formato del antiguo `.json` (solo para migrarlo)
     records: list[TelemetryRecord] = Field(default_factory=list)

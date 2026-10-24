@@ -45,7 +45,7 @@ def spy(api: TestClient) -> SpyClient:
 def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) -> dict:
     pid = api.post(
         "/api/v1/projects",
-        json={"name": "Salón", "space_type": "salon_cocina_comedor", "design_notes": "Sofá en L"},
+        json={"name": "Salón", "description": "Sofá en L"},
     ).json()["id"]
     url = f"/api/v1/projects/{pid}"
 
