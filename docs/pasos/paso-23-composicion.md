@@ -57,7 +57,8 @@ Coste real del paso: ≈ 0,23 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-23`, PR #31.
+✅ Cerrado — rama `feat/paso-23`, PR #31 revisada y mergeada por el usuario, que aprobó
+`prompt_composicion.md` y `auditor_espacio.md`. Docker reconstruido el 2026-10-25.
 
 ## 6. Pendiente / futuro
 

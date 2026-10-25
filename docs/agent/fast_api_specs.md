@@ -85,7 +85,7 @@ data/
 | POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
 | POST | `/projects/{id}/renders/drafts` | `{n=4 (1-8), quality=medium, size=1536x1024, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}`: referencias activas y prompt automático (`prompt_info`), sin brief | 9 · 22 ✅ |
 | POST | `/projects/{id}/renders/compositions` | `{draft_id?, source=boceto\|composicion, use_audit=false, audit_notes, n=1, quality=medium, size=1536x1024, ...}` (parte del boceto o de la composición seleccionados; apoyos hasta 12) → 201 | 9 · 23 ✅ |
-| POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
+| POST | `/projects/{id}/renders/final` | `{composition_id?, source=composicion\|render_final, variant_of?, size=2448x1632, extra_instructions, n=1}` (solo la imagen de partida y el prompt; `variant_of`: «Otra versión», repite prompt, partida y tamaño) → 201 | 9 · 24 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{notes?}` → `{render, audit, cost_eur, request_id}` (boceto, composición o final; las imágenes nuevas, frente a todas las referencias del espacio) | 10 · 23 ✅ |
@@ -162,8 +162,9 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   primera captura/plano en imagen del brief; cada etapa exige el render anterior
   `seleccionado` (409) y de la etapa correcta (422).
 - Entradas preparadas a ≤ 2.048 px (`INPUT_MAX_SIDE_PX`). Tamaños: GPT-image 1536×1024 /
-  1024×1536 / 1024×1024. Render final: por defecto, lado largo 1920 px con la **proporción
-  exacta de la captura** (16:9 → 1920×1080); se admite cualquier tamaño ≤ 4 MP. El renderizador
+  1024×1536 / 1024×1024. Render final (Paso 24): 3:2 a 2448×1632 por defecto y tres
+  resoluciones por proporción en `shared/sizes.py` (las de la v1, con la proporción de la
+  captura); se admite cualquier tamaño ≤ 4 MP. El renderizador
   trabaja en múltiplos de 16 px: se le pide el múltiplo superior (`generation_size`, 1920×1088)
   y se **recorta al centro** al tamaño exacto, sin escalar (`masks.fit`).
 - **Una sola imagen seleccionada por etapa** (B-043): seleccionar otra devuelve la anterior a

@@ -27,20 +27,15 @@ from shared.models import (
     RenderStage,
     RenderStatus,
 )
+from shared.sizes import RENDERER_SIZES
 from shared.supports import (
     MAX_SUPPORTS,
-    active_references,
     draft_base,
     geometric_references,
     split_supports,
 )
 
 # Coste estimado por acción (EUR, límite alto de lo observado en las pruebas reales).
-COST_PER_IMAGE = {
-    RenderStage.DRAFT: 0.015,
-    RenderStage.COMPOSITION: 0.035,
-    RenderStage.FINAL: 0.095,
-}
 # Modelos GPT de imagen (Paso 22, medido con 3 imágenes de entrada en calidad media: 4 bocetos
 # = 0,142 € y 5 = 0,177 €): cada imagen de entrada ≈ 0,042 € (tokens de imagen, lo que más
 # pesa) y cada imagen generada según su calidad, más el prompt.
@@ -50,6 +45,12 @@ COST_PROMPT = 0.002  # el PROMPT_ENGINEER escribe el prompt de cada generación 
 # Composición y retoque (Paso 23, medido: 4 imágenes de entrada en calidad media = 0,047 € cada
 # uno): el STRUCTURAL_COMPOSER factura mucho menos por imagen de entrada que el de bocetos.
 COST_COMPOSITION_INPUT = 0.010
+# Render final (FLUX, precios de config/pricing.yaml): el primer MP de la imagen generada, el
+# resto de MP y la imagen de partida (1 MP por imagen de entrada); el MP de la factura es binario.
+COST_RENDER_FIRST_MP = 0.0264
+COST_RENDER_EXTRA_MP = 0.0132
+COST_RENDER_INPUT = 0.0132
+RATIOS = list(RENDERER_SIZES)  # 16:9, 3:2 (por defecto), 1:1, 2:3, 9:16
 MAX_INPUTS = 1 + MAX_SUPPORTS  # imagen base o de partida + apoyos (Paso 23)
 # Retoque: solo la composición, con máscara nativa (B-038).
 COST_INPAINT = {RenderStage.COMPOSITION: 0.035}
@@ -204,6 +205,23 @@ def draft_inputs(project: ProjectMetadata) -> int:
     return (base is not None) + len(split_supports(project, base)[0])
 
 
+def final_cost(size: str, *, prompt: bool = True) -> float:
+    """Coste estimado de un render final de `size`; «Otra versión» no escribe prompt."""
+    width, height = (int(x) for x in size.split("x"))
+    extra_mp = max(width * height / 1_048_576 - 1, 0)
+    render = COST_RENDER_FIRST_MP + extra_mp * COST_RENDER_EXTRA_MP + COST_RENDER_INPUT
+    return (COST_PROMPT if prompt else 0) + render
+
+
+def resolution_choices(ratio: str) -> list[tuple[str, str]]:
+    """Resoluciones de una proporción (Paso 24), de menor a mayor, con sus megapíxeles."""
+    choices = []
+    for size in RENDERER_SIZES[ratio]:
+        width, height = (int(x) for x in size.split("x"))
+        choices.append((f"{width} x {height} · {width * height / 1e6:.1f} MP", size))
+    return choices
+
+
 def composition_cost(quality: str, inputs: int) -> float:
     """Coste estimado de una composición o un retoque con `inputs` imágenes de entrada."""
     inputs = min(inputs, MAX_INPUTS)
@@ -239,25 +257,6 @@ def selected_choices(project: ProjectMetadata, stage: RenderStage) -> list[tuple
         (f"{r.stage.label} {r.id.hex[:8]} · {r.created_at:%d/%m %H:%M}", str(r.id))
         for r in renders_of(project, stage)
         if r.status is RenderStatus.SELECTED
-    ]
-
-
-def reference_choices(project: ProjectMetadata) -> list[tuple[str, str]]:
-    """Referencias para el render final: las activas (ficha con algo marcado, B-030)."""
-    return [
-        (a.original_name, str(a.id))
-        for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.sheet is not None and a.sheet.active
-    ]
-
-
-def default_textures(project: ProjectMetadata) -> list[str]:
-    """Texturas marcadas por defecto en el render final: las referencias activas que no aportan
-    la perspectiva (la vista ya está en la composición)."""
-    return [
-        str(a.id)
-        for a in active_references(project)
-        if not any(e.startswith("perspectiva:") for e in a.sheet.selected)  # type: ignore[union-attr]
     ]
 
 

@@ -4,7 +4,9 @@ Paso 23, que se desbloquean en orden (B-043).
 ① Bocetos (Paso 22): las referencias activas → generar (prompt automático, sin brief) → elegir
 uno. ② Composición (Paso 23): auditoría opcional del boceto (B-046), retoque de la composición
 seleccionada (B-038/039) y crear la composición a partir del boceto seleccionado o de la
-composición actual (B-045, B-055). ③ Render Final: controles provisionales hasta el Paso 24.
+composición actual (B-045, B-055). ③ Render Final (Paso 24): fotografía realista de la
+composición seleccionada o del render final actual, con indicaciones globales, proporción y
+resolución; «Otra versión» repite tal cual el prompt de la imagen mostrada (B-051, B-055, B-040).
 En cada pestaña, la imagen seleccionada en grande con lo que entendió la IA, el prompt y lo
 enviado al modelo (B-047); la confirmación de coste, junto al botón que la pide (B-049).
 """
@@ -21,36 +23,35 @@ import gradio as gr
 from PIL import Image
 
 from shared.models import ProjectMetadata, RenderStage, RenderStatus
-from shared.supports import MAX_SUPPORTS
+from shared.sizes import DEFAULT_RATIO, DEFAULT_RENDERER_SIZE
+from shared.supports import MAX_SUPPORTS, active_references
 from ui.api_client import ApiError, BackendClient
 from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.studio_views import (
     COST_AUDIT,
-    COST_PER_IMAGE,
-    COST_PROMPT,
     DRAFT_SIZES,
     QUALITIES,
-    active_references,
+    RATIOS,
     audit_markdown,
     audit_thumbs,
     composition_cost,
     composition_inputs,
     cost_hint,
-    default_textures,
     draft_cost,
     draft_inputs,
     draft_thumbs,
     editor_mask,
     euros,
+    final_cost,
     needs_confirmation,
-    reference_choices,
     render_caption,
     render_detail_md,
     render_inputs,
     render_thumb,
     render_title_md,
     renders_of,
+    resolution_choices,
     selected_render,
     support_thumbs,
     thumbs_html,
@@ -77,6 +78,8 @@ ACTION_STAGES = {
     "composicion": RenderStage.COMPOSITION,
     "composicion_actual": RenderStage.COMPOSITION,
     "render_final": RenderStage.FINAL,
+    "render_final_actual": RenderStage.FINAL,
+    "otra_version": RenderStage.FINAL,
 }
 
 
@@ -166,15 +169,20 @@ def _thumbnails(slug: str) -> dict[str, Any]:
     return {"gallery": gallery, "ids": gr.State([])}
 
 
-def _viewer(slug: str, *, details_open: bool | None) -> dict[str, Any]:
+def _viewer(
+    slug: str, *, details_open: bool | None, after_select: Callable[[], None] | None = None
+) -> dict[str, Any]:
     """La imagen grande en su proporción, su línea, «Seleccionar» y la trazabilidad: en un
-    desplegable (Bocetos, `details_open=False`) o a la vista, debajo (`None`)."""
+    desplegable (Bocetos, `details_open=False`) o a la vista, debajo (`None`). `after_select`
+    añade controles bajo «Seleccionar» («Otra versión» en Render Final)."""
     viewer = gr.Image(
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
     title = gr.Markdown()
     select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
+    if after_select is not None:
+        after_select()
 
     def trace() -> tuple[gr.Markdown, gr.Gallery]:
         more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
@@ -332,15 +340,50 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             RenderStage.COMPOSITION, **comp_gallery, **comp_view
         )
 
-    # ③ Render Final (provisional hasta el Paso 24) ----------------------------------------------
+    # ③ Render Final -----------------------------------------------------------------------------
     with gr.Tab("Render Final", interactive=False) as final_tab:
         notices.append(gr.Markdown(NO_PROJECT, visible=False))
-        final_source = gr.Markdown()
-        textures = gr.CheckboxGroup(label="Referencias de textura y color", choices=[])
-        final_extra = gr.Textbox(label="Indicaciones (opcionales)", lines=2)
-        actions["render_final"] = _action("Generar render final", "finals")
+        selected_final = gr.State(None)  # id del render final seleccionado
+        gr.Markdown(
+            "Fotografía realista con el modelo fotorrealista: recibe solo la imagen de partida y "
+            "el prompt (lo marcado en las fichas va descrito en el texto). Las indicaciones son "
+            "cambios globales: noche, iluminación, ambiente, personas…",
+            elem_classes="iai-muted",
+        )
+        with gr.Row():
+            final_ratio = gr.Radio(RATIOS, value=DEFAULT_RATIO, label="Proporción",
+                                   elem_id="iai-final-ratio")  # fmt: skip
+            final_size = gr.Radio(
+                resolution_choices(DEFAULT_RATIO), value=DEFAULT_RENDERER_SIZE,
+                label="Resolución", elem_id="iai-final-size",
+            )  # fmt: skip
+        final_extra = gr.Textbox(
+            label="Indicaciones globales (opcionales)", lines=2,
+            placeholder="p. ej. «de noche con las lámparas encendidas» o «una pareja leyendo»",
+            elem_id="iai-final-indications",
+        )  # fmt: skip
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1):
+                start_final_composition = gr.HTML(elem_id="iai-start-final-composition")
+                actions["render_final"] = _action(
+                    "Generar con la composición seleccionada", "finals"
+                )
+            with gr.Column(scale=1):
+                start_final_current = gr.HTML(elem_id="iai-start-final-current")
+                actions["render_final_actual"] = _action(
+                    "Generar con el render final actual", "finals-current"
+                )
         final_gallery = _thumbnails("finals")
-        final_view = _viewer("finals", details_open=None)
+
+        def variant_controls() -> None:
+            gr.Markdown(
+                "**Otra versión** repite tal cual el prompt, la imagen de partida y la resolución "
+                "de la imagen mostrada (sin indicaciones nuevas): el modelo varía el resultado.",
+                elem_classes="iai-muted",
+            )
+            actions["otra_version"] = _action("Otra versión", "finals-variant", "secondary")
+
+        final_view = _viewer("finals", details_open=None, after_select=variant_controls)
         panels[RenderStage.FINAL] = Panel(RenderStage.FINAL, **final_gallery, **final_view)
 
     shown_states = [panels[s].shown for s in STAGES]
@@ -361,7 +404,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                          retouch_md: "", supports_md: "", supports: "", start_draft: "",
                          start_composition: "", use_retouch: gr.update(value=False),
                          composition_tab: gr.update(interactive=False),
-                         final_tab: gr.update(interactive=False)}  # fmt: skip
+                         final_tab: gr.update(interactive=False), selected_final: None,
+                         start_final_composition: "", start_final_current: ""}  # fmt: skip
         updates |= {notice: gr.update(visible=True) for notice in notices}
         for action in actions.values():
             updates |= {action.button: gr.update(interactive=False), action.cost: ""}
@@ -439,6 +483,11 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         composition = selected_render(project, RenderStage.COMPOSITION)
         if composition is not None:
             retouch_images[str(composition.id)] = image_of(project, str(composition.id))
+        final = selected_render(project, RenderStage.FINAL)
+        shown_final = next(
+            (r for r in project.renders if str(r.id) == updates[panels[RenderStage.FINAL].shown]),
+            None,
+        )
         n_comp = composition_inputs(project)
         quality_note = " (1 en calidad media)"
         comp_cost = cost_hint(composition_cost("medium", n_comp), current_mode) + quality_note
@@ -470,13 +519,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 render_thumb(project, composition, data_dir, "Composición actual"),
                 "Selecciona una composición para partir de ella.",
             ),
-            final_source: (
-                f"**Composición de partida:** la seleccionada (`{composition.id.hex[:8]}`)"
-                if composition
-                else "Selecciona una composición para el render final."
+            selected_final: str(final.id) if final else None,
+            start_final_composition: thumbs_html(
+                render_thumb(project, composition, data_dir, "Composición seleccionada"),
+                "Selecciona una composición para el render final.",
             ),
-            textures: gr.update(
-                choices=reference_choices(project), value=default_textures(project)
+            start_final_current: thumbs_html(
+                render_thumb(project, final, data_dir, "Render final actual"),
+                "Selecciona un render final para partir de él.",
             ),
         }
         enabled = {
@@ -485,16 +535,21 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             "composicion": draft is not None,
             "composicion_actual": composition is not None,
             "render_final": composition is not None,
+            "render_final_actual": final is not None,
+            "otra_version": shown_final is not None and shown_final.prompt_info is not None,
         }
+        final_hint = cost_hint(final_cost(DEFAULT_RENDERER_SIZE), current_mode) + " (a 4 MP)"
         costs = {
             "boceto": cost_hint(draft_cost(4, "medium", n_drafts), current_mode)
             + " (4 en calidad media)",
             "auditoria": cost_hint(COST_AUDIT, current_mode),
             "composicion": comp_cost,
             "composicion_actual": comp_cost,
-            "render_final": cost_hint(
-                COST_PER_IMAGE[RenderStage.FINAL] + COST_PROMPT, current_mode
-            ),
+            "render_final": final_hint,
+            "render_final_actual": final_hint,
+            "otra_version": cost_hint(final_cost(shown_final.size, prompt=False), current_mode)
+            if shown_final
+            else "",
         }
         for key, action in actions.items():
             updates |= {action.button: gr.update(interactive=enabled[key]), action.cost: costs[key]}
@@ -506,10 +561,15 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         kind = action["kind"]
         if kind == "auditoria":
             return COST_AUDIT
-        if kind == "render_final":
-            return COST_PER_IMAGE[RenderStage.FINAL] + COST_PROMPT
+        if kind in {"render_final", "render_final_actual"}:
+            return final_cost(action["body"]["size"])
         if project is None:
             return 0.0
+        if kind == "otra_version":
+            original = next(
+                (r for r in project.renders if str(r.id) == action["body"]["variant_of"]), None
+            )
+            return final_cost(original.size, prompt=False) if original else 0.0
         quality = action.get("quality", "medium")
         if kind == "boceto":
             return draft_cost(action["body"]["n"], quality, draft_inputs(project))
@@ -525,7 +585,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             "auditoria": "auditar el boceto (GEOMETRIC_AUDITOR)",
             "composicion": "generar la composición con el boceto seleccionado",
             "composicion_actual": "generar con la composición actual",
-            "render_final": "generar el render final",
+            "render_final": "generar el render final con la composición seleccionada",
+            "render_final_actual": "generar con el render final actual",
+            "otra_version": "generar otra versión del render final",
         }[kind]
 
     def hide_confirm(action: Action) -> dict:
@@ -673,7 +735,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     outputs: list[gr.components.Component] = [
         *notices, mode, refs, refs_md, selected_draft, selected_composition, composition_tab,
         final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
-        start_draft, start_composition, final_source, textures,
+        start_draft, start_composition, selected_final, start_final_composition,
+        start_final_current,
         *(c for action in actions.values() for c in action.components()),
         *(c for panel in panels.values() for c in panel.components()),
     ]  # fmt: skip
@@ -744,22 +807,48 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         trigger=plain_current,
     )  # fmt: skip
     actions["composicion_actual"].button.click(None, js=RETOUCH_BRIDGE_JS)
+
+    def final_body(size: str | None, extra: str | None, source: str) -> dict[str, Any]:
+        return {"source": source, "size": size or DEFAULT_RENDERER_SIZE,
+                "extra_instructions": extra or ""}  # fmt: skip
+
     wire(
         "render_final",
-        lambda composition_id, refs_v, extra: (
-            {
-                "body": {
-                    "composition_id": composition_id,
-                    "reference_ids": refs_v or [],
-                    "extra_instructions": extra or "",
-                }
-            }
+        lambda composition_id, size, extra: (
+            {"body": final_body(size, extra, "composicion")}
             if composition_id
             else {"error": "Selecciona una composición"}
         ),
         selected_composition,
-        textures,
+        final_size,
         final_extra,
+    )
+    wire(
+        "render_final_actual",
+        lambda final_id, size, extra: (
+            {"body": final_body(size, extra, "render_final")}
+            if final_id
+            else {"error": "Selecciona un render final para generar a partir de él"}
+        ),
+        selected_final,
+        final_size,
+        final_extra,
+    )
+    wire(
+        "otra_version",
+        lambda shown_final: (
+            {"body": {"variant_of": shown_final}}
+            if shown_final
+            else {"error": "Elige un render final para hacer otra versión"}
+        ),
+        panels[RenderStage.FINAL].shown,
+    )
+    final_ratio.change(
+        lambda ratio: gr.update(
+            choices=resolution_choices(ratio), value=resolution_choices(ratio)[-1][1]
+        ),
+        inputs=final_ratio,
+        outputs=final_size,
     )
 
     for key, action in actions.items():

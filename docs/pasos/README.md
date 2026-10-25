@@ -31,7 +31,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 20 | [Costes IA](paso-20-costes-ia.md) | `feat/paso-20` | ✅ Cerrado |
 | 21 | [Referencias v2](paso-21-referencias-v2.md) | `feat/paso-21` | ✅ Cerrado |
 | 22 | [Estudio I: base común y Bocetos](paso-22-estudio-bocetos.md) | `feat/paso-22` | ✅ Cerrado |
-| 23 | [Estudio II: Composición](paso-23-composicion.md) | `feat/paso-23` | ⏳ En revisión |
+| 23 | [Estudio II: Composición](paso-23-composicion.md) | `feat/paso-23` | ✅ Cerrado |
+| 24 | [Estudio III: Render Final](paso-24-render-final.md) | `feat/paso-24` | ⏳ En revisión |
 
 Versión 2.0.0 (en curso): [plan de acción](plan-version-2.md), Pasos 17 a 25, entradas B-023 a B-054
 del [backlog](BACKLOG.md).
