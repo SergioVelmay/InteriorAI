@@ -1,4 +1,4 @@
-# Plan de acción — InteriorAI 2.1.0
+# Plan de acción — InteriorAI 3.0.0
 
 Propuesto el 2026-10-25, tras la ronda de observaciones del usuario sobre la 2.0.0: un flujo
 completo guiado («Personalización Cocina Los Molinos»), de la creación del proyecto a los renders
@@ -6,10 +6,13 @@ finales, con capturas de trabajo en cada etapa. Recoge las 25 observaciones (O-1
 entradas **B-057 a B-081** del [backlog](BACKLOG.md) (O-n → B-(056 + n)) y cierra con las
 capturas del README (B-023).
 
-## Por qué 2.1.0
+## Por qué 3.0.0
 
-Son mejoras de interfaz y de prompts sin cambios en el esquema de datos ni en la API. La única
-excepción es el renombrado de roles (B-057), que cambia variables del `.env`: ver la decisión 1.
+Casi todo son mejoras de interfaz y de prompts, sin cambios en el esquema de datos ni en la API.
+Pero el renombrado de roles (B-057) cambia las variables del `.env` y **solo se admiten los
+nombres nuevos** (decisión del usuario, 2026-10-25): un `.env` de la 2.x deja de valer. Es un
+cambio incompatible de configuración, así que, según SemVer, la versión es mayor. Los datos
+guardados (telemetría y renders) sí se siguen leyendo, con los nombres nuevos.
 
 ## Criterio de orden
 
@@ -32,17 +35,16 @@ actualizados y CI en verde, PR revisada y mergeada por el usuario.
 | 27. Estilo común, Proyectos y Referencias | Pestaña activa en blanco y negrita; escala única de imágenes (1/1, 1/2, 1/4, 1/6); letra pequeña común; textos de Gradio en español; previsión de tiempo sin historial; 50/50 real; resumen del proyecto; recarga de Proyectos al entrar; vista previa de la referencia en su proporción; pie de las miniaturas en dos líneas | B-058 a B-066, B-079 | No |
 | 28. Bocetos | Maquetación a ancho completo; prompts sin elementos no marcados, sin dibujar anotaciones y con bocetos realistas y minimalistas (también en composición y render final) | B-067 a B-070 | ≈ 0,40-0,60 € (varias tandas de bocetos y alguna composición) |
 | 29. Composición y Render Final | Iconos del editor; rueda del ratón sobre el lienzo; aviso de retoque e indicaciones; secciones plegables; tabla de la auditoría; texto del coste de la cadena; prompt con ajuste de línea; Render Final sin «calidad» | B-071 a B-078 | No |
-| 30. Capturas y versión 2.1.0 | Caso de demostración del usuario sin marcas; capturas del README con Playwright, solo mirando (sin acciones de IA ni cambios de selección); README, CHANGELOG, etiqueta y Release | B-023 | No |
+| 30. Capturas y versión 3.0.0 | Caso de demostración del usuario sin marcas; capturas del README con Playwright, solo mirando (sin acciones de IA ni cambios de selección); README, CHANGELOG, etiqueta y Release | B-023 | No |
 
-## Decisiones pendientes (para el Paso 26)
+## Decisiones tomadas
 
-1. **Variables del `.env` con los nombres antiguos.** Renombrarlas rompe cualquier `.env` de la
-   2.0.0. Opciones: **(a)** aceptar también los nombres antiguos durante la 2.x, con un aviso
-   en el registro (sigue siendo versión menor: 2.1.0); **(b)** solo los nombres nuevos y
-   publicar como 3.0.0. Recomendado: (a).
+1. **Variables del `.env`:** solo los nombres nuevos (sin aceptar los antiguos) y versión
+   **3.0.0**. El CHANGELOG y el README explicarán cómo actualizar el `.env` (tabla de
+   equivalencias); la aplicación, al arrancar, avisará con claridad si encuentra una variable
+   con el nombre antiguo, sin usarla.
 
 ## Lo que aporta el usuario
 
-- Paso 26: la decisión 1.
 - Paso 28: revisar juntos los prompts de bocetos y composición tras las pruebas reales.
 - Paso 30: el proyecto de demostración terminado, sin marcas, con la aplicación levantada.
