@@ -32,9 +32,11 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 21 | [Referencias v2](paso-21-referencias-v2.md) | `feat/paso-21` | ✅ Cerrado |
 | 22 | [Estudio I: base común y Bocetos](paso-22-estudio-bocetos.md) | `feat/paso-22` | ✅ Cerrado |
 | 23 | [Estudio II: Composición](paso-23-composicion.md) | `feat/paso-23` | ✅ Cerrado |
-| 24 | [Estudio III: Render Final](paso-24-render-final.md) | `feat/paso-24` | ⏳ En revisión |
+| 24 | [Estudio III: Render Final](paso-24-render-final.md) | `feat/paso-24` | ✅ Cerrado |
+| 25 | [Versión 2.0.0](paso-25-version-2.md) | `feat/paso-25` | ⏳ En revisión |
 
-Versión 2.0.0 (en curso): [plan de acción](plan-version-2.md), Pasos 17 a 25, entradas B-023 a B-054
+Versión 2.0.0 (publicada el 2026-10-25): [plan de acción](plan-version-2.md), Pasos 17 a 25,
+entradas B-023 a B-055
 del [backlog](BACKLOG.md).
 
 Mantenimiento posterior a la 1.0.0:

@@ -4,7 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 [SemVer](https://semver.org/lang/es/). El detalle de cada paso está en
 [docs/pasos/](docs/pasos/README.md).
 
-## [Sin publicar]
+## [2.0.0] — 2026-10-25
+
+Rediseño del flujo: sin brief, con referencias analizadas (receta y ficha) y tres pestañas de
+estudio (Bocetos, Composición y Render Final) con prompt automático en cada generación. Plan y
+bitácora: [docs/pasos/plan-version-2.md](docs/pasos/plan-version-2.md) (Pasos 17 a 25).
+
+Migración desde la 1.0.0: automática al arrancar; cada proyecto conserva `metadatos.v1.json`. El
+cliente de la API (`/api/v1`) es el frontend: los cambios incompatibles están más abajo.
 
 ### Cambiado (incompatible: esquema v2 de los datos y de la API)
 

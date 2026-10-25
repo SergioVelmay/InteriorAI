@@ -1,6 +1,7 @@
 # Azure AI Foundry — integración por rol
 
-> Estado: **cliente verificado contra Azure** (Paso 6) **con telemetría y costes** (Paso 7).
+> Estado (2.0.0): **cliente verificado contra Azure** (Paso 6) **con telemetría y costes** (Paso 7);
+> roles y razonamiento por rol (Paso 18) y especialización de los modelos de imagen (Pasos 22-24).
 
 ## Principio
 

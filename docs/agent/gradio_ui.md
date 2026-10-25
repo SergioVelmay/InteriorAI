@@ -1,6 +1,6 @@
 # Gradio — interfaz de usuario
 
-> Estado: **las cuatro pestañas implementadas** (Pasos 11-14).
+> Estado (2.0.0): **seis pestañas**: Proyectos, Referencias, Bocetos, Composición, Render Final y Costes IA (Pasos 11-14 y 19-24).
 
 ## Estructura y arranque (Gradio 6)
 

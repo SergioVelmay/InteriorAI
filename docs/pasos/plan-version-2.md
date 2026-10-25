@@ -1,7 +1,8 @@
 # Plan de acción — InteriorAI 2.0.0
 
-Aprobado por el usuario el 2026-10-24. Aborda las 32 entradas abiertas del
-[backlog](BACKLOG.md): B-023, B-024 y B-025 a B-054.
+Aprobado por el usuario el 2026-10-24. **Completado el 2026-10-25** (Pasos 17 a 25,
+PRs #25 a #33; las llamadas reales, en el documento de cada paso). Aborda las 32 entradas
+abiertas del [backlog](BACKLOG.md): B-023, B-024 y B-025 a B-054.
 
 ## Por qué 2.0.0
 
@@ -32,8 +33,8 @@ y mergeada por el usuario.
 | 21. Referencias v2 | Pestaña «Referencias» sin tipos; indexación automática al subir (Notas, receta JSON); ficha de casillas con «Guardar ficha»; prompt de recetas; prueba comparativa luna/sol; reindexado de las referencias existentes | B-028 (interfaz), B-029, B-030, B-054, B-052 | ≈ 0,10-0,20 € |
 | 22. Estudio I: base común y Bocetos | Tres pestañas con desbloqueo progresivo; vista grande en proporción original con prompt y miniaturas del input; confirmación junto al botón; maquetación 50/50; Bocetos con brief automático (luna), variantes 1-8, calidad media, umbral 0,15 € | B-035, B-036, B-040, B-042, B-043, B-047, B-049, B-054 | ≈ 0,15-0,30 € |
 | 23. Estudio II: Composición | Auditoría opcional del boceto (astra); retoques con máscara solo sobre la composición seleccionada y sin recomposición; crear composición desde el boceto o la composición seleccionada; editor de máscaras sin paleta | B-045, B-046, B-038, B-039, B-040, B-054 | ≈ 0,30-0,50 € |
-| 24. Estudio III: Render Final | FLUX con texto libre sobre la composición o el render seleccionado; proporción y resolución (máxima por defecto); semilla para versiones con el prompt bloqueado | B-051, B-040, B-037, B-054 | ≈ 0,15-0,30 € |
-| 25. Versión 2.0.0 | README con capturas del caso de demostración del usuario (sin marcas registradas); revisar Gradio y Pillow 13; documentación, CHANGELOG, etiqueta y Release | B-023, B-024 | No |
+| 24. Estudio III: Render Final | FLUX con texto libre sobre la composición o el render seleccionado; proporción y resolución (máxima por defecto); «Otra versión» con el prompt bloqueado (la semilla de Azure no es reproducible) | B-051, B-040, B-037, B-054 | ≈ 0,15-0,30 € |
+| 25. Versión 2.0.0 | README de la v2 (las capturas, B-023, quedan para la siguiente versión menor); Gradio y Pillow 13 revisados (B-024 sigue abierto); documentación, CHANGELOG, etiqueta y Release | B-023, B-024 | No |
 
 Gasto real estimado del plan: ≈ 1-1,5 € (cada llamada se anuncia antes).
 
