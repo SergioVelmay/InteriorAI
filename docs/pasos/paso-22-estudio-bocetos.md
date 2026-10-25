@@ -41,7 +41,7 @@ Bocetos queda completa. El brief de la v1 desaparece: cada generación escribe s
 | Playwright en local (mock) | ✅ 5/5 (Estudio en tres pestañas, retoque en Composición) |
 | Bocetos reales (script, copia del Salón) | ✅ 4 en calidad media en 32 s: 0,001 € el prompt (luna, 9,7 s) y 0,142 € la imagen (flare). Conservan la vista, el JÄTTEBO por módulos y la pana verde oliva |
 | Bocetos reales por la interfaz (Azure, copia) | ✅ 5 bocetos: confirmación junto al botón (≈ 0,158 €) y resultado real 0,178 €, con las indicaciones aplicadas (luz de atardecer, planta junto a la terraza) |
-| CI de la PR | Pendiente |
+| CI de la PR #30 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Hallazgo de costes: en los bocetos pesan más las **imágenes de entrada** (≈ 0,042 € cada una, en
 tokens de imagen) que los bocetos (≈ 0,009 € cada uno en calidad media). Con 3 referencias
@@ -54,7 +54,7 @@ Coste real del paso: ≈ 0,32 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-22`.
+⏳ En revisión — rama `feat/paso-22`, PR #30.
 
 ## 6. Pendiente / futuro
 
