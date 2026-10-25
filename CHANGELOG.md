@@ -8,6 +8,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado (incompatible: esquema v2 de los datos y de la API)
 
+- Sin brief: cada generación escribe su propio prompt (PROMPT_ENGINEER) con sus entradas reales
+  y guarda lo que ha entendido (`RenderRecord.prompt_info`); `/renders/drafts` ya no necesita un
+  brief aprobado (Paso 22).
+
 - Proyecto con nombre y descripción: sin tipo de espacio, notas de diseño, dimensiones, estilo
   ni presupuesto (su contenido pasa a la descripción); sin `/space-types` ni `crear --tipo`
   (Paso 17, B-026).
@@ -25,6 +29,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Solo `STRUCTURAL_COMPOSER` admite máscara (B-037).
 
 ### Añadido
+
+- Estudio en tres pestañas (Bocetos, Composición y Render Final) que se desbloquean en orden.
+  Bocetos parte de las referencias activas, con 1-8 variantes, calidad y formato. Cada imagen se
+  ve en grande con «Ver más»: lo que entendió la IA, sus dudas, el prompt y lo enviado al modelo.
+  La confirmación de coste aparece junto al botón, con un umbral de 0,15 € (Paso 22: B-035,
+  B-036, B-042, B-043, B-047, B-049).
 
 - Pestaña «Referencias» (antes Assets): cada imagen se sube de una en una con sus notas y se
   analiza al momento; su receta agrupa los ingredientes útiles (12 grupos, con «Otros») y la
@@ -74,6 +84,12 @@ Primera versión completa: estudio de interiorismo asistido por IA con supervisi
 cada etapa.
 
 ### Añadido
+
+- Estudio en tres pestañas (Bocetos, Composición y Render Final) que se desbloquean en orden.
+  Bocetos parte de las referencias activas, con 1-8 variantes, calidad y formato. Cada imagen se
+  ve en grande con «Ver más»: lo que entendió la IA, sus dudas, el prompt y lo enviado al modelo.
+  La confirmación de coste aparece junto al botón, con un umbral de 0,15 € (Paso 22: B-035,
+  B-036, B-042, B-043, B-047, B-049).
 
 - Pestaña «Referencias» (antes Assets): cada imagen se sube de una en una con sus notas y se
   analiza al momento; su receta agrupa los ingredientes útiles (12 grupos, con «Otros») y la

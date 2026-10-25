@@ -45,6 +45,7 @@ def test_references_flow(ui: UI, projects: Projects, tmp_path: Path) -> None:
     ui.toast("la referencia queda descartada")
     expect(item).to_contain_text("Descartada")
     page.locator("#iai-sheet-group-objetos input").check()
+    expect(page.locator("#iai-sheet-objetos input").first).to_be_checked()  # grupo = todo
     page.locator("#iai-save-sheet").click()
     ui.toast("Ficha guardada: 1 elemento(s) marcado(s)")
     expect(item).to_contain_text("Activa · 1 marcado(s)")

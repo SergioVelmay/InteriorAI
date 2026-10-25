@@ -113,8 +113,7 @@ def test_audit_final_render_against_capture(api: TestClient, spy: SpyClient, cha
     for image in request.images:
         with Image.open(io.BytesIO(image.data)) as opened:
             assert max(opened.size) <= 1_536
-    assert "Restricciones espaciales del brief" in request.input
-    assert "Mobiliario que debe respetarse con exactitud" in request.input
+    assert "Lo marcado en las fichas del usuario" in request.input  # sin brief (Paso 22)
     assert chain["final"]["prompt"] in request.input
 
 

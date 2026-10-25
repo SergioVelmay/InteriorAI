@@ -22,7 +22,13 @@ from app.hitl.briefs import BriefNotFoundError
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
-from app.pipelines.sources import base_candidates, texture_references
+from app.pipelines.prompt_writer import InputRole, WrittenPrompt, write_prompt
+from app.pipelines.sources import (
+    active_references,
+    base_candidates,
+    texture_references,
+    with_group,
+)
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
@@ -44,6 +50,14 @@ GPT_IMAGE_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
 RENDERER_MAX_PIXELS = 4_000_000  # 4 MP
 RENDERER_LONG_SIDE_PX = 1_920
 INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativa (B-038)
+MAX_DRAFT_SUPPORTS = 6  # referencias de apoyo de un boceto, además de la imagen base
+DEFAULT_GPT_SIZE = "1536x1024"  # 3:2 (B-040)
+# Papel de cada imagen de entrada, tal como se explica al PROMPT_ENGINEER.
+BASE_ROLE = "imagen base: se dibuja sobre ella y se conserva su punto de vista y su geometría"
+SUPPORT_ROLE = "apoyo: se toma solo lo marcado en su ficha"
+DRAFT_ROLE = "boceto seleccionado: aporta color, ambiente, mobiliario y distribución"
+COMPOSITION_ROLE = "composición de partida: se conserva su encuadre, geometría y mobiliario"
+TEXTURE_ROLE = "textura: se toma solo lo marcado en su ficha (color, material, acabado)"
 _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 
 Quality = Literal["low", "medium", "high", "auto"]
@@ -98,10 +112,11 @@ def approved_brief(project: ProjectMetadata, brief_id: UUID | None) -> DesignBri
     return brief
 
 
-def base_asset(project: ProjectMetadata, brief: DesignBrief) -> Asset:
-    """Imagen base: la primera imagen base del brief o, si no, la del proyecto (`sources`)."""
+def base_asset(project: ProjectMetadata, brief: DesignBrief | None = None) -> Asset:
+    """Imagen base: la del brief (imágenes de la v1) o, si no, la del proyecto (`sources`)."""
     by_id = {a.id: a for a in project.assets}
-    candidates = [by_id[i] for i in brief.source_asset_ids if i in by_id]
+    ids = brief.source_asset_ids if brief is not None else []
+    candidates = [by_id[i] for i in ids if i in by_id]
     for asset in [*candidates, *base_candidates(project)]:
         if asset.mime_type in VISION_MIME_TYPES:
             return asset
@@ -230,20 +245,20 @@ async def _run_stage(
     repo: ProjectRepository,
     client: FoundryClient,
     project: ProjectMetadata,
-    brief: DesignBrief,
     stage: RenderStage,
-    role: Role,
     inputs: list[UUID],
     parent: RenderRecord | None,
-    base_prompt: str,
+    prompt: str,
+    size: str,
     options: RenderOptions,
-    output_format: Literal["png", "jpeg"],
+    *,
+    brief: DesignBrief | None = None,
+    written: WrittenPrompt | None = None,
 ) -> list[RenderRecord]:
-    # La imagen base es la primera entrada (asset subido o render de la etapa anterior).
-    base = next(a for a in project.assets if a.id == inputs[0])
-    size = resolve_size(role, options.size, base)
+    """Llama al modelo de la etapa con sus entradas (la primera, la imagen de partida) y guarda
+    las imágenes. `brief` solo en las cadenas de la v1; desde el Paso 22, `written`."""
+    role, output_format = _STAGE_ROLES[stage]
     images = [await _load(repo, project, asset_id) for asset_id in inputs]
-    prompt = build_prompt(base_prompt, options)
     quality = options.quality or "auto"
     result: ImageResult = await client.edit_image(
         role,
@@ -269,9 +284,11 @@ async def _run_stage(
             stage=stage,
             role=role,
             deployment=_deployment(client, role, result),
-            brief_id=brief.id,
-            brief_version=brief.version,
+            brief_id=brief.id if brief else None,
+            brief_version=brief.version if brief else None,
             prompt=prompt,
+            prompt_info=written.prompt if written else None,
+            prompt_version=written.version if written else None,
             input_asset_ids=inputs,
             parent_render_id=parent.id if parent else None,
             batch_id=batch_id,
@@ -287,19 +304,63 @@ async def _run_stage(
     return records
 
 
+async def _prompt(
+    repo: ProjectRepository,
+    client: FoundryClient,
+    project: ProjectMetadata,
+    stage: RenderStage,
+    inputs: list[InputRole],
+    size: str,
+    options: RenderOptions,
+) -> tuple[str, WrittenPrompt | None]:
+    """El prompt de la generación: el que escribe el PROMPT_ENGINEER con las entradas reales
+    (Paso 22) o, si el usuario lo da, el suyo tal cual."""
+    if options.prompt_override:
+        return build_prompt(options.prompt_override, options), None
+    written = await write_prompt(
+        repo, client, project, stage, inputs, active_references(project),
+        options.extra_instructions, size,
+    )  # fmt: skip
+    return written.prompt.prompt, written
+
+
 async def generate_drafts(
     repo: ProjectRepository, client: FoundryClient, project_id: UUID, options: RenderOptions
 ) -> list[RenderRecord]:
-    """Etapa 1: bocetos a partir de la captura de SketchUp (imagen base)."""
+    """Etapa 1 (B-036): bocetos a partir de las referencias activas, con prompt automático.
+
+    Si alguna referencia activa tiene la perspectiva marcada, el boceto se dibuja sobre ella; las
+    demás activas van como apoyo (solo lo marcado). Sin perspectiva, el modelo compone
+    libremente la estancia a partir de los apoyos.
+    """
     project = await repo.get(project_id)
-    brief = approved_brief(project, options.brief_id)
-    base = base_asset(project, brief)
+    active = [a for a in active_references(project) if a.mime_type in VISION_MIME_TYPES]
+    if not active:
+        raise PipelineInputError(
+            "Activa al menos una referencia (marca algo en su ficha) para generar bocetos"
+        )
+    base = next((a for a in with_group(project, "perspectiva") if a in active), None)
+    supports = [a for a in active if base is None or a.id != base.id][:MAX_DRAFT_SUPPORTS]
+    inputs = [InputRole(base, BASE_ROLE)] if base else []
+    inputs += [InputRole(a, SUPPORT_ROLE) for a in supports]
+    size = resolve_size(Role.FAST_DRAFT, options.size or DEFAULT_GPT_SIZE, inputs[0].asset)
+    options = RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"})
+    prompt, written = await _prompt(repo, client, project, RenderStage.DRAFT, inputs, size, options)
     return await _run_stage(
-        repo, client, project, brief, RenderStage.DRAFT, Role.FAST_DRAFT, [base.id], None,
-        brief.content.image_prompts.fast_draft,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "low"}),
-        _STAGE_ROLES[RenderStage.DRAFT][1],
+        repo, client, project, RenderStage.DRAFT, [i.asset.id for i in inputs], None, prompt,
+        size, options, written=written,
     )  # fmt: skip
+
+
+def _brief_of(project: ProjectMetadata, render: RenderRecord | None) -> DesignBrief | None:
+    """Brief de una cadena de la v1 (None desde el Paso 22)."""
+    if render is None or render.brief_id is None:
+        return None
+    return next((b for b in project.briefs if b.id == render.brief_id), None)
+
+
+def _render_asset(project: ProjectMetadata, render: RenderRecord) -> Asset:
+    return next(a for a in project.assets if a.id == render.id)
 
 
 async def generate_composition(
@@ -309,17 +370,40 @@ async def generate_composition(
     options: RenderOptions,
     draft_id: UUID | None = None,
 ) -> list[RenderRecord]:
-    """Etapa 2: composición sobre la captura; el boceto seleccionado aporta color y ambiente."""
+    """Etapa 2: composición a partir del boceto seleccionado (provisional hasta el Paso 23).
+
+    Cadenas de la v1: la captura editada con el prompt del brief y el boceto como referencia.
+    Desde el Paso 22: prompt automático; se edita la imagen base (perspectiva marcada) con el
+    boceto como referencia o, si no hay, el propio boceto.
+    """
     project = await repo.get(project_id)
-    brief = approved_brief(project, options.brief_id)
-    base = base_asset(project, brief)
     draft = selected_render(project, draft_id, RenderStage.DRAFT) if draft_id else None
-    inputs = [base.id] + ([draft.id] if draft else [])
+    brief = _brief_of(project, draft) if draft else approved_brief(project, options.brief_id)
+    options = RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"})
+    if brief is not None:  # v1
+        base = base_asset(project, brief)
+        inputs = [base.id] + ([draft.id] if draft else [])
+        size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size, base)
+        prompt = build_prompt(brief.content.image_prompts.structural_composer, options)
+        return await _run_stage(
+            repo, client, project, RenderStage.COMPOSITION, inputs, draft, prompt, size, options,
+            brief=brief,
+        )  # fmt: skip
+    if draft is None:
+        raise PipelineInputError("Selecciona un boceto para generar la composición")
+    draft_asset = _render_asset(project, draft)
+    perspective = next(iter(with_group(project, "perspectiva")), None)
+    if perspective is not None:
+        roles = [InputRole(perspective, BASE_ROLE), InputRole(draft_asset, DRAFT_ROLE)]
+    else:
+        roles = [InputRole(draft_asset, "imagen base: el boceto seleccionado, que se materializa")]
+    size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size, roles[0].asset)
+    prompt, written = await _prompt(
+        repo, client, project, RenderStage.COMPOSITION, roles, size, options
+    )
     return await _run_stage(
-        repo, client, project, brief, RenderStage.COMPOSITION, Role.STRUCTURAL_COMPOSER, inputs,
-        draft, brief.content.image_prompts.structural_composer,
-        RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"}),
-        _STAGE_ROLES[RenderStage.COMPOSITION][1],
+        repo, client, project, RenderStage.COMPOSITION, [r.asset.id for r in roles], draft,
+        prompt, size, options, written=written,
     )  # fmt: skip
 
 
@@ -331,10 +415,11 @@ async def generate_final(
     composition_id: UUID,
     reference_ids: list[UUID] | None = None,
 ) -> list[RenderRecord]:
-    """Etapa 3: render fotorrealista con la composición seleccionada y referencias."""
+    """Etapa 3: render fotorrealista con la composición seleccionada y referencias
+    (provisional hasta el Paso 24)."""
     project = await repo.get(project_id)
     composition = selected_render(project, composition_id, RenderStage.COMPOSITION)
-    brief = approved_brief(project, options.brief_id or composition.brief_id)
+    brief = _brief_of(project, composition)
     base = base_asset(project, brief)
     # Texturas: por defecto, las referencias activas salvo la imagen base (ver `sources`); si el
     # usuario las elige, cualquier referencia activa.
@@ -345,14 +430,21 @@ async def generate_final(
     if unknown and reference_ids is not None:
         raise PipelineInputError("No son referencias activas en imagen: " + ", ".join(unknown))
     references = [i for i in wanted if i in references_by_id][:MAX_RENDERER_REFERENCES]
-    # Por defecto, la proporción de la captura original, no la de la composición (3:2).
-    size = options.size or renderer_size(base)
+    # Por defecto, la proporción de la imagen base, no la de la composición (3:2).
+    size = resolve_size(Role.PHOTOREALISTIC_RENDERER, options.size or renderer_size(base), base)
+    inputs = [composition.id, *references]
+    if brief is not None:  # v1
+        prompt = build_prompt(brief.content.image_prompts.photorealistic_renderer, options)
+        return await _run_stage(
+            repo, client, project, RenderStage.FINAL, inputs, composition, prompt, size, options,
+            brief=brief,
+        )  # fmt: skip
+    roles = [InputRole(_render_asset(project, composition), COMPOSITION_ROLE)]
+    roles += [InputRole(references_by_id[i], TEXTURE_ROLE) for i in references]
+    prompt, written = await _prompt(repo, client, project, RenderStage.FINAL, roles, size, options)
     return await _run_stage(
-        repo, client, project, brief, RenderStage.FINAL, Role.PHOTOREALISTIC_RENDERER,
-        [composition.id, *references], composition,
-        brief.content.image_prompts.photorealistic_renderer,
-        RenderOptions(**{**options.__dict__, "size": size}),
-        _STAGE_ROLES[RenderStage.FINAL][1],
+        repo, client, project, RenderStage.FINAL, inputs, composition, prompt, size, options,
+        written=written,
     )  # fmt: skip
 
 

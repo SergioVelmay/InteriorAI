@@ -6,9 +6,21 @@ from PIL import Image
 
 from app.foundry.mock import sample_from_schema
 from app.pipelines.images import prepare_image
+from app.pipelines.prompt_writer import InputRole, build_context
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
-from shared.models import DesignBriefContent, ReferenceAnalysis
+from shared.models import (
+    RECIPE_GROUPS,
+    Asset,
+    AssetKind,
+    DesignBriefContent,
+    ProjectMetadata,
+    ReferenceAnalysis,
+    ReferenceRecipe,
+    ReferenceSheet,
+    StagePrompt,
+    utc_now,
+)
 
 FORBIDDEN = {"$ref", "$defs", "title", "default", "minimum", "maximum", "minLength", "maxLength"}
 
@@ -28,7 +40,9 @@ def walk(node: Any):
             yield from walk(item)
 
 
-@pytest.mark.parametrize("model", [ReferenceAnalysis, DesignBriefContent])
+@pytest.mark.parametrize(
+    "model", [ReferenceAnalysis, DesignBriefContent, ReferenceRecipe, StagePrompt]
+)
 def test_strict_schema_rules(model) -> None:
     schema = strict_schema(model)
     objects = [n for n in walk(schema) if "properties" in n]
@@ -56,7 +70,9 @@ def test_strict_schema_keeps_enums_nullables_and_descriptions() -> None:
     assert "español" in props["summary"]["description"]
 
 
-@pytest.mark.parametrize("model", [ReferenceAnalysis, DesignBriefContent])
+@pytest.mark.parametrize(
+    "model", [ReferenceAnalysis, DesignBriefContent, ReferenceRecipe, StagePrompt]
+)
 def test_mock_output_for_strict_schema_validates(model) -> None:
     model.model_validate(sample_from_schema(strict_schema(model)))
 
@@ -83,10 +99,45 @@ async def test_prepare_image_never_upscales() -> None:
 
 
 def test_prompts_are_versioned_by_content() -> None:
-    for name in ("reference_analyst", "prompt_engineer"):
+    for name in (
+        "reference_analyst", "prompt_engineer", "prompt_bocetos", "prompt_composicion",
+        "prompt_render_final",
+    ):  # fmt: skip
         prompt = load_prompt(name)
         assert prompt.text
         assert prompt.version.startswith(f"{name}@")
         assert len(prompt.version.split("@")[1]) == 12
     assert "INGLÉS" in load_prompt("prompt_engineer").text
     assert "estimada" in load_prompt("reference_analyst").text
+
+
+def test_stage_prompt_context_has_roles_selections_and_indications() -> None:
+    """Paso 22: el PROMPT_ENGINEER recibe el papel de cada imagen y solo lo marcado."""
+    element = {
+        "label": "Sofá JÄTTEBO",
+        "detail": "",
+        "dimensions_source": "estimada",
+        "selected": False,
+        "dimensions_cm": {"width_cm": 285, "depth_cm": None, "height_cm": None},
+    }
+    recipe = {"summary": "s", **{g: [element] for g in RECIPE_GROUPS}}
+
+    def asset(name: str, selected: list[str]) -> Asset:
+        sheet = ReferenceSheet.model_validate({"recipe": recipe, "selected": selected})
+        return Asset(kind=AssetKind.REFERENCIA, stored_name=f"{name}.png", original_name=name,
+                     mime_type="image/png", size_bytes=1, sha256="0" * 64, sheet=sheet,
+                     description=f"notas de {name}")  # fmt: skip
+
+    view, sofa = asset("vista", ["perspectiva:0"]), asset("sofa", ["objetos:0"])
+    now = utc_now()
+    project = ProjectMetadata(id=view.id, name="Salón", description="Luz de tarde",
+                              created_at=now, updated_at=now, assets=[view, sofa])  # fmt: skip
+    text = build_context(
+        project, [InputRole(view, "imagen base"), InputRole(sofa, "apoyo")], [view, sofa],
+        "Más cálido", "1536x1024",
+    )  # fmt: skip
+    assert "- Imagen 1: imagen base — «vista»" in text and "- Imagen 2: apoyo — «sofa»" in text
+    assert '"imagen": 2' in text and '"Objetos y mobiliario"' in text
+    assert '"Colores y paleta"' not in text  # solo lo marcado
+    assert '"origen_medidas": "estimada"' in text
+    assert "Luz de tarde" in text and "Más cálido" in text and "1536x1024" in text

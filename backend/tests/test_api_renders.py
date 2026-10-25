@@ -96,10 +96,12 @@ def select(api: TestClient, project: dict, render_id: str) -> dict:
 # --- Etapa 1: bocetos -----------------------------------------------------------------------
 
 
-def test_drafts_edit_the_capture(
+def test_drafts_from_active_references_with_an_automatic_prompt(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
-    body = run(api, project, "drafts")
+    """B-036 y Paso 22: la vista con perspectiva es la base; las demás activas, apoyos; el
+    PROMPT_ENGINEER escribe el prompt de esta generación (sin brief)."""
+    body = run(api, project, "drafts", n=2, extra_instructions="Luz de tarde")
     renders = body["renders"]
     assert len(renders) == 2
     assert len({r["batch_id"] for r in renders}) == 1
@@ -109,10 +111,14 @@ def test_drafts_edit_the_capture(
         assert render["role"] == "FAST_DRAFT"
         assert render["deployment"] == "gpt-image-2.5-flare"
         assert render["size"] == "1536x1024"
-        assert render["quality"] == "low"
-        assert render["input_asset_ids"] == [project["capture"]]
-        assert render["brief_version"] == 1
-        assert render["prompt"] == project["brief"]["content"]["image_prompts"]["fast_draft"]
+        assert render["quality"] == "medium"  # por defecto (B-040)
+        assert render["input_asset_ids"] == [
+            project["capture"], project["product"], project["inspiration"],
+        ]  # fmt: skip
+        assert render["brief_id"] is None and render["brief_version"] is None
+        assert render["prompt"] == render["prompt_info"]["prompt"] == "mock"
+        assert render["prompt_info"]["interpretation"] == "mock"
+        assert render["prompt_version"].startswith("prompt_bocetos@")
         assert render["request_id"] == body["request_id"]
     assert body["cost_eur"] > 0
     # Cada imagen redondea su parte a 6 decimales: la suma puede desviarse en ~1e-6
@@ -120,8 +126,10 @@ def test_drafts_edit_the_capture(
 
     [(role, request)] = spy.edits
     assert role is Role.FAST_DRAFT
-    assert (request.n, request.size, request.quality, request.mask) == (2, "1536x1024", "low", None)
-    assert len(request.images) == 1
+    assert (request.n, request.size, request.quality, request.mask) == (
+        2, "1536x1024", "medium", None,
+    )  # fmt: skip
+    assert len(request.images) == 3
 
     # imagen + JSON de trazabilidad en renders_historico/ y descarga como asset
     folder = tmp_path / "data" / project["url"].rsplit("/", 1)[1] / "renders_historico"
@@ -136,14 +144,23 @@ def test_drafts_edit_the_capture(
         assert image.size == (1536, 1024)
 
 
-def test_generation_requires_an_approved_brief(api: TestClient, spy: SpyClient) -> None:
+def test_drafts_require_an_active_reference(api: TestClient, spy: SpyClient) -> None:
     project = new_project(api)
-    assert api.post(f"{project['url']}/renders/drafts", json={}).status_code == 409
-    brief = api.post(f"{project['url']}/briefs").json()["brief"]
-    response = api.post(f"{project['url']}/renders/drafts", json={"brief_id": brief["id"]})
-    assert response.status_code == 409
-    assert "no está aprobado" in response.json()["detail"]
+    pid = project["url"].rsplit("/", 1)[1]
+    mark_active(api, pid, {project[k]: [] for k in ("capture", "product", "inspiration")})
+    response = api.post(f"{project['url']}/renders/drafts", json={})
+    assert response.status_code == 422
+    assert "Activa al menos una referencia" in response.json()["detail"]
     assert spy.edits == []
+
+
+def test_drafts_without_perspective_compose_freely(api: TestClient, spy: SpyClient) -> None:
+    """Sin imagen base obligatoria: sin perspectiva marcada, todas las activas son apoyos."""
+    project = new_project(api)
+    pid = project["url"].rsplit("/", 1)[1]
+    mark_active(api, pid, {project["capture"]: []})  # la vista, descartada
+    render = run(api, project, "drafts", n=1)["renders"][0]
+    assert render["input_asset_ids"] == [project["product"], project["inspiration"]]
 
 
 def test_prompt_override_and_extra_instructions(
@@ -158,10 +175,12 @@ def test_prompt_override_and_extra_instructions(
     assert spy.edits[0][1].prompt == expected
 
 
-def test_portrait_capture_defaults_to_portrait_sizes(api: TestClient, spy: SpyClient) -> None:
+def test_draft_format_is_chosen_by_the_user(api: TestClient, spy: SpyClient) -> None:
+    """B-040: 3:2 por defecto, también con una vista vertical; el usuario elige el formato."""
     project = new_project(api, capture_size=(900, 1600))
-    approve_brief(api, project)
-    assert run(api, project, "drafts", n=1)["renders"][0]["size"] == "1024x1536"
+    assert run(api, project, "drafts", n=1)["renders"][0]["size"] == "1536x1024"
+    portrait = run(api, project, "drafts", n=1, size="1024x1536")["renders"][0]
+    assert portrait["size"] == "1024x1536"
 
 
 @pytest.mark.parametrize(
@@ -339,7 +358,7 @@ def test_render_calls_are_in_project_telemetry(
     run(api, project, "drafts")
     selected_composition(api, project)
     by_role = {g["key"]: g for g in api.get(f"{project['url']}/costs").json()["by_role"]}
-    assert by_role["FAST_DRAFT"]["images_out"] == 2
+    assert by_role["FAST_DRAFT"]["images_out"] == 4  # 4 variantes por defecto (B-043)
     assert by_role["STRUCTURAL_COMPOSER"]["calls"] == 1
 
 
@@ -482,9 +501,10 @@ def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> No
     other = run(api, project, "drafts", n=1)  # otra rama: no cuenta
 
     cost = api.get(f"{project['url']}/renders/{final['id']}/cost").json()
-    assert cost["renders"] == 3 and cost["briefs"] == 1
+    assert cost["renders"] == 3 and cost["briefs"] == 0  # sin brief desde el Paso 22
     assert cost["totals"]["calls"] == 0  # en simulación todo va aparte
-    assert cost["simulated_calls"] == 4  # brief + lote de 2 bocetos + composición + final
+    # 3 prompts automáticos + lote de 2 bocetos + composición + final
+    assert cost["simulated_calls"] == 6
     records = api.get(f"{project['url']}/costs").json()["records"]
     expected = sum(r["cost_eur"] or 0 for r in records if r["request_id"] != other["request_id"])
     assert cost["simulated_cost_eur"] == pytest.approx(expected, abs=1e-6)

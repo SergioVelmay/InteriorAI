@@ -780,10 +780,14 @@
                   "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
                   "const r = pm.response.json().renders[0];",
                   "pm.collectionVariables.set(\"draftId\", r.id);",
-                  "pm.test(\"boceto generado sobre la imagen base\", () => {",
+                  "pm.test(\"boceto con prompt automático, sin brief (Paso 22)\", () => {",
                   "  pm.expect(r.stage).to.eql(\"boceto\");",
                   "  pm.expect(r.status).to.eql(\"generado\");",
-                  "  pm.expect(r.input_asset_ids).to.have.lengthOf(1);",
+                  "  pm.expect(r.brief_id).to.be.null;",
+                  "  pm.expect(r.prompt_info.interpretation).to.be.a(\"string\");",
+                  "  pm.expect(r.prompt_version).to.match(/^prompt_bocetos@/);",
+                  "  // imagen base (perspectiva marcada) + la otra referencia activa como apoyo",
+                  "  pm.expect(r.input_asset_ids).to.have.lengthOf(2);",
                   "});"
                 ]
               }
@@ -1314,12 +1318,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"cadena: ficha de referencia, brief, boceto, composición, final y su auditoría (simulados)\", () => {",
+                  "pm.test(\"cadena sin brief: prompts automáticos, boceto, composición, final y auditoría\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
-                  "  pm.expect(b.briefs).to.eql(1);",
-                  "  pm.expect(b.references).to.eql(2);  // las dos referencias activas que usa el brief",
-                  "  // 2 recetas (en dos peticiones) + brief + boceto + composición + final + auditoría",
+                  "  pm.expect(b.briefs).to.eql(0);",
+                  "  // (prompt + imagen) x 3 etapas + auditoría, todo simulado",
                   "  pm.expect(b.simulated_calls).to.eql(7);",
                   "});"
                 ]

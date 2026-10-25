@@ -68,7 +68,7 @@ class TextResult(_Model):
 class ImageRequest(_Model):
     prompt: str = Field(min_length=1)
     size: str = "1024x1024"
-    n: int = Field(default=1, ge=1, le=4)
+    n: int = Field(default=1, ge=1, le=10)  # la API de imágenes admite hasta 10 por petición
     quality: Literal["low", "medium", "high", "auto"] = "auto"
     output_format: Literal["png", "jpeg"] = "png"
     seed: int | None = None  # solo renderizador

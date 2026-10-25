@@ -372,6 +372,19 @@ class RenderInpaint(_Model):
         return [f for f in (self.mask_file, self.raw_file, self.guide_file) if f]
 
 
+class StagePrompt(_Model):
+    """Prompt automático de una generación (Paso 22: sustituye al brief). El PROMPT_ENGINEER lo
+    escribe al generar, con las entradas reales de la etapa, y explica lo que ha entendido."""
+
+    prompt: str = Field(description="Prompt para el modelo de imagen, EN INGLÉS")
+    interpretation: str = Field(
+        description="Lo que has entendido y cómo lo traduces, en español, para el usuario"
+    )
+    open_questions: list[str] = Field(
+        description="Dudas o contradicciones que el usuario debería aclarar, en español"
+    )
+
+
 class RenderRecord(_Model):
     """Trazabilidad de una imagen generada. `id` coincide con el del asset `render`."""
 
@@ -380,9 +393,11 @@ class RenderRecord(_Model):
     status: RenderStatus = RenderStatus.GENERATED
     role: Role
     deployment: str
-    brief_id: UUID
-    brief_version: int
+    brief_id: UUID | None = None  # histórico (v1): brief del que salió; None desde el Paso 22
+    brief_version: int | None = None
     prompt: str  # prompt exacto enviado al modelo
+    prompt_info: StagePrompt | None = None  # cómo se escribió el prompt (Paso 22)
+    prompt_version: str | None = None  # versión del prompt de sistema que lo escribió
     input_asset_ids: list[UUID]  # imagen base y referencias, en orden
     parent_render_id: UUID | None = None  # render de la etapa anterior del que deriva
     batch_id: UUID  # renders generados en la misma llamada
