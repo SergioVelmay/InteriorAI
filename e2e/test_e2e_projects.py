@@ -26,5 +26,6 @@ def test_project_lifecycle(ui: UI, projects: Projects) -> None:
 
     page.get_by_role("button", name="Mover a la papelera").click()
     page.get_by_role("button", name="Confirmar: mover a la papelera").click()
-    expect(page.get_by_text("Sin proyecto activo")).to_be_visible()
+    # Pasa al último proyecto actualizado, si queda alguno (B-025).
+    expect(page.get_by_text(f"Proyecto: {name}")).to_have_count(0)
     expect(page.locator(".iai-gallery .thumbnail-item", has_text=name)).to_have_count(0)

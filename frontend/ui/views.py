@@ -63,7 +63,8 @@ def header_html(
         '<div class="iai-header">'
         '<div class="iai-brand"><h1>InteriorAI</h1>'
         "<p>Estudio de interiorismo asistido por IA · supervisión humana en cada etapa</p></div>"
-        f'<div class="iai-badges">{status}{mode}{project}{spending}</div>'
+        # Orden (B-050): proyecto, backend y modo; los avisos de gasto, al final.
+        f'<div class="iai-badges">{project}{status}{mode}{spending}</div>'
         "</div>"
     )
 
@@ -97,7 +98,21 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
             f"- Coste estimado de IA: **{totals.get('cost_eur', 0):.4f} €** en "
             f"{totals.get('calls', 0)} llamadas{simulated}"
         )
+        # Desglose por rol (B-027), del más caro al más barato.
+        for group in sorted(costs.get("by_role", []), key=lambda g: -g["cost_eur"]):
+            lines.append(
+                f"  - {group['key']}: {group['cost_eur']:.4f} € · {group['calls']} llamada(s)"
+            )
     return "\n".join(lines)
+
+
+def calls_label(costs: dict[str, Any] | None) -> str:
+    """Título del desplegable con las llamadas del proyecto (B-027)."""
+    if not costs:
+        return "Llamadas de IA"
+    shown, total = len(costs.get("records", [])), costs.get("totals", {}).get("calls", 0)
+    suffix = f" (las {shown} últimas de {total})" if shown < total else f" ({total})"
+    return f"Llamadas de IA{suffix}"
 
 
 def form_values(project: ProjectMetadata) -> list[Any]:

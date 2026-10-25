@@ -26,6 +26,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- Proyectos: al abrir la app se activa el proyecto recordado o, si no hay, el último actualizado;
+  el resumen desglosa el coste por rol y lista las llamadas de IA en un desplegable; la portada
+  muestra la imagen más avanzada del proyecto; cabecera en el orden proyecto, backend y modo
+  (Paso 19: B-025, B-027, B-044, B-050).
+
 - Esfuerzo de razonamiento por rol de texto en `.env` (`PROMPT_ENGINEER_REASONING_EFFORT`,
   `REFERENCE_ANALYST_REASONING_EFFORT`; `medium` por defecto), junto al del auditor (B-053).
 - Avisos de gasto real de IA: 3 € por proyecto y 10 € en total por defecto
@@ -58,6 +63,11 @@ Primera versión completa: estudio de interiorismo asistido por IA con supervisi
 cada etapa.
 
 ### Añadido
+
+- Proyectos: al abrir la app se activa el proyecto recordado o, si no hay, el último actualizado;
+  el resumen desglosa el coste por rol y lista las llamadas de IA en un desplegable; la portada
+  muestra la imagen más avanzada del proyecto; cabecera en el orden proyecto, backend y modo
+  (Paso 19: B-025, B-027, B-044, B-050).
 
 - Esfuerzo de razonamiento por rol de texto en `.env` (`PROMPT_ENGINEER_REASONING_EFFORT`,
   `REFERENCE_ANALYST_REASONING_EFFORT`; `medium` por defecto), junto al del auditor (B-053).

@@ -68,7 +68,7 @@ CI, Chromium. Claves:
 
 | Pestaña | Contenido | Paso |
 |---------|-----------|------|
-| Proyectos | Galería con portadas, ficha editable, crear, activar, borrar (papelera) | 11 ✅ |
+| Proyectos | Galería con portadas (la imagen más avanzada, B-044), ficha editable (nombre y descripción), crear, activar (por defecto el recordado o el último actualizado, B-025), borrar (papelera); resumen con el coste por rol y desplegable de llamadas (B-027) | 11 · 19 ✅ |
 | Assets | Una sola lista de referencias (Paso 17, B-028): subir (solo imágenes), ver, nota, papelera; indexar (manual) y validar fichas | 12 · 17 ✅ |
 | Estudio | Página única: ① brief (versiones, prompts editables, aprobar/rechazar; se pliega al aprobarlo) → ② bocetos → ③ composición → ④ render final, y un visor común (seleccionar, una imagen por etapa; auditar) | 13a · 17 ✅ |
 | Estudio: retoques | «Retocar zona» en el visor (solo composiciones, Paso 17): pincel, instrucción y coste; bajo el visor, la máscara del retoque (y la salida en bruto y la guía de los retoques de la v1) | 13b · 17 ✅ |

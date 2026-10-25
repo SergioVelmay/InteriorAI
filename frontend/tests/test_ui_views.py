@@ -17,7 +17,7 @@ from shared.models import (
 from shared.roles import Role
 from ui.api_client import Health
 from ui.covers import asset_path, cover_asset, cover_image
-from ui.views import form_values, header_html, parse_form, project_summary_md
+from ui.views import calls_label, form_values, header_html, parse_form, project_summary_md
 
 SHA = "0" * 64
 
@@ -58,6 +58,8 @@ def test_header_shows_mode_and_active_project() -> None:
     )
     assert "Azure · con coste" in azure and "iai-warn" in azure
     assert "Salón &lt;cocina&gt;" in azure  # escapado
+    # Orden (B-050): proyecto → backend → modo.
+    assert azure.index("Proyecto:") < azure.index("Backend conectado") < azure.index("Azure")
     assert "Backend no disponible" in header_html(None, None)
 
 
@@ -85,13 +87,22 @@ def test_summary_counts_and_costs() -> None:
         assets=[asset(AssetKind.REFERENCIA), asset(AssetKind.REFERENCIA), final],
         renders=[render(final.id, RenderStage.FINAL, RenderStatus.SELECTED)],
     )
-    md = project_summary_md(
-        p, {"totals": {"cost_eur": 0.27, "calls": 9}, "includes_simulated": True}
-    )
+    costs = {
+        "totals": {"cost_eur": 0.27, "calls": 9}, "includes_simulated": True,
+        "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.02, "calls": 4},
+                    {"key": "PHOTOREALISTIC_RENDERER", "cost_eur": 0.25, "calls": 5}],
+        "records": [{}] * 9,
+    }  # fmt: skip
+    md = project_summary_md(p, costs)
     assert "Imágenes de referencia: **2**" in md
     assert "renders finales: **1**" in md
     assert "Render final elegido: **sí**" in md
     assert "**0.2700 €** en 9 llamadas (incluye simulaciones)" in md
+    # Desglose por rol, del más caro al más barato (B-027).
+    assert md.index("PHOTOREALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT: 0.0200 €")
+    assert calls_label(costs) == "Llamadas de IA (9)"
+    assert calls_label(costs | {"records": [{}] * 3}) == "Llamadas de IA (las 3 últimas de 9)"
+    assert calls_label(None) == "Llamadas de IA"
 
 
 def test_form_roundtrip() -> None:
@@ -111,29 +122,34 @@ def test_form_empty_description() -> None:
 # --- Portadas -----------------------------------------------------------------------------------
 
 
-def test_cover_priority() -> None:
-    plan = asset(AssetKind.REFERENCIA, legacy_kind="plano")
-    capture = asset(AssetKind.REFERENCIA, legacy_kind="captura_sketchup")
-    reference = asset(AssetKind.REFERENCIA)  # de la v2: después de las imágenes de la v1
-    draft, final, later = (
-        asset(AssetKind.RENDER),
-        asset(AssetKind.RENDER),
-        asset(AssetKind.RENDER),
-    )
-    renders = [
-        render(draft.id, RenderStage.DRAFT, RenderStatus.GENERATED, minutes=1),
-        render(final.id, RenderStage.FINAL, RenderStatus.SELECTED, minutes=0),
-        render(later.id, RenderStage.FINAL, RenderStatus.GENERATED, minutes=5),
-    ]
-    assets = [plan, capture, draft, final, later]
-    assert cover_asset(project(assets=assets, renders=renders)) == final
-    assert cover_asset(project(assets=assets, renders=renders[::2])) == later  # el más reciente
-    assert cover_asset(project(assets=[reference, plan, capture])) == capture
-    assert cover_asset(project(assets=[reference, plan])) == plan
-    assert cover_asset(project(assets=[reference])) == reference
-    pdf = asset(AssetKind.REFERENCIA, "application/pdf", legacy_kind="plano")
-    assert cover_asset(project(assets=[pdf, reference])) == reference
-    assert cover_asset(project()) is None
+def test_cover_shows_the_most_advanced_image() -> None:
+    """B-044: final seleccionado → último final → composición seleccionada → última composición
+    → boceto seleccionado → primer boceto → primera referencia → relleno."""
+    first_ref, second_ref = asset(AssetKind.REFERENCIA), asset(AssetKind.REFERENCIA)
+    ids = {name: asset(AssetKind.RENDER) for name in ("d1", "d2", "c1", "c2", "f1", "f2")}
+    stage = {"d": RenderStage.DRAFT, "c": RenderStage.COMPOSITION, "f": RenderStage.FINAL}
+
+    def cover(selected: set[str], present: tuple[str, ...]):
+        renders = [
+            render(ids[n].id, stage[n[0]],
+                   RenderStatus.SELECTED if n in selected else RenderStatus.GENERATED,
+                   minutes=int(n[1]))
+            for n in present
+        ]  # fmt: skip
+        assets = [first_ref, second_ref, *(ids[n] for n in present)]
+        return cover_asset(project(assets=assets, renders=renders))
+
+    every = ("d1", "d2", "c1", "c2", "f1", "f2")
+    assert cover({"f1"}, every) == ids["f1"]
+    assert cover(set(), every) == ids["f2"]  # último render final
+    assert cover({"c1"}, ("d1", "d2", "c1", "c2")) == ids["c1"]
+    assert cover(set(), ("d1", "d2", "c1", "c2")) == ids["c2"]  # última composición
+    assert cover({"d2"}, ("d1", "d2")) == ids["d2"]
+    assert cover(set(), ("d1", "d2")) == ids["d1"]  # primer boceto
+    assert cover(set(), ()) == first_ref
+    pdf = asset(AssetKind.REFERENCIA, "application/pdf")
+    assert cover_asset(project(assets=[pdf, second_ref])) == second_ref
+    assert cover_asset(project()) is None  # sin imágenes: relleno
 
 
 def test_cover_image_path_or_placeholder(tmp_path: Path) -> None:

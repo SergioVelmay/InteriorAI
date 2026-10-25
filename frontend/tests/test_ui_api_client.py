@@ -73,7 +73,7 @@ async def test_costs_and_health_and_catalog() -> None:
                     "data_dir_writable": True,
                 },
             )
-        assert request.url.params["limit"] == "0"
+        assert request.url.params["limit"] == "1000"  # todas sus llamadas (B-027)
         return httpx.Response(200, json={"totals": {"cost_eur": 0.5}})
 
     client, _ = client_for(handler)

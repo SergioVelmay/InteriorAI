@@ -1,7 +1,8 @@
 """Portadas de los proyectos, leídas directamente del volumen compartido (solo lectura).
 
-Prioridad: render final seleccionado → último render →
-captura de SketchUp → plano (imágenes de la v1) → referencia más antigua → imagen de relleno.
+Lo más avanzado que exista (B-044): render final seleccionado → último render final →
+composición seleccionada → última composición → boceto seleccionado → primer boceto → primera
+referencia → imagen de relleno (proyecto sin imágenes).
 """
 
 from __future__ import annotations
@@ -15,33 +16,41 @@ from shared.models import (
     Asset,
     AssetKind,
     ProjectMetadata,
+    RenderRecord,
     RenderStage,
     RenderStatus,
 )
 
 IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 PLACEHOLDER_SIZE = (960, 640)
-_LEGACY_ORDER = {"captura_sketchup": 0, "plano": 1}  # tipo de la v1 (B-028)
 
 
 def asset_path(data_dir: Path, project_id: object, asset: Asset) -> Path:
     return data_dir / str(project_id) / asset.kind.folder / asset.stored_name
 
 
+def _candidates(project: ProjectMetadata) -> list[RenderRecord]:
+    """Renders por preferencia: por etapa (la más avanzada primero), el seleccionado y luego
+    el último; en los bocetos, el primero (el de la vista de partida del lote inicial)."""
+    ordered: list[RenderRecord] = []
+    for stage in (RenderStage.FINAL, RenderStage.COMPOSITION, RenderStage.DRAFT):
+        renders = sorted(
+            (r for r in project.renders if r.stage is stage), key=lambda r: r.created_at
+        )
+        ordered += [r for r in renders if r.status is RenderStatus.SELECTED]
+        ordered += renders if stage is RenderStage.DRAFT else renders[::-1]
+    return ordered
+
+
 def cover_asset(project: ProjectMetadata) -> Asset | None:
     assets = {a.id: a for a in project.assets}
-    renders = sorted(project.renders, key=lambda r: r.created_at, reverse=True)
-    finals = [
-        r for r in renders if r.stage is RenderStage.FINAL and r.status is RenderStatus.SELECTED
-    ]
-    for render in [*finals, *renders]:
+    for render in _candidates(project):
         if render.id in assets:
             return assets[render.id]
-    uploaded = sorted(
-        (a for a in project.assets if a.kind is AssetKind.REFERENCIA),
-        key=lambda a: (_LEGACY_ORDER.get(a.legacy_kind or "", 2), a.created_at),
+    references = sorted(
+        (a for a in project.assets if a.kind is AssetKind.REFERENCIA), key=lambda a: a.created_at
     )
-    return next((a for a in uploaded if a.mime_type in IMAGE_TYPES), None)
+    return next((a for a in references if a.mime_type in IMAGE_TYPES), None)
 
 
 def placeholder(name: str) -> Image.Image:

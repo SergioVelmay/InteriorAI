@@ -143,6 +143,20 @@ def records_frame(records: list[dict[str, Any]], with_project: bool = True) -> p
     return frame if with_project else frame.drop(columns="Proyecto")
 
 
+def project_calls_md(records: list[dict[str, Any]]) -> str:
+    """Llamadas del proyecto en su resumen (B-027): tabla breve que cabe en media pantalla."""
+    if not records:
+        return "_Sin llamadas de IA._"
+    rows = []
+    for r in records:
+        stamp = r["timestamp"]  # ISO: 2026-10-24T22:48:19Z → 24/10/26 22:48
+        when = f"{stamp[8:10]}/{stamp[5:7]}/{stamp[2:4]} {stamp[11:16]}"
+        status = ("✓" if r["status"] == "ok" else "error") + (" (sim.)" if r["simulated"] else "")
+        cost = "—" if r["cost_eur"] is None else f"{r['cost_eur']:.4f}"
+        rows.append(f"| {when} | {r['role']} | {status} | {cost} |")
+    return "\n".join(["| Fecha (UTC) | Rol | Estado | Coste (€) |", "|---|---|---|---:|", *rows])
+
+
 def records_csv(records: list[dict[str, Any]]) -> str:
     """CSV separado por `;` (lo abre bien una hoja de cálculo en español)."""
     buffer = io.StringIO()
