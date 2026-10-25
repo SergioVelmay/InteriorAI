@@ -68,6 +68,10 @@ CSS = f"""
     border-radius: 10px; overflow: hidden;
 }}
 .iai-gallery .thumbnail-item:hover {{ border-color: #52525b !important; }}
+/* Miniaturas pequeñas: lo enviado al modelo, en «Ver más» (B-047). */
+.iai-gallery.iai-small .grid-container {{
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; gap: 0.5rem !important;
+}}
 .iai-gallery .thumbnail-item.selected {{ border-color: {TEXT} !important; }}
 .iai-gallery .caption-label {{
     opacity: 1 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;

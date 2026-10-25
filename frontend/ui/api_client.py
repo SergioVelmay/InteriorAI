@@ -16,7 +16,6 @@ from pydantic import BaseModel
 from shared.models import (
     Asset,
     AssetKind,
-    DesignBrief,
     ProjectCreate,
     ProjectMetadata,
     ProjectSummary,
@@ -218,47 +217,10 @@ class BackendClient:
         )  # fmt: skip
         return Asset.model_validate(response.json())
 
-    # --- Briefs (Paso 13a) ------------------------------------------------------------------
+    # --- Estudio (Paso 22: sin brief; el prompt se escribe en cada generación) -------------
 
     def _project(self, project_id: UUID | str) -> str:
         return f"/api/v1/projects/{project_id}"
-
-    async def list_briefs(self, project_id: UUID | str) -> list[DesignBrief]:
-        response = await self._request("GET", f"{self._project(project_id)}/briefs")
-        return [DesignBrief.model_validate(item) for item in response.json()]
-
-    async def create_brief(self, project_id: UUID | str, instructions: str = "") -> dict[str, Any]:
-        """PROMPT_ENGINEER (coste en modo azure). Devuelve `{brief, cost_eur, request_id}`."""
-        response = await self._request(
-            "POST", f"{self._project(project_id)}/briefs",
-            json={"instructions": instructions}, timeout=AI_TIMEOUT_S,
-        )  # fmt: skip
-        return response.json()
-
-    async def update_brief(
-        self, project_id: UUID | str, brief_id: UUID | str, changes: dict[str, Any]
-    ) -> DesignBrief:
-        response = await self._request(
-            "PATCH", f"{self._project(project_id)}/briefs/{brief_id}", json=changes
-        )
-        return DesignBrief.model_validate(response.json())
-
-    async def approve_brief(self, project_id: UUID | str, brief_id: UUID | str) -> DesignBrief:
-        response = await self._request(
-            "POST", f"{self._project(project_id)}/briefs/{brief_id}/approve"
-        )
-        return DesignBrief.model_validate(response.json())
-
-    async def reject_brief(
-        self, project_id: UUID | str, brief_id: UUID | str, feedback: str, regenerate: bool = True
-    ) -> dict[str, Any]:
-        response = await self._request(
-            "POST", f"{self._project(project_id)}/briefs/{brief_id}/reject",
-            json={"feedback": feedback, "regenerate": regenerate}, timeout=AI_TIMEOUT_S,
-        )  # fmt: skip
-        return response.json()
-
-    # --- Renders (Paso 13a) -----------------------------------------------------------------
 
     async def list_renders(
         self, project_id: UUID | str, stage: RenderStage | None = None

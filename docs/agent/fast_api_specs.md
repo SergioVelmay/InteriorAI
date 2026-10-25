@@ -83,7 +83,7 @@ data/
 | PATCH | `/projects/{id}/briefs/{brief_id}` | `BriefContentUpdate` (solo `propuesto`; si no, 409) | 8 ✅ |
 | POST | `/projects/{id}/briefs/{brief_id}/approve` | `DesignBrief` (el aprobado anterior → `reemplazado`) | 8 ✅ |
 | POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
-| POST | `/projects/{id}/renders/drafts` | `{n=2, quality=low, size?, brief_id?, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}` | 9 ✅ |
+| POST | `/projects/{id}/renders/drafts` | `{n=4 (1-8), quality=medium, size=1536x1024, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}`: referencias activas y prompt automático (`prompt_info`), sin brief | 9 · 22 ✅ |
 | POST | `/projects/{id}/renders/compositions` | `{draft_id?, n=1, quality=medium, ...}` (boceto seleccionado) → 201 | 9 ✅ |
 | POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |

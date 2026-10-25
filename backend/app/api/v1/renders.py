@@ -39,8 +39,11 @@ class _RenderRequest(BaseModel):
 
 
 class DraftRequest(_RenderRequest):
-    n: int = Field(default=2, ge=1, le=4)
-    quality: Literal["low", "medium", "high", "auto"] = "low"
+    """Bocetos (B-036, B-040, B-043): de 1 a 8 variantes (4 por defecto), calidad media y
+    formato 1536x1024 (3:2) por defecto. El prompt lo escribe el PROMPT_ENGINEER."""
+
+    n: int = Field(default=4, ge=1, le=8)
+    quality: Literal["low", "medium", "high", "auto"] = "medium"
 
 
 class CompositionRequest(_RenderRequest):
@@ -97,7 +100,7 @@ async def create_drafts(
     foundry: FoundryDep,
     body: Annotated[DraftRequest, Body()] = DraftRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 1 (FAST_DRAFT): bocetos editando la captura de SketchUp con el brief aprobado."""
+    """Etapa 1 (FAST_DRAFT): bocetos a partir de las referencias activas, con prompt automático."""
     with telemetry_scope(project_id):
         renders = await generate_drafts(
             repo, foundry, project_id, _options(body, quality=body.quality)

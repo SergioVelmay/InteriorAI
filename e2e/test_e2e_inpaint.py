@@ -8,18 +8,16 @@ from PIL import Image
 from playwright.sync_api import expect
 
 
-def prepared(api: httpx.Client, projects: Projects) -> tuple[dict, dict, dict]:
-    """Proyecto con composición y render final seleccionados (por API, en mock)."""
+def prepared(api: httpx.Client, projects: Projects) -> tuple[dict, dict]:
+    """Proyecto con boceto y composición seleccionados (por API, en mock)."""
     project = projects.create("retoque")
     url = project["url"]
-    brief = api.post(f"{url}/briefs").json()["brief"]
-    api.post(f"{url}/briefs/{brief['id']}/approve")
-    composition = api.post(f"{url}/renders/compositions", json={}).json()["renders"][0]
+    draft = api.post(f"{url}/renders/drafts", json={"n": 1}).json()["renders"][0]
+    api.post(f"{url}/renders/{draft['id']}/select")
+    composition = api.post(f"{url}/renders/compositions", json={"draft_id": draft["id"]})
+    composition = composition.json()["renders"][0]
     api.post(f"{url}/renders/{composition['id']}/select")
-    final = api.post(f"{url}/renders/final", json={"composition_id": composition["id"]})
-    final = final.json()["renders"][0]
-    api.post(f"{url}/renders/{final['id']}/select")
-    return project, composition, final
+    return project, composition
 
 
 def image(api: httpx.Client, url: str, render_id: str) -> Image.Image:
@@ -29,18 +27,12 @@ def image(api: httpx.Client, url: str, render_id: str) -> Image.Image:
 
 def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> None:
     page = ui.page
-    project, composition, _ = prepared(api, projects)
+    project, composition = prepared(api, projects)
     url = project["url"]
     ui.activate(project["name"])
     ui.tab("Estudio")
-    expect(page.get_by_text(f"Estudio de «{project['name']}»")).to_be_visible()
-
-    # El visor abre el render final seleccionado: no se puede retocar.
-    page.get_by_text("Retocar zona (composición)").click()
-    expect(page.get_by_text("Elige una composición en el visor.")).to_be_visible()
-
-    page.locator("#iai-compositions .thumbnail-item").first.click()
-    expect(page.get_by_text(f"Composición {composition['id'][:8]}").first).to_be_visible()
+    page.get_by_role("tab", name="Composición").click()
+    page.get_by_text("Retocar zona de la composición").click()
     expect(page.locator("#iai-inpaint-editor canvas").first).to_be_visible()
     page.wait_for_timeout(2500)  # editor nuevo con la composición (gr.render)
     page.locator("#iai-inpaint").click()
@@ -58,4 +50,3 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     assert 0 < retouch["inpaint"]["coverage"] < 0.2
     original, edited = image(api, url, composition["id"]), image(api, url, retouch["id"])
     assert edited.size == original.size and edited.tobytes() != original.tobytes()
-    expect(page.locator("#iai-inpaint-files .thumbnail-item")).to_have_count(1)  # la máscara

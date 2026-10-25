@@ -50,8 +50,9 @@ def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
     return current
 
 
-def _context(project: ProjectMetadata, brief: DesignBrief, render: RenderRecord) -> str:
-    content = brief.content
+def _context(project: ProjectMetadata, brief: DesignBrief | None, render: RenderRecord) -> str:
+    """Lo que debe cumplir la imagen: lo marcado en las fichas y, en las imágenes de la v1, su
+    brief (desde el Paso 22 no hay brief: lo sustituye el prompt de cada generación)."""
     validated = [  # lo marcado en las referencias activas (B-030)
         {
             "referencia": a.original_name,
@@ -62,18 +63,22 @@ def _context(project: ProjectMetadata, brief: DesignBrief, render: RenderRecord)
         }
         for a in active_references(project)
     ]
-    sections = [
-        f"## Imagen auditada: {render.stage.label} (brief v{brief.version})",
-        "## Restricciones espaciales del brief",
-        "\n".join(f"- {c}" for c in content.spatial_constraints) or "(ninguna)",
-        "## Mobiliario que debe respetarse con exactitud",
-        json.dumps(
-            [f.model_dump(mode="json") for f in content.furniture if f.keep_exact],
-            ensure_ascii=False,
-            indent=2,
-        ),
-        "## Materiales y paleta pedidos",
-        "\n".join(f"- {m}" for m in [*content.materials, *content.palette]),
+    sections = [f"## Imagen auditada: {render.stage.label}"]
+    if brief is not None:
+        content = brief.content
+        sections += [
+            f"## Brief v{brief.version}: restricciones espaciales",
+            "\n".join(f"- {c}" for c in content.spatial_constraints) or "(ninguna)",
+            "## Mobiliario que debe respetarse con exactitud",
+            json.dumps(
+                [f.model_dump(mode="json") for f in content.furniture if f.keep_exact],
+                ensure_ascii=False,
+                indent=2,
+            ),
+            "## Materiales y paleta pedidos",
+            "\n".join(f"- {m}" for m in [*content.materials, *content.palette]),
+        ]
+    sections += [
         "## Lo marcado en las fichas del usuario",
         json.dumps(validated, ensure_ascii=False, indent=2) if validated else "(ninguna)",
         "## Prompt con el que se generó la imagen auditada",
@@ -95,7 +100,7 @@ async def audit_render(
         raise RenderNotFoundError(str(render_id))
     if render.stage not in AUDITABLE:
         raise PipelineInputError("Solo se auditan composiciones y renders finales")
-    brief = find_brief(project, render.brief_id)
+    brief = find_brief(project, render.brief_id) if render.brief_id else None
     reference_id = reference_asset_id(project, render)
     prompt = load_prompt("geometric_auditor")
 

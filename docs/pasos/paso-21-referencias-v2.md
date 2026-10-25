@@ -60,7 +60,7 @@ Fue un fallo de la prueba, no del modelo.
 
 **Recomendación:** mantener la asignación actual (fichas con sol, prompts con luna). Una receta
 se hace una vez por imagen y su precisión alimenta todo lo demás. El brief se genera en cada
-iteración y luna lo hace bien por una vigésima parte. **Decisión del usuario:** pendiente.
+iteración y luna lo hace bien por una vigésima parte. **Decisión del usuario:** recetas con sol y prompts con luna (como en el `.env`).
 
 ## 5. Validación
 
@@ -78,8 +78,10 @@ Coste real del paso hasta ahora: ≈ 0,16 € (recetas con sol 0,119 €, con lu
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-21`, PR #29. Tras el merge: reconstruir Docker y **reanalizar** las
-referencias existentes con la asignación que decida el usuario.
+✅ Cerrado — rama `feat/paso-21`, PR #29 revisada y mergeada por el usuario (asignación
+aprobada: recetas con sol y prompts con luna). Docker reconstruido y las 7 referencias reales
+reanalizadas con sol el 2026-10-25 (0,235 €): las dos fotos de la cocina sin notas quedaron
+descartadas, como se acordó.
 
 ## 7. Pendiente / futuro
 
