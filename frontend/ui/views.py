@@ -7,13 +7,13 @@ from collections import Counter
 from typing import Any, Literal
 
 from shared.models import (
+    RECIPE_GROUPS,
     Asset,
     AssetKind,
-    DimensionsCm,
     ProjectMetadata,
     ProjectSummary,
     ProjectUpdate,
-    ReferenceAnalysis,
+    RecipeElement,
     RenderStage,
     RenderStatus,
 )
@@ -130,24 +130,24 @@ def parse_form(values: list[Any]) -> ProjectUpdate:
     return ProjectUpdate(name=data["name"], description=data["description"] or "")
 
 
-# --- Assets (Paso 12) ---------------------------------------------------------------------
+# --- Referencias: receta y ficha (Paso 21, B-029 y B-030) --------------------------------
 
-ANALYSIS_LABELS = {None: "Sin indexar", "proposed": "Propuesta (IA)", "validated": "Validada ✓"}
-CATEGORY_CHOICES = [
-    ("Sofá", "sofa"), ("Mesa", "mesa"), ("Silla", "silla"), ("Cama", "cama"),
-    ("Almacenaje", "almacenaje"), ("Lámpara", "lampara"), ("Alfombra", "alfombra"),
-    ("Textil", "textil"), ("Decoración", "decoracion"), ("Revestimiento", "revestimiento"),
-    ("Ambiente (inspiración)", "ambiente"), ("Otro", "otro"),
-]  # fmt: skip
-DIMENSION_SOURCE_CHOICES = [
-    ("Nota del usuario", "nota_usuario"),
-    ("Leída en la imagen", "imagen"),
-    ("Desconocido", "desconocido"),
-]
+SOURCE_LABELS = {
+    "nota_usuario": "de las notas",
+    "cota_imagen": "cota en la imagen",
+    "estimada": "estimada",
+}
+# Coste orientativo del análisis de una imagen (Paso 21: con sol, 0,017-0,044 €).
+COST_ANALYSIS = 0.04
 
 
-def analysis_status(asset: Asset) -> str:
-    return ANALYSIS_LABELS[asset.analysis.status if asset.analysis else None]
+def sheet_status(asset: Asset) -> str:
+    sheet = asset.sheet
+    if sheet is None:
+        return "Sin analizar"
+    if not sheet.active:
+        return "Descartada"
+    return f"Activa · {len(sheet.selected)} marcado(s)"
 
 
 def asset_caption(asset: Asset) -> str:
@@ -155,7 +155,7 @@ def asset_caption(asset: Asset) -> str:
     if asset.width_px and asset.height_px:
         parts.append(f"{asset.width_px}x{asset.height_px}")
     if asset.kind is AssetKind.REFERENCIA:
-        parts.append(analysis_status(asset))
+        parts.append(sheet_status(asset))
     return " · ".join(parts)
 
 
@@ -166,67 +166,48 @@ def asset_info_md(asset: Asset) -> str:
         else (f"{asset.size_bytes / 1024:.0f} KB")
     )
     dims = f" · {asset.width_px}x{asset.height_px} px" if asset.width_px else ""
-    status = f" · ficha: **{analysis_status(asset)}**" if asset.kind is AssetKind.REFERENCIA else ""
-    return (
-        f"**{html.escape(asset.original_name)}**  \n"
-        f"{asset.kind.label} · {size}{dims} · "
-        f"subido el {asset.created_at:%d/%m/%Y %H:%M} UTC{status}"
-    )
+    lines = [
+        f"**{html.escape(asset.original_name)}**  ",
+        f"{size}{dims} · subida el {asset.created_at:%d/%m/%Y %H:%M} UTC · "
+        f"ficha: **{sheet_status(asset)}**",
+    ]
+    if asset.sheet is not None:
+        lines.append(f"\n{html.escape(asset.sheet.recipe.summary)}")
+    return "\n".join(lines)
 
 
-def _join(values: list[str]) -> str:
-    return ", ".join(values)
+def _number(value: float | None) -> str:
+    return "?" if value is None else f"{value:g}".replace(".", ",")
 
 
-def _split(text: str | None) -> list[str]:
-    seen: list[str] = []
-    for part in (text or "").split(","):
-        part = part.strip()
-        if part and part not in seen:
-            seen.append(part)
-    return seen
+def element_label(element: RecipeElement) -> str:
+    """Texto de una casilla: elemento, detalle y medidas con su origen (las estimadas, marcadas)."""
+    text = element.label + (f" — {element.detail}" if element.detail else "")
+    if element.dimensions_source != "ninguna":
+        d = element.dimensions_cm
+        values = [d.width_cm, d.depth_cm, d.height_cm]
+        if any(v is not None for v in values):
+            measures = " x ".join(_number(v) for v in values)
+            text += f" ({measures} cm, {SOURCE_LABELS[element.dimensions_source]})"
+    return text
 
 
-ANALYSIS_FIELDS = (
-    "category", "item_name", "brand", "product_name", "style_tags", "colors", "materials",
-    "width_cm", "depth_cm", "height_cm", "dimensions_source", "summary", "design_relevance",
-)  # fmt: skip
+def sheet_groups(asset: Asset | None) -> dict[str, tuple[list[tuple[str, str]], list[str]]]:
+    """Por grupo de la receta: (casillas [(texto, id)], ids marcados). Vacío si no hay ficha."""
+    groups: dict[str, tuple[list[tuple[str, str]], list[str]]] = {
+        group: ([], []) for group in RECIPE_GROUPS
+    }
+    if asset is None or asset.sheet is None:
+        return groups
+    selected = set(asset.sheet.selected)
+    for element_id, element in asset.sheet.recipe.elements():
+        choices, marked = groups[element_id.split(":")[0]]
+        choices.append((element_label(element), element_id))
+        if element_id in selected:
+            marked.append(element_id)
+    return groups
 
 
-def analysis_form_values(asset: Asset) -> list[Any]:
-    """Ficha → valores del formulario (en el orden de `ANALYSIS_FIELDS`); vacío si no hay."""
-    if asset.analysis is None:
-        return ["otro", "", "", "", "", "", "", None, None, None, "desconocido", "", ""]
-    r = asset.analysis.result
-    d = r.dimensions_cm
-    return [
-        r.category.value, r.item_name, r.brand or "", r.product_name or "", _join(r.style_tags),
-        _join(r.colors), _join(r.materials), d.width_cm, d.depth_cm, d.height_cm,
-        r.dimensions_source, r.summary, r.design_relevance,
-    ]  # fmt: skip
-
-
-def parse_analysis_form(values: list[Any]) -> ReferenceAnalysis:
-    """Formulario → `ReferenceAnalysis`. Lanza `ValueError` con mensaje en español."""
-    data = dict(zip(ANALYSIS_FIELDS, values, strict=True))
-    if not (data["item_name"] or "").strip():
-        raise ValueError("La ficha necesita un nombre de objeto")
-    dims = {k: data.pop(k) for k in ("width_cm", "depth_cm", "height_cm")}
-    if any(v is not None and v < 0 for v in dims.values()):
-        raise ValueError("Las medidas no pueden ser negativas")
-    known = any(v is not None for v in dims.values())
-    if known and data["dimensions_source"] == "desconocido":
-        raise ValueError("Indica de dónde salen las medidas (nota del usuario o imagen)")
-    return ReferenceAnalysis(
-        category=data["category"],
-        item_name=data["item_name"],
-        brand=(data["brand"] or "").strip() or None,
-        product_name=(data["product_name"] or "").strip() or None,
-        style_tags=_split(data["style_tags"]),
-        colors=_split(data["colors"]),
-        materials=_split(data["materials"]),
-        dimensions_cm=DimensionsCm(**dims),
-        dimensions_source=data["dimensions_source"] if known else "desconocido",
-        summary=data["summary"] or "",
-        design_relevance=data["design_relevance"] or "",
-    )
+def selected_ids(values: list[list[str] | None]) -> list[str]:
+    """Lo marcado en las casillas de todos los grupos (en el orden de `RECIPE_GROUPS`)."""
+    return [element_id for group in values for element_id in (group or [])]

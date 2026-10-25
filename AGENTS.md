@@ -35,7 +35,9 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    cuando el usuario active el modo `azure`, anunciando antes cada llamada y su coste estimado.
 6. **Human-in-the-Loop**: las transiciones de estado (briefs, iteraciones) solo ocurren por
    acción del usuario, a través de `app/hitl/` (`ensure_transition`). Nunca se inventan medidas:
-   lo que no conste va a `null` y, si hay dudas, a `open_questions`.
+   lo que no conste va a `null` y, si hay dudas, a `open_questions`. Una medida **estimada**
+   solo se admite marcada como tal (`dimensions_source: "estimada"`, recetas de las
+   referencias) y nunca se trata como exacta.
 7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación
    (el borrado de la app es suave: mueve a `data/.papelera/`).
 8. **Mínimo privilegio en contenedores**: usuario sin privilegios (uid 1000), puertos publicados

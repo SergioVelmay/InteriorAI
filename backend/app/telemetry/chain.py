@@ -89,7 +89,9 @@ def _reference_request_ids(
     """Peticiones que indexaron las fichas usadas por los briefs (B-022). Si una petición indexó
     a la vez otras referencias, cuentan también (fracciones de céntimo)."""
     wanted = {i for brief in briefs for i in brief.reference_asset_ids}
-    analyses = [a.analysis for a in project.assets if a.id in wanted and a.analysis]
+    # La receta (v2) o, en referencias aún sin receta, la ficha de la v1.
+    analyses = [a.sheet or a.analysis for a in project.assets if a.id in wanted]
+    analyses = [x for x in analyses if x is not None]
     ids: set[str] = set()
     for analysis in analyses:
         if analysis.request_id:

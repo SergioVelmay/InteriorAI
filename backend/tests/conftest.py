@@ -10,6 +10,7 @@ from PIL import Image
 
 from app.main import create_app
 from shared import Settings
+from shared.models import RECIPE_GROUPS, ReferenceSheet
 
 _PREFIXES = (
     "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_", "DATA_DIR", "LOG_", "APP_",
@@ -59,6 +60,28 @@ def mark_legacy(api: TestClient, project_id: str, kinds: dict[str, str]) -> None
     data = json.loads(path.read_text(encoding="utf-8"))
     for asset in data["assets"]:
         asset["legacy_kind"] = kinds.get(asset["id"], asset.get("legacy_kind"))
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def mark_active(api: TestClient, project_id: str, groups: dict[str, list[str]]) -> None:
+    """Fichas guardadas sin llamar a la IA (B-030): por id de asset, los grupos marcados (un
+    elemento por grupo). Lista vacía = referencia descartada."""
+    path = api.app.state.settings.storage.data_dir / project_id / "metadatos.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    element = {
+        "label": "x",
+        "detail": "",
+        "dimensions_source": "ninguna",
+        "selected": False,
+        "dimensions_cm": {"width_cm": None, "depth_cm": None, "height_cm": None},
+    }
+    recipe = {"summary": "x", **{group: [element] for group in RECIPE_GROUPS}}
+    for asset in data["assets"]:
+        if asset["id"] in groups:
+            sheet = ReferenceSheet.model_validate(
+                {"recipe": recipe, "selected": [f"{g}:0" for g in groups[asset["id"]]]}
+            )
+            asset["sheet"] = sheet.model_dump(mode="json")
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
