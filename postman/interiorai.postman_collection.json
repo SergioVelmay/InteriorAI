@@ -1119,7 +1119,7 @@
                   "  pm.expect(b.currency).to.eql(\"EUR\");",
                   "  pm.expect(b.estimated).to.be.true;",
                   "  pm.expect(b.totals).to.have.property(\"cost_eur\");",
-                  "  pm.expect(b).to.have.keys(\"project_id\", \"currency\", \"estimated\", \"includes_simulated\", \"simulated_excluded\", \"project_name\", \"totals\", \"by_role\", \"by_day\", \"by_deployment\", \"by_project\", \"records\");",
+                  "  pm.expect(b).to.have.keys(\"project_id\", \"currency\", \"estimated\", \"includes_simulated\", \"simulated_excluded\", \"project_name\", \"totals\", \"by_role\", \"by_day\", \"by_deployment\", \"by_role_deployment\", \"by_project\", \"records\");",
                   "});",
                   "pm.test(\"X-Request-ID en la respuesta\", () => {",
                   "  pm.expect(pm.response.headers.get(\"X-Request-ID\")).to.match(/^[A-Za-z0-9._-]{1,64}$/);",
