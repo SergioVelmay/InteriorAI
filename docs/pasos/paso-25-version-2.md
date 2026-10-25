@@ -32,10 +32,11 @@ las dependencias pendientes, CHANGELOG, etiqueta y Release.
 | `uv run ruff check .` / `ruff format --check` / pre-commit | ✅ |
 | Postman y Playwright en local (mock) | ✅ 53 peticiones y 96 comprobaciones; 5/5 en Edge; `/health` con la versión 2.0.0 |
 | Llamadas reales | No hacen falta |
+| CI de la PR #33 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-25`. Tras el merge: etiqueta `v2.0.0` y GitHub Release (con el
+⏳ En revisión — rama `feat/paso-25`, PR #33. Tras el merge: etiqueta `v2.0.0` y GitHub Release (con el
 OK del usuario justo antes) y Docker reconstruido.
 
 ## 6. Pendiente / futuro
