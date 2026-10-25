@@ -39,6 +39,9 @@ Versión 2.0.0 (publicada el 2026-10-25): [plan de acción](plan-version-2.md), 
 entradas B-023 a B-055
 del [backlog](BACKLOG.md).
 
+Versión 3.0.0 (propuesta): [plan de acción](plan-version-3.md), Pasos 26 a 30, entradas
+B-057 a B-081 (observaciones O-1 a O-25 del usuario) y B-023 del [backlog](BACKLOG.md).
+
 Mantenimiento posterior a la 1.0.0:
 
 | Fecha | Documento | Rama | Estado |
