@@ -21,7 +21,6 @@ from shared.models import (
     ProjectMetadata,
     ProjectSummary,
     ProjectUpdate,
-    ReferenceAnalysis,
     RenderRecord,
     RenderStage,
 )
@@ -199,24 +198,24 @@ class BackendClient:
     async def delete_asset(self, project_id: UUID | str, asset_id: UUID | str) -> None:
         await self._request("DELETE", f"/api/v1/projects/{project_id}/assets/{asset_id}")
 
-    async def index_references(self, project_id: UUID | str, force: bool = False) -> dict[str, Any]:
-        """REFERENCE_ANALYST: llama a la IA (coste en modo azure)."""
+    async def analyze_reference(
+        self, project_id: UUID | str, asset_id: UUID | str, notes: str | None = None
+    ) -> dict[str, Any]:
+        """Receta de una referencia (coste en modo azure). Devuelve `{asset, cost_eur, …}`."""
         response = await self._request(
-            "POST",
-            f"/api/v1/projects/{project_id}/references/index",
-            json={"force": force},
-            timeout=AI_TIMEOUT_S,
-        )
+            "POST", f"/api/v1/projects/{project_id}/assets/{asset_id}/analyze",
+            json={} if notes is None else {"notes": notes}, timeout=AI_TIMEOUT_S,
+        )  # fmt: skip
         return response.json()
 
-    async def validate_analysis(
-        self, project_id: UUID | str, asset_id: UUID | str, analysis: ReferenceAnalysis
+    async def save_sheet(
+        self, project_id: UUID | str, asset_id: UUID | str, selected: list[str]
     ) -> Asset:
+        """«Guardar ficha»: los elementos marcados (vacío = referencia descartada)."""
         response = await self._request(
-            "PUT",
-            f"/api/v1/projects/{project_id}/assets/{asset_id}/analysis",
-            json=analysis.model_dump(mode="json"),
-        )
+            "PUT", f"/api/v1/projects/{project_id}/assets/{asset_id}/sheet",
+            json={"selected": selected},
+        )  # fmt: skip
         return Asset.model_validate(response.json())
 
     # --- Briefs (Paso 13a) ------------------------------------------------------------------

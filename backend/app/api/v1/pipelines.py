@@ -1,4 +1,5 @@
-"""Pipelines de texto: indexación de referencias (REFERENCE_ANALYST) y briefs (PROMPT_ENGINEER).
+"""Pipelines de texto: recetas y fichas de las referencias (REFERENCE_ANALYST) y briefs
+(PROMPT_ENGINEER).
 
 Los briefs siguen el ciclo HITL: propuesto → (editado) → aprobado | rechazado (→ nueva versión).
 """
@@ -18,9 +19,9 @@ from app.hitl.briefs import (
     reject_brief,
 )
 from app.pipelines.prompt_engineer import create_brief
-from app.pipelines.reference_analyst import index_references, validate_analysis
+from app.pipelines.reference_analyst import analyze_asset, index_references, save_sheet
 from app.telemetry import current_request_id, request_cost, telemetry_scope
-from shared.models import Asset, DesignBrief, ReferenceAnalysis
+from shared.models import Asset, DesignBrief
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["pipelines"])
 
@@ -31,9 +32,21 @@ class _Body(BaseModel):
 
 class IndexRequest(_Body):
     asset_ids: list[UUID] | None = Field(
-        default=None, description="Referencias a indexar (por defecto, todas las pendientes)"
+        default=None, description="Referencias a analizar (por defecto, las que no tienen receta)"
     )
-    force: bool = Field(default=False, description="Reindexar también las ya analizadas")
+    force: bool = Field(default=False, description="Volver a analizar también las ya analizadas")
+
+
+class AnalyzeRequest(_Body):
+    notes: str | None = Field(
+        default=None, max_length=2_000, description="Notas nuevas (orientan el análisis)"
+    )
+
+
+class SheetUpdate(_Body):
+    selected: list[str] = Field(
+        description="Elementos marcados («grupo:índice»); vacío = referencia descartada"
+    )
 
 
 class IndexFailure(BaseModel):
@@ -44,6 +57,10 @@ class IndexFailure(BaseModel):
 class RunCost(BaseModel):
     cost_eur: float = Field(description="Coste estimado de las llamadas a IA de esta petición")
     request_id: str | None
+
+
+class AnalyzeResponse(RunCost):
+    asset: Asset
 
 
 class IndexResponse(RunCost):
@@ -84,7 +101,7 @@ async def index_project_references(
     foundry: FoundryDep,
     body: Annotated[IndexRequest, Body()] = IndexRequest(),  # noqa: B008
 ) -> IndexResponse:
-    """Analiza las referencias con el REFERENCE_ANALYST y guarda su ficha (estado `proposed`)."""
+    """Analiza en bloque las referencias sin receta (o las indicadas) con el REFERENCE_ANALYST."""
     with telemetry_scope(project_id):
         result = await index_references(repo, foundry, project_id, body.asset_ids, body.force)
     return IndexResponse(
@@ -95,12 +112,27 @@ async def index_project_references(
     )
 
 
-@router.put("/assets/{asset_id}/analysis", response_model=Asset)
-async def update_reference_analysis(
-    project_id: UUID, asset_id: UUID, analysis: ReferenceAnalysis, repo: RepositoryDep
+@router.post("/assets/{asset_id}/analyze", response_model=AnalyzeResponse)
+async def analyze_reference(
+    project_id: UUID,
+    asset_id: UUID,
+    repo: RepositoryDep,
+    foundry: FoundryDep,
+    body: Annotated[AnalyzeRequest, Body()] = AnalyzeRequest(),  # noqa: B008
+) -> AnalyzeResponse:
+    """Receta de una referencia (al subirla, o de nuevo con otras notas). La ficha se guarda con
+    lo que piden las notas ya marcado y sustituye a la anterior."""
+    with telemetry_scope(project_id):
+        asset = await analyze_asset(repo, foundry, project_id, asset_id, body.notes)
+    return AnalyzeResponse(asset=asset, **await _cost(repo, project_id))
+
+
+@router.put("/assets/{asset_id}/sheet", response_model=Asset)
+async def update_reference_sheet(
+    project_id: UUID, asset_id: UUID, body: SheetUpdate, repo: RepositoryDep
 ) -> Asset:
-    """El usuario revisa o corrige la ficha: queda `validated`."""
-    return await validate_analysis(repo, project_id, asset_id, analysis)
+    """«Guardar ficha»: los elementos que el usuario marca. Activa si hay alguno."""
+    return await save_sheet(repo, project_id, asset_id, body.selected)
 
 
 # --- Briefs -------------------------------------------------------------------------------

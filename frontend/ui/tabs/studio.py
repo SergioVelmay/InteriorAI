@@ -29,6 +29,7 @@ from ui.studio_views import (
     brief_choices,
     brief_markdown,
     cost_hint,
+    default_textures,
     editor_mask,
     euros,
     inpaint_file_captions,
@@ -328,7 +329,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             ),
             references: gr.update(
                 choices=reference_choices(project),
-                value=[str(i) for i in (approved.reference_asset_ids if approved else [])],
+                value=default_textures(project, approved),
             ),
             generate_final: gr.update(
                 interactive=bool(selected_choices(project, RenderStage.COMPOSITION))

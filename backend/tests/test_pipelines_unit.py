@@ -89,4 +89,4 @@ def test_prompts_are_versioned_by_content() -> None:
         assert prompt.version.startswith(f"{name}@")
         assert len(prompt.version.split("@")[1]) == 12
     assert "INGLÉS" in load_prompt("prompt_engineer").text
-    assert "NUNCA" in load_prompt("reference_analyst").text
+    assert "estimada" in load_prompt("reference_analyst").text

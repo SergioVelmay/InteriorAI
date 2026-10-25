@@ -70,9 +70,13 @@ class Projects:
         return project | {"url": url}
 
     def upload(self, url: str, kind: str, name: str, content: bytes) -> str:
+        """Sube y analiza, como la interfaz (B-029): en mock, la ficha queda con todo marcado."""
         response = self.api.post(f"{url}/assets/{kind}", files={"file": (name, content)})
         assert response.status_code == 201, response.text
-        return response.json()["id"]
+        asset_id = response.json()["id"]
+        analyzed = self.api.post(f"{url}/assets/{asset_id}/analyze", json={})
+        assert analyzed.status_code == 200, analyzed.text
+        return asset_id
 
     def cleanup(self) -> None:
         for project in self.api.get("/projects").json():

@@ -75,8 +75,9 @@ data/
 | GET | `/projects/{id}/renders/{render_id}/cost` | `RenderChainCost`: coste acumulado de la cadena que lleva al render (sin simulación; la simulada aparte) | 14 ✅ |
 | GET | `/pricing` | `PricingTable` (404 si no hay tabla) | 7 ✅ |
 | PATCH | `/projects/{id}/assets/{asset_id}` | `{description}` → `Asset` | 8 ✅ |
-| POST | `/projects/{id}/references/index` | `{asset_ids?, force?}` → `{indexed, skipped, failed, cost_eur, request_id}` | 8 ✅ |
-| PUT | `/projects/{id}/assets/{asset_id}/analysis` | `ReferenceAnalysis` → `Asset` (ficha `validated`) | 8 ✅ |
+| POST | `/projects/{id}/references/index` | `{asset_ids?, force?}` → `{indexed, skipped, failed, cost_eur, request_id}`: análisis en bloque de las referencias sin receta | 8 · 21 ✅ |
+| POST | `/projects/{id}/assets/{asset_id}/analyze` | `{notes?}` → `{asset, cost_eur, request_id}`: receta de una referencia (al subirla o de nuevo con otras notas); la ficha se guarda con lo que piden las notas marcado | 21 ✅ |
+| PUT | `/projects/{id}/assets/{asset_id}/sheet` | `{selected: ["grupo:índice"]}` → `Asset`: «Guardar ficha» (vacía = referencia descartada) | 21 ✅ |
 | POST | `/projects/{id}/briefs` | `{instructions?}` → 201 `{brief, cost_eur, request_id}` | 8 ✅ |
 | GET | `/projects/{id}/briefs` · `/briefs/{brief_id}` | `[DesignBrief]` (versión desc.) · `DesignBrief` | 8 ✅ |
 | PATCH | `/projects/{id}/briefs/{brief_id}` | `BriefContentUpdate` (solo `propuesto`; si no, 409) | 8 ✅ |
@@ -136,7 +137,7 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 
 ## Pipelines y HITL (Paso 8)
 
-- `app/pipelines/`: `reference_analyst.py` (fichas de referencias), `prompt_engineer.py` (brief),
+- `app/pipelines/`: `reference_analyst.py` (recetas y fichas de las referencias, Paso 21), `sources.py` (uso de las referencias activas hasta el Paso 22), `prompt_engineer.py` (brief),
   `schemas.py` (`strict_schema`), `images.py` (`prepare_image`, 1.024 px JPEG),
   `prompts/*.md` (prompts de sistema; `load_prompt(name).version` = hash).
 - `app/hitl/`: `ensure_transition` + tablas de transiciones; `briefs.py` (`edit_brief`,

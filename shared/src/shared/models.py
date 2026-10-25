@@ -60,7 +60,106 @@ class _Model(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-# --- Ficha de una referencia (REFERENCE_ANALYST) ------------------------------------------
+class DimensionsCm(_Model):
+    """Medidas en cm; `None` si no se conocen. Nunca se inventan: una estimación solo se
+    admite marcada como tal (`dimensions_source: "estimada"`) y nunca se trata como exacta."""
+
+    width_cm: float | None = Field(ge=0, le=2_000)
+    depth_cm: float | None = Field(ge=0, le=2_000)
+    height_cm: float | None = Field(ge=0, le=2_000)
+
+
+# --- Receta y ficha de una referencia (REFERENCE_ANALYST, v2: B-029 y B-030) ----------------
+
+MeasureSource = Literal["nota_usuario", "cota_imagen", "estimada", "ninguna"]
+
+
+class RecipeElement(_Model):
+    """Un «ingrediente» de la receta: algo concreto que la imagen puede aportar al diseño."""
+
+    label: str = Field(description="Qué es, breve y concreto, en español")
+    detail: str = Field(description="Detalle útil para reproducirlo, en español; vacío si no hay")
+    dimensions_cm: DimensionsCm
+    dimensions_source: MeasureSource = Field(
+        description="nota_usuario | cota_imagen (legible en la imagen) | estimada (aproximada, "
+        "nunca exacta) | ninguna"
+    )
+    selected: bool = Field(description="True si las notas del usuario piden este elemento")
+
+
+class ReferenceRecipe(_Model):
+    """Receta de una imagen de referencia: grupos fijos y exhaustivos, con «otros» para lo no
+    previsto. El orden de los elementos de cada grupo sigue las prioridades de las notas."""
+
+    summary: str = Field(description="Qué es la imagen y qué aporta, en una o dos frases")
+    objetos: list[RecipeElement]
+    decoracion: list[RecipeElement]
+    colores: list[RecipeElement]
+    materiales: list[RecipeElement]
+    arquitectura: list[RecipeElement]
+    estilo: list[RecipeElement]
+    iluminacion: list[RecipeElement]
+    perspectiva: list[RecipeElement]
+    geometria: list[RecipeElement]
+    ambiente: list[RecipeElement]
+    fotografia: list[RecipeElement]
+    otros: list[RecipeElement]
+
+    def elements(self) -> list[tuple[str, RecipeElement]]:
+        """(id, elemento) de todos los grupos; id = «grupo:índice»."""
+        return [
+            (f"{group}:{i}", element)
+            for group in RECIPE_GROUPS
+            for i, element in enumerate(getattr(self, group))
+        ]
+
+
+# Grupos de la receta, en orden, con su etiqueta visible.
+RECIPE_GROUPS: dict[str, str] = {
+    "objetos": "Objetos y mobiliario",
+    "decoracion": "Decoración, textiles y plantas",
+    "colores": "Colores y paleta",
+    "materiales": "Materiales, texturas y acabados",
+    "arquitectura": "Elementos arquitectónicos (suelos, paredes, techos, carpinterías)",
+    "estilo": "Estilo y referencias de diseño",
+    "iluminacion": "Iluminación",
+    "perspectiva": "Perspectiva y punto de vista",
+    "geometria": "Medidas y geometría del espacio",
+    "ambiente": "Ambiente y atmósfera",
+    "fotografia": "Fotografía y tratamiento de la imagen",
+    "otros": "Otros",
+}
+
+
+class ReferenceSheet(_Model):
+    """Ficha guardada de una referencia: su receta y los elementos marcados por el usuario.
+    Guardada desde el análisis (con lo que piden las notas ya marcado); activa si hay algo
+    marcado. Solo las referencias activas se usan en el diseño."""
+
+    recipe: ReferenceRecipe
+    selected: list[str] = Field(default_factory=list)  # ids «grupo:índice»
+    notes: str = ""  # notas con las que se analizó
+    prompt_version: str | None = None
+    request_id: str | None = None  # petición del análisis (coste en la telemetría)
+    deployment: str | None = None
+    analyzed_at: datetime = Field(default_factory=utc_now)
+    saved_at: datetime = Field(default_factory=utc_now)
+
+    @property
+    def active(self) -> bool:
+        return bool(self.selected)
+
+    def selected_elements(self) -> dict[str, list[RecipeElement]]:
+        """Lo marcado, por grupo (solo grupos con algo marcado)."""
+        chosen = set(self.selected)
+        groups: dict[str, list[RecipeElement]] = {}
+        for element_id, element in self.recipe.elements():
+            if element_id in chosen:
+                groups.setdefault(element_id.split(":")[0], []).append(element)
+        return groups
+
+
+# --- Ficha de la v1 (histórico; ya no se genera) ----------------------------------------------
 
 
 class ReferenceCategory(StrEnum):
@@ -76,14 +175,6 @@ class ReferenceCategory(StrEnum):
     REVESTIMIENTO = "revestimiento"
     AMBIENTE = "ambiente"  # inspiración de un ambiente completo
     OTRO = "otro"
-
-
-class DimensionsCm(_Model):
-    """Medidas en cm; `None` si no se conocen (nunca se inventan)."""
-
-    width_cm: float | None = Field(ge=0, le=2_000)
-    depth_cm: float | None = Field(ge=0, le=2_000)
-    height_cm: float | None = Field(ge=0, le=2_000)
 
 
 class ReferenceAnalysis(_Model):
@@ -125,8 +216,9 @@ class Asset(_Model):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     width_px: int | None = Field(default=None, gt=0)
     height_px: int | None = Field(default=None, gt=0)
-    description: str = Field(default="", max_length=2_000)  # nota del usuario (p. ej. medidas)
-    analysis: AssetAnalysis | None = None  # solo referencias indexadas
+    description: str = Field(default="", max_length=2_000)  # notas: orientan el análisis
+    sheet: ReferenceSheet | None = None  # receta y ficha (v2); None si aún no se ha analizado
+    analysis: AssetAnalysis | None = None  # histórico (v1): ficha anterior, ya no se usa
     legacy_kind: LegacyKind | None = None  # solo imágenes migradas de la v1 (ver arriba)
     created_at: datetime = Field(default_factory=utc_now)
 

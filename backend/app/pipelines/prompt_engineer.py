@@ -13,16 +13,18 @@ from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
-from app.pipelines.sources import base_candidates, legacy_sources
+from app.pipelines.sources import active_references, brief_images
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
     LEGACY_KIND_LABELS,
+    RECIPE_GROUPS,
     Asset,
     AssetKind,
     DesignBrief,
     DesignBriefContent,
     ProjectMetadata,
+    RecipeElement,
 )
 from shared.roles import Role
 
@@ -44,13 +46,30 @@ def _project_section(project: ProjectMetadata) -> str:
     return f"- Nombre: {project.name}"
 
 
-def _reference_entry(asset: Asset) -> dict:
+def _element(element: RecipeElement) -> dict:
+    entry: dict = {"elemento": element.label}
+    if element.detail:
+        entry["detalle"] = element.detail
+    if element.dimensions_source != "ninguna":
+        entry["medidas_cm"] = element.dimensions_cm.model_dump(mode="json")
+        entry["origen_medidas"] = element.dimensions_source  # «estimada» = aproximada
+    return entry
+
+
+def _reference_entry(asset: Asset, image_number: int | None) -> dict:
+    """Lo que el usuario ha marcado en la ficha de una referencia activa (B-030)."""
+    sheet = asset.sheet
     entry: dict = {"id": str(asset.id), "archivo": asset.original_name}
+    if image_number is not None:
+        entry["imagen_adjunta"] = image_number
     if asset.description:
-        entry["nota_usuario"] = asset.description
-    if asset.analysis is not None:
-        entry["estado_ficha"] = asset.analysis.status
-        entry["ficha"] = asset.analysis.result.model_dump(mode="json")
+        entry["notas_usuario"] = asset.description
+    if sheet is not None:
+        entry["resumen"] = sheet.recipe.summary
+        entry["seleccion"] = {
+            RECIPE_GROUPS[group]: [_element(e) for e in elements]
+            for group, elements in sheet.selected_elements().items()
+        }
     return entry
 
 
@@ -61,8 +80,7 @@ async def build_context(
     parent: DesignBrief | None,
 ) -> BriefContext:
     warnings: list[str] = []
-    # Capturas y planos de la v1; si no hay, la imagen base de los bocetos (`sources`).
-    sources = legacy_sources(project) or base_candidates(project)[:1]
+    sources = brief_images(project)  # imágenes del espacio (ver `sources`)
     for asset in sources:
         if asset.mime_type not in VISION_MIME_TYPES:
             warnings.append(f"'{asset.original_name}' no es una imagen y no se envía")
@@ -70,25 +88,21 @@ async def build_context(
     if len(usable) > MAX_SOURCE_IMAGES:
         warnings.append(
             f"Se envían las {MAX_SOURCE_IMAGES} primeras imágenes de {len(usable)} "
-            "(capturas de SketchUp primero)"
+            "(las de perspectiva primero)"
         )
         usable = usable[:MAX_SOURCE_IMAGES]
 
-    # Fichas: las demás referencias (la imagen base va como imagen, no como ficha).
-    source_ids = {a.id for a in sources}
-    references = [
-        a
-        for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None and a.id not in source_ids
-    ]
-    for asset in references:
-        if asset.analysis is None:
-            warnings.append(f"La referencia '{asset.original_name}' no está indexada")
+    # Fichas: lo marcado en las referencias activas; las inactivas no se usan (B-030).
+    references = active_references(project)
+    for asset in project.assets:
+        if asset.kind is AssetKind.REFERENCIA and asset.sheet is None:
+            warnings.append(f"La referencia '{asset.original_name}' aún no está analizada")
 
     if not usable and not references and not project.description.strip():
         raise PipelineInputError("Añade una descripción del proyecto o imágenes de referencia")
 
     images = [await prepare_image(await repo.read_asset_bytes(project.id, a.id)) for a in usable]
+    numbers = {a.id: i for i, a in enumerate(usable, start=1)}
     image_list = "\n".join(
         f"- Imagen {i}: {LEGACY_KIND_LABELS.get(a.legacy_kind or '', a.kind.label)} "
         f"'{a.original_name}'" + (f" — nota: {a.description}" if a.description else "")
@@ -102,7 +116,11 @@ async def build_context(
         "## Imágenes adjuntas (en este orden)",
         image_list or "(ninguna)",
         "## Fichas de las referencias",
-        json.dumps([_reference_entry(a) for a in references], ensure_ascii=False, indent=2)
+        json.dumps(
+            [_reference_entry(a, numbers.get(a.id)) for a in references],
+            ensure_ascii=False,
+            indent=2,
+        )
         if references
         else "(ninguna)",
         "## Indicaciones del usuario para esta versión",

@@ -153,11 +153,24 @@ def selected_choices(project: ProjectMetadata, stage: RenderStage) -> list[tuple
 
 
 def reference_choices(project: ProjectMetadata) -> list[tuple[str, str]]:
-    """Referencias para el render final (sin las capturas y planos de la v1, B-028)."""
+    """Referencias para el render final: las activas (ficha con algo marcado, B-030)."""
     return [
         (a.original_name, str(a.id))
         for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.legacy_kind is None
+        if a.kind is AssetKind.REFERENCIA and a.sheet is not None and a.sheet.active
+    ]
+
+
+def default_textures(project: ProjectMetadata, brief: DesignBrief | None) -> list[str]:
+    """Marcadas por defecto: las referencias activas del brief que no son imágenes del espacio
+    (la vista y el plano ya están en la composición)."""
+    if brief is None:
+        return []
+    active = {value for _, value in reference_choices(project)}
+    return [
+        str(i)
+        for i in brief.reference_asset_ids
+        if i not in brief.source_asset_ids and str(i) in active
     ]
 
 

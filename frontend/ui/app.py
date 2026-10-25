@@ -11,9 +11,9 @@ import gradio as gr
 
 from shared import Settings, get_settings
 from ui.api_client import BackendClient
-from ui.tabs.assets import build_assets_tab
 from ui.tabs.costs import build_costs_tab
 from ui.tabs.projects import build_projects_tab
+from ui.tabs.references import build_references_tab
 from ui.tabs.studio import build_studio_tab
 from ui.theme import CSS, FORCE_DARK_JS, build_theme
 from ui.views import header_html
@@ -31,16 +31,16 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
         with gr.Tabs():
             with gr.Tab("Proyectos"):
                 projects = build_projects_tab(client, data_dir, active, header)
-            with gr.Tab("Assets") as assets_tab:
-                assets = build_assets_tab(client, data_dir, active)
+            with gr.Tab("Referencias") as references_tab:
+                references = build_references_tab(client, data_dir, active)
             with gr.Tab("Estudio") as studio_tab:
                 studio = build_studio_tab(client, data_dir, active)
             with gr.Tab("Costes IA") as costs_tab:
                 costs = build_costs_tab(client, active)
 
         demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
-        # Al entrar en Assets se recarga con el proyecto activo (puede haber cambiado).
-        assets_tab.select(assets.refresh_all, inputs=active, outputs=assets.all_outputs)
+        # Al entrar en Referencias se recarga con el proyecto activo (puede haber cambiado).
+        references_tab.select(references.refresh_all, inputs=active, outputs=references.all_outputs)
         studio_tab.select(studio.refresh_all, inputs=active, outputs=studio.all_outputs)
         costs_tab.select(costs.load, inputs=costs.inputs, outputs=costs.all_outputs)
     return demo

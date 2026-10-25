@@ -22,12 +22,11 @@ from app.hitl.briefs import BriefNotFoundError
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
-from app.pipelines.sources import base_candidates
+from app.pipelines.sources import base_candidates, texture_references
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
     Asset,
-    AssetKind,
     BriefStatus,
     DesignBrief,
     ProjectMetadata,
@@ -336,20 +335,18 @@ async def generate_final(
     project = await repo.get(project_id)
     composition = selected_render(project, composition_id, RenderStage.COMPOSITION)
     brief = approved_brief(project, options.brief_id or composition.brief_id)
-    references_by_id = {
-        a.id: a
-        for a in project.assets
-        if a.kind is AssetKind.REFERENCIA
-        and a.legacy_kind is None  # capturas y planos de la v1: no son texturas (B-028)
-        and a.mime_type in VISION_MIME_TYPES
-    }
-    wanted = brief.reference_asset_ids if reference_ids is None else reference_ids
+    base = base_asset(project, brief)
+    # Texturas: por defecto, las referencias activas salvo la imagen base (ver `sources`); si el
+    # usuario las elige, cualquier referencia activa.
+    references_by_id = {a.id: a for a in texture_references(project, None)}
+    default = [a.id for a in texture_references(project, base)]
+    wanted = default if reference_ids is None else reference_ids
     unknown = [str(i) for i in wanted if i not in references_by_id]
     if unknown and reference_ids is not None:
-        raise PipelineInputError("No son referencias en imagen del proyecto: " + ", ".join(unknown))
+        raise PipelineInputError("No son referencias activas en imagen: " + ", ".join(unknown))
     references = [i for i in wanted if i in references_by_id][:MAX_RENDERER_REFERENCES]
     # Por defecto, la proporción de la captura original, no la de la composición (3:2).
-    size = options.size or renderer_size(base_asset(project, brief))
+    size = options.size or renderer_size(base)
     return await _run_stage(
         repo, client, project, brief, RenderStage.FINAL, Role.PHOTOREALISTIC_RENDERER,
         [composition.id, *references], composition,

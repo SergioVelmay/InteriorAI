@@ -28,7 +28,8 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 17 | [Modelo de datos v2 y migración](paso-17-modelo-datos-v2.md) | `feat/paso-17` | ✅ Cerrado |
 | 18 | [Configuración de los modelos de IA](paso-18-config-modelos.md) | `feat/paso-18` | ✅ Cerrado |
 | 19 | [Proyectos y cabecera](paso-19-proyectos-cabecera.md) | `feat/paso-19` | ✅ Cerrado |
-| 20 | [Costes IA](paso-20-costes-ia.md) | `feat/paso-20` | ⏳ En revisión |
+| 20 | [Costes IA](paso-20-costes-ia.md) | `feat/paso-20` | ✅ Cerrado |
+| 21 | [Referencias v2](paso-21-referencias-v2.md) | `feat/paso-21` | ⏳ En revisión |
 
 Versión 2.0.0 (en curso): [plan de acción](plan-version-2.md), Pasos 17 a 25, entradas B-023 a B-054
 del [backlog](BACKLOG.md).

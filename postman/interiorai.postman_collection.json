@@ -501,7 +501,7 @@
       ],
       "item": [
         {
-          "name": "Subir referencia para indexar",
+          "name": "Subir referencia con notas",
           "event": [
             {
               "listen": "test",
@@ -530,7 +530,7 @@
           }
         },
         {
-          "name": "Indexar referencias",
+          "name": "Analizar la referencia con sus notas",
           "event": [
             {
               "listen": "test",
@@ -538,10 +538,47 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"fichas propuestas: la imagen del espacio también es una referencia (B-028)\", () => {",
+                  "pm.test(\"receta y ficha guardada desde el análisis (B-029)\", () => {",
+                  "  const a = pm.response.json().asset;",
+                  "  pm.expect(a.description).to.eql(\"Sofá 285 x 160 x 87 cm\");",
+                  "  pm.expect(a.sheet.recipe).to.have.property(\"objetos\");",
+                  "  pm.expect(a.sheet.recipe).to.have.property(\"otros\");",
+                  "  pm.expect(a.sheet.prompt_version).to.match(/^reference_analyst@/);",
+                  "  pm.expect(a.sheet.selected.length).to.be.above(0); // el mock marca todo",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{pipelineRefId}}/analyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Analizar las referencias pendientes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"solo las que no tienen receta: la imagen del espacio (B-028)\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b.indexed).to.have.lengthOf(2);",
-                  "  pm.expect(b.indexed[0].analysis.status).to.eql(\"proposed\");",
+                  "  pm.expect(b.indexed).to.have.lengthOf(1);",
+                  "  pm.expect(b.skipped).to.eql([pm.collectionVariables.get(\"pipelineRefId\")]);",
+                  "  pm.expect(b.indexed[0].sheet).to.not.be.null;",
                   "});"
                 ]
               }
@@ -554,6 +591,65 @@
             "body": {
               "mode": "raw",
               "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Guardar ficha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lo marcado, en el orden de la receta (B-030)\", () => {",
+                  "  pm.expect(pm.response.json().sheet.selected).to.eql([\"objetos:0\", \"colores:0\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{pipelineRefId}}/sheet",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selected\": [\"colores:0\", \"objetos:0\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Guardar ficha con un elemento inexistente (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/assets/{{pipelineRefId}}/sheet",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selected\": [\"objetos:99\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1222,8 +1318,8 @@
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(1);",
-                  "  pm.expect(b.references).to.eql(1);  // la ficha indexada que usa el brief (B-022)",
-                  "  // 2 fichas indexadas en la misma petición + brief + boceto + composición + final + auditoría",
+                  "  pm.expect(b.references).to.eql(2);  // las dos referencias activas que usa el brief",
+                  "  // 2 recetas (en dos peticiones) + brief + boceto + composición + final + auditoría",
                   "  pm.expect(b.simulated_calls).to.eql(7);",
                   "});"
                 ]

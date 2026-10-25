@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import image_bytes, mark_legacy
+from conftest import image_bytes, mark_active, mark_legacy
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -61,6 +61,10 @@ def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) ->
         "inspiration": upload("referencia", image_bytes(color="#6b8e23"), "inspiracion.jpg"),
     }
     mark_legacy(api, pid, {project["capture"]: "captura_sketchup"})  # migrada de la v1 (B-028)
+    # Fichas guardadas (B-030): la vista aporta la perspectiva; las demás, objetos y color.
+    mark_active(api, pid, {project["capture"]: ["perspectiva"],
+                           project["product"]: ["objetos"],
+                           project["inspiration"]: ["colores"]})  # fmt: skip
     return project
 
 
@@ -254,7 +258,14 @@ def test_final_render_with_explicit_references(
         f"{project['url']}/renders/final",
         json={"composition_id": composition["id"], "reference_ids": [project["capture"]]},
     )
-    assert response.status_code == 422
+    assert response.status_code == 201  # elegida por el usuario: cualquier referencia activa
+    pid = project["url"].rsplit("/", 1)[1]
+    mark_active(api, pid, {project["inspiration"]: []})  # descartada
+    response = api.post(
+        f"{project['url']}/renders/final",
+        json={"composition_id": composition["id"], "reference_ids": [project["inspiration"]]},
+    )
+    assert response.status_code == 422  # una referencia descartada no se usa
 
 
 @pytest.mark.parametrize("size", ["200x200", "2048x2048", "abc"])
@@ -482,20 +493,18 @@ def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> No
 
 
 def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: SpyClient) -> None:
-    """B-022: las fichas que usa el brief cuentan en el coste de la cadena."""
+    """B-022: las recetas de las referencias que usa el brief cuentan en la cadena."""
     project = new_project(api)
-    indexed = api.post(f"{project['url']}/references/index", json={})
+    indexed = api.post(f"{project['url']}/references/index", json={"force": True})
     assert indexed.status_code == 200, indexed.text
-    assert len(indexed.json()["indexed"]) == 2
+    assert len(indexed.json()["indexed"]) == 3
     assets = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
-    analyses = [a for a in assets if a["legacy_kind"] is None]  # la captura no se indexa
-    assert len(analyses) == 2 and all(
-        a["analysis"]["request_id"] == indexed.headers["x-request-id"] for a in analyses
-    )
+    request_id = indexed.headers["x-request-id"]
+    assert all(a["sheet"]["request_id"] == request_id for a in assets)
     brief = approve_brief(api, project)
-    assert len(brief["reference_asset_ids"]) == 2
+    assert len(brief["reference_asset_ids"]) == 3  # las tres activas
     composition = run(api, project, "compositions")["renders"][0]
 
     cost = api.get(f"{project['url']}/renders/{composition['id']}/cost").json()
-    assert cost["references"] == 2 and cost["briefs"] == 1
-    assert cost["simulated_calls"] == 4  # 2 fichas + brief + composición
+    assert cost["references"] == 3 and cost["briefs"] == 1
+    assert cost["simulated_calls"] == 5  # 3 recetas + brief + composición

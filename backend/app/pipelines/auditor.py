@@ -17,6 +17,7 @@ from app.pipelines.images import prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.renders import RenderNotFoundError
 from app.pipelines.schemas import strict_schema
+from app.pipelines.sources import active_references
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
@@ -51,10 +52,15 @@ def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
 
 def _context(project: ProjectMetadata, brief: DesignBrief, render: RenderRecord) -> str:
     content = brief.content
-    validated = [
-        {"referencia": a.original_name, "ficha": a.analysis.result.model_dump(mode="json")}
-        for a in project.assets
-        if a.kind is AssetKind.REFERENCIA and a.analysis and a.analysis.status == "validated"
+    validated = [  # lo marcado en las referencias activas (B-030)
+        {
+            "referencia": a.original_name,
+            "seleccion": {
+                group: [e.model_dump(mode="json") for e in elements]
+                for group, elements in a.sheet.selected_elements().items()  # type: ignore[union-attr]
+            },
+        }
+        for a in active_references(project)
     ]
     sections = [
         f"## Imagen auditada: {render.stage.label} (brief v{brief.version})",
@@ -68,7 +74,7 @@ def _context(project: ProjectMetadata, brief: DesignBrief, render: RenderRecord)
         ),
         "## Materiales y paleta pedidos",
         "\n".join(f"- {m}" for m in [*content.materials, *content.palette]),
-        "## Fichas validadas por el usuario",
+        "## Lo marcado en las fichas del usuario",
         json.dumps(validated, ensure_ascii=False, indent=2) if validated else "(ninguna)",
         "## Prompt con el que se generó la imagen auditada",
         render.prompt,

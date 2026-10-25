@@ -26,6 +26,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- Pestaña «Referencias» (antes Assets): cada imagen se sube de una en una con sus notas y se
+  analiza al momento; su receta agrupa los ingredientes útiles (12 grupos, con «Otros») y la
+  ficha de casillas guarda lo que el usuario quiere usar. Solo las referencias activas cuentan;
+  descartar = desmarcar todo. API: `/assets/{id}/analyze` y `/assets/{id}/sheet` (sustituye a
+  `/assets/{id}/analysis`). Paso 21: B-028 a B-030.
+
 - Pestaña «Costes IA»: solo gasto real (también en el resumen del proyecto); gráficos con
   Altair y leyenda «rol (despliegue)» completa; registro con despliegue y MPx, detalle de la
   llamada al seleccionar una fila y CSV con todas las columnas; precios con las tarifas en
@@ -68,6 +74,12 @@ Primera versión completa: estudio de interiorismo asistido por IA con supervisi
 cada etapa.
 
 ### Añadido
+
+- Pestaña «Referencias» (antes Assets): cada imagen se sube de una en una con sus notas y se
+  analiza al momento; su receta agrupa los ingredientes útiles (12 grupos, con «Otros») y la
+  ficha de casillas guarda lo que el usuario quiere usar. Solo las referencias activas cuentan;
+  descartar = desmarcar todo. API: `/assets/{id}/analyze` y `/assets/{id}/sheet` (sustituye a
+  `/assets/{id}/analysis`). Paso 21: B-028 a B-030.
 
 - Pestaña «Costes IA»: solo gasto real (también en el resumen del proyecto); gráficos con
   Altair y leyenda «rol (despliegue)» completa; registro con despliegue y MPx, detalle de la

@@ -44,7 +44,8 @@ Dependencia nueva del frontend: `altair` (Vega-Lite, la misma base que los gráf
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-20`, PR #28.
+✅ Cerrado — rama `feat/paso-20`, PR #28 revisada y mergeada por el usuario; Docker reconstruido
+el 2026-10-25.
 
 ## 6. Pendiente / futuro
 
