@@ -71,14 +71,14 @@ iteración y luna lo hace bien por una vigésima parte. **Decisión del usuario:
 | Postman en local (mock, sobre una copia) | ✅ 49 peticiones, 87 comprobaciones |
 | Playwright en local (mock) | ✅ 5/5 tras corregir las texturas por defecto del render final |
 | Revisión visual con recetas reales de sol | ✅ ficha del planificador de IKEA con los 6 módulos marcados por las notas |
-| CI de la PR | Pendiente |
+| CI de la PR #29 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso hasta ahora: ≈ 0,16 € (recetas con sol 0,119 €, con luna 0,006 €, briefs
 0,031 €). El reanálisis de las 7 referencias, tras el merge, costará unos 0,20 € con sol.
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-21`. Tras el merge: reconstruir Docker y **reanalizar** las
+⏳ En revisión — rama `feat/paso-21`, PR #29. Tras el merge: reconstruir Docker y **reanalizar** las
 referencias existentes con la asignación que decida el usuario.
 
 ## 7. Pendiente / futuro
