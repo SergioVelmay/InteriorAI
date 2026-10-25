@@ -47,6 +47,7 @@ primer nivel.
 | Auditoría real del boceto (astra, `medium`, copia del Salón) | ✅ 27 s, 0,136 €: comparado con las dos referencias del espacio, 91/100; comprobó las observaciones (tres reposacabezas, chaise a la derecha) y propuso corregir el encuadre |
 | Composición real con la auditoría (sunburst, 4 imágenes de entrada) | ✅ 30 s, 0,047 € (prompt incluido): conserva el boceto y aplica la corrección de encuadre |
 | Retoque real (planta en una zona del 18 x 62 %) | ✅ 30 s, 0,047 €: la planta queda dentro de la zona y el resto, intacto; imagen completa del modelo |
+| CI de la PR #31 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (el primer intento falló en el E2E del retoque; corregido, ver «Correcciones») |
 
 Hallazgo de costes: el STRUCTURAL_COMPOSER cobra mucho menos por imagen de entrada que el
 modelo de bocetos (≈ 0,010 € frente a 0,042 €): una composición con 4 imágenes cuesta ≈ 0,05 €.
@@ -56,7 +57,7 @@ Coste real del paso: ≈ 0,23 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-23`.
+⏳ En revisión — rama `feat/paso-23`, PR #31.
 
 ## 6. Pendiente / futuro
 
