@@ -36,11 +36,11 @@ de la cabecera, independientes del Estudio nuevo. Sin llamadas reales.
 | `uv run ruff check .` / `ruff format --check` | ✅ |
 | Playwright en local (mock, sobre una copia de `data/`, puertos 8001/7861 para no tocar Docker) | ✅ 5/5 |
 | Revisión visual con capturas | ✅ cabecera en el orden nuevo, Salón activo por defecto, desglose por rol y tabla de 24 llamadas sin cortes |
-| CI de la PR | Pendiente |
+| CI de la PR #27 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-19`.
+⏳ En revisión — rama `feat/paso-19`, PR #27.
 
 ## 6. Pendiente / futuro
 
