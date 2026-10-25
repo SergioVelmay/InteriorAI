@@ -1,15 +1,19 @@
-"""Presentación pura de la pestaña Estudio (sin Gradio): imágenes, costes, auditoría y retoques.
+"""Presentación pura de Bocetos, Composición y Render Final (sin Gradio): imágenes, costes,
+auditoría y retoques.
 
-Desde el Paso 22 el Estudio tiene tres pestañas (Bocetos, Composición y Render Final) y no hay
-brief: cada generación guarda su prompt automático (`RenderRecord.prompt_info`).
+Desde el Paso 22 no hay brief: cada generación guarda su prompt automático
+(`RenderRecord.prompt_info`). Desde el Paso 23 son pestañas de primer nivel y lo que recibe cada
+generación sigue las reglas de `shared.supports` (las mismas que aplica el backend).
 """
 
 from __future__ import annotations
 
 import html
 import io
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from PIL import Image, ImageChops
 
@@ -23,6 +27,13 @@ from shared.models import (
     RenderStage,
     RenderStatus,
 )
+from shared.supports import (
+    MAX_SUPPORTS,
+    active_references,
+    draft_base,
+    geometric_references,
+    split_supports,
+)
 
 # Coste estimado por acción (EUR, límite alto de lo observado en las pruebas reales).
 COST_PER_IMAGE = {
@@ -30,18 +41,21 @@ COST_PER_IMAGE = {
     RenderStage.COMPOSITION: 0.035,
     RenderStage.FINAL: 0.095,
 }
-# Bocetos (Paso 22, medido con 3 imágenes de entrada en calidad media: 4 bocetos = 0,142 € y
-# 5 = 0,177 €): cada imagen de entrada ≈ 0,042 € (tokens de imagen, lo que más pesa) y cada
-# boceto según su calidad, más el prompt.
+# Modelos GPT de imagen (Paso 22, medido con 3 imágenes de entrada en calidad media: 4 bocetos
+# = 0,142 € y 5 = 0,177 €): cada imagen de entrada ≈ 0,042 € (tokens de imagen, lo que más
+# pesa) y cada imagen generada según su calidad, más el prompt.
 COST_DRAFT_INPUT = 0.042
 COST_DRAFT_OUTPUT = {"low": 0.003, "medium": 0.009, "high": 0.035}
 COST_PROMPT = 0.002  # el PROMPT_ENGINEER escribe el prompt de cada generación (luna)
-MAX_DRAFT_INPUTS = 7  # imagen base + 6 apoyos
+# Composición y retoque (Paso 23, medido: 4 imágenes de entrada en calidad media = 0,047 € cada
+# uno): el STRUCTURAL_COMPOSER factura mucho menos por imagen de entrada que el de bocetos.
+COST_COMPOSITION_INPUT = 0.010
+MAX_INPUTS = 1 + MAX_SUPPORTS  # imagen base o de partida + apoyos (Paso 23)
 # Retoque: solo la composición, con máscara nativa (B-038).
 COST_INPAINT = {RenderStage.COMPOSITION: 0.035}
 INPAINT_STAGES = frozenset(COST_INPAINT)
 COST_AUDIT = 0.25
-CONFIRM_THRESHOLD_EUR = 0.15  # en modo azure, por encima se pide un segundo clic (B-043)
+CONFIRM_THRESHOLD_EUR = 0.20  # en modo azure, por encima se pide un segundo clic (B-043)
 
 STATUS_ICONS = {RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●"}
 CHECK_ICONS = {"ok": "✅", "aviso": "⚠️", "fallo": "❌"}
@@ -80,8 +94,9 @@ def inpaint_hint(stage: RenderStage | None, mode: str | None) -> str | None:
 
 
 def draft_cost(n: int, quality: str, inputs: int) -> float:
-    """Coste estimado de un lote de bocetos con `inputs` imágenes de entrada."""
-    inputs = min(inputs, MAX_DRAFT_INPUTS)
+    """Coste estimado de `n` imágenes de un modelo GPT de imagen (bocetos, composiciones y
+    retoques) con `inputs` imágenes de entrada."""
+    inputs = min(inputs, MAX_INPUTS)
     return COST_PROMPT + inputs * COST_DRAFT_INPUT + n * COST_DRAFT_OUTPUT.get(quality, 0.009)
 
 
@@ -90,18 +105,89 @@ def _dims(d: Any) -> str:
     return " x ".join("?" if v is None else f"{v:g}" for v in (d.width_cm, d.depth_cm, d.height_cm))
 
 
-# --- Referencias activas (Bocetos) -------------------------------------------------------------
+# --- Referencias activas y lo que recibe cada generación ----------------------------------------
 
 
-def active_references(project: ProjectMetadata) -> list[Asset]:
-    return sorted(
-        (
-            a
-            for a in project.assets
-            if a.kind is AssetKind.REFERENCIA and a.sheet is not None and a.sheet.active
-        ),
-        key=lambda a: a.created_at,
+@dataclass(frozen=True)
+class Thumb:
+    """Miniatura con su pie: `tone` «start» (imagen base o de partida) o «excluded» (no cabe)."""
+
+    path: Path
+    caption: str
+    tone: str = ""
+
+
+def file_url(path: Path) -> str:
+    """URL de Gradio para un archivo del volumen (`allowed_paths`)."""
+    return "/gradio_api/file=" + quote(path.as_posix(), safe="/:")
+
+
+def thumbs_html(items: list[Thumb], empty: str = "") -> str:
+    """Tira de miniaturas en HTML: el pie de las que quedan fuera va en rojo (Paso 23)."""
+    if not items:
+        return f'<p class="iai-muted">{html.escape(empty)}</p>' if empty else ""
+    cards = "".join(
+        f'<figure class="iai-thumb {t.tone}" title="{html.escape(t.caption)}">'
+        f'<img src="{file_url(t.path)}" alt="" loading="lazy">'
+        f"<figcaption>{html.escape(t.caption)}</figcaption></figure>"
+        for t in items
     )
+    return f'<div class="iai-thumbs">{cards}</div>'
+
+
+def _file(data_dir: Path, project: ProjectMetadata, asset: Asset) -> Path:
+    return data_dir / str(project.id) / asset.kind.folder / asset.stored_name
+
+
+def _excluded(data_dir: Path, project: ProjectMetadata, excluded: list[Asset]) -> list[Thumb]:
+    return [
+        Thumb(_file(data_dir, project, a), f"Fuera: máx. {MAX_SUPPORTS} apoyos · {a.original_name}",
+              "excluded")
+        for a in excluded
+    ]  # fmt: skip
+
+
+def draft_thumbs(project: ProjectMetadata, data_dir: Path) -> list[Thumb]:
+    """Lo que reciben los bocetos: la imagen base, los apoyos y, en rojo, los que no caben."""
+    base = draft_base(project)
+    sent, excluded = split_supports(project, base)
+    items = []
+    if base is not None:
+        items.append(Thumb(_file(data_dir, project, base), f"Base · {reference_summary(base)}",
+                           "start"))  # fmt: skip
+    items += [Thumb(_file(data_dir, project, a), reference_summary(a)) for a in sent]
+    return items + _excluded(data_dir, project, excluded)
+
+
+def support_thumbs(project: ProjectMetadata, data_dir: Path) -> list[Thumb]:
+    """Apoyos de la composición y del retoque (los del espacio primero) y, en rojo, los que no
+    caben."""
+    sent, excluded = split_supports(project)
+    items = [Thumb(_file(data_dir, project, a), reference_summary(a)) for a in sent]
+    return items + _excluded(data_dir, project, excluded)
+
+
+def render_thumb(
+    project: ProjectMetadata, render: RenderRecord | None, data_dir: Path, caption: str
+) -> list[Thumb]:
+    asset = next((a for a in project.assets if render and a.id == render.id), None)
+    if asset is None:
+        return []
+    return [Thumb(_file(data_dir, project, asset), caption, "start")]
+
+
+def audit_thumbs(
+    project: ProjectMetadata, draft: RenderRecord | None, data_dir: Path
+) -> list[Thumb]:
+    """Lo que compara la auditoría (B-046): las referencias del espacio y el boceto."""
+    items = [Thumb(_file(data_dir, project, a), f"Espacio · {a.original_name}")
+             for a in geometric_references(project)]  # fmt: skip
+    return items + render_thumb(project, draft, data_dir, "Boceto auditado")
+
+
+def excluded_count(project: ProjectMetadata) -> int:
+    """Referencias activas que no caben como apoyo de los bocetos (aviso en Referencias)."""
+    return len(split_supports(project, draft_base(project))[1])
 
 
 def reference_summary(asset: Asset) -> str:
@@ -113,8 +199,20 @@ def reference_summary(asset: Asset) -> str:
 
 
 def draft_inputs(project: ProjectMetadata) -> int:
-    """Imágenes que recibiría el modelo de bocetos: las referencias activas (máx. 7)."""
-    return min(len(active_references(project)), MAX_DRAFT_INPUTS)
+    """Imágenes que recibiría el modelo de bocetos: la base y los apoyos que caben."""
+    base = draft_base(project)
+    return (base is not None) + len(split_supports(project, base)[0])
+
+
+def composition_cost(quality: str, inputs: int) -> float:
+    """Coste estimado de una composición o un retoque con `inputs` imágenes de entrada."""
+    inputs = min(inputs, MAX_INPUTS)
+    return COST_PROMPT + inputs * COST_COMPOSITION_INPUT + COST_DRAFT_OUTPUT.get(quality, 0.009)
+
+
+def composition_inputs(project: ProjectMetadata) -> int:
+    """Imágenes de una composición o un retoque: la de partida y los apoyos que caben."""
+    return 1 + len(split_supports(project)[0])
 
 
 # --- Renders ---------------------------------------------------------------------------------
@@ -247,10 +345,15 @@ def render_inputs(
     return items
 
 
-def audit_markdown(audit: RenderAudit | None) -> str:
+def audit_markdown(audit: RenderAudit | None, project: ProjectMetadata | None = None) -> str:
     if audit is None:
-        return "_Sin auditoría. Es opcional: compara la imagen con tu imagen base._"
+        return (
+            "_Sin auditoría con IA. Es opcional: compara el boceto con las referencias que "
+            "marcan perspectiva o geometría._"
+        )
     r = audit.report
+    names = {a.id: a.original_name for a in project.assets} if project else {}
+    compared = ", ".join(names.get(i, str(i)[:8]) for i in audit.reference_asset_ids)
     checks = "\n".join(
         f"| {c.aspect.replace('_', ' ')} | {CHECK_ICONS[c.status]} | {html.escape(c.finding)} |"
         for c in r.checks
@@ -262,7 +365,8 @@ def audit_markdown(audit: RenderAudit | None) -> str:
     )
     parts = [
         f"#### Auditoría: {VERDICTS[r.verdict]} · {r.score}/100",
-        f"{audit.reasoning_effort} · {euros(audit.cost_eur)} · {audit.created_at:%d/%m %H:%M} UTC",
+        f"{audit.reasoning_effort} · {euros(audit.cost_eur)} · {audit.created_at:%d/%m %H:%M} UTC"
+        + (f" · comparado con: {html.escape(compared)}" if compared else ""),
         html.escape(r.summary),
         "| Aspecto | | Hallazgo |\n|---|---|---|\n" + checks,
     ]
@@ -273,7 +377,8 @@ def audit_markdown(audit: RenderAudit | None) -> str:
         )
     if r.suggested_prompt_adjustments.strip():
         parts.append(
-            "<details><summary>Correcciones propuestas (añádelas a tus indicaciones)</summary>"
+            "<details><summary>Correcciones propuestas (se usan con «Usar la auditoría»)"
+            "</summary>"
             "\n\n"
             f"```\n{r.suggested_prompt_adjustments}\n```\n</details>"
         )

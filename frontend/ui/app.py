@@ -14,7 +14,7 @@ from ui.api_client import BackendClient
 from ui.tabs.costs import build_costs_tab
 from ui.tabs.projects import build_projects_tab
 from ui.tabs.references import build_references_tab
-from ui.tabs.studio import build_studio_tab
+from ui.tabs.studio import build_studio_tabs
 from ui.theme import CSS, FORCE_DARK_JS, build_theme
 from ui.views import header_html
 
@@ -33,15 +33,19 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
                 projects = build_projects_tab(client, data_dir, active, header)
             with gr.Tab("Referencias") as references_tab:
                 references = build_references_tab(client, data_dir, active)
-            with gr.Tab("Estudio") as studio_tab:
-                studio = build_studio_tab(client, data_dir, active)
+            # Bocetos, Composición y Render Final: pestañas de primer nivel (Paso 23).
+            studio = build_studio_tabs(client, data_dir, active)
             with gr.Tab("Costes IA") as costs_tab:
                 costs = build_costs_tab(client, active)
 
         demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
         # Al entrar en Referencias se recarga con el proyecto activo (puede haber cambiado).
         references_tab.select(references.refresh_all, inputs=active, outputs=references.all_outputs)
-        studio_tab.select(studio.refresh_all, inputs=active, outputs=studio.all_outputs)
+        # Composición y Render Final se desbloquean en cuanto cambia el proyecto activo.
+        demo.load(studio.unlock, inputs=active, outputs=studio.unlock_outputs)
+        active.change(studio.unlock, inputs=active, outputs=studio.unlock_outputs)
+        for tab in studio.tabs:
+            tab.select(studio.refresh_all, inputs=active, outputs=studio.all_outputs)
         costs_tab.select(costs.load, inputs=costs.inputs, outputs=costs.all_outputs)
     return demo
 

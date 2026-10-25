@@ -54,7 +54,9 @@ Coste real del paso: ≈ 0,32 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-22`, PR #30.
+✅ Cerrado — rama `feat/paso-22`, PR #30 revisada y mergeada por el usuario. Docker
+reconstruido. El usuario revisó y aprobó los prompts de bocetos y de recetas, y subió el umbral
+de confirmación a 0,20 € (aplicado en el [Paso 23](paso-23-composicion.md)).
 
 ## 6. Pendiente / futuro
 

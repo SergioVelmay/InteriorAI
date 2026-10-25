@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import json
 from collections import Counter
 from typing import Any, Literal
 
@@ -181,7 +182,8 @@ def _number(value: float | None) -> str:
 
 
 def element_label(element: RecipeElement) -> str:
-    """Texto de una casilla: elemento, detalle y medidas con su origen (las estimadas, marcadas)."""
+    """Texto completo de un elemento: nombre, detalle y medidas con su origen (las estimadas,
+    marcadas). En la ficha es el tooltip de la casilla (Paso 23)."""
     text = element.label + (f" — {element.detail}" if element.detail else "")
     if element.dimensions_source != "ninguna":
         d = element.dimensions_cm
@@ -193,7 +195,10 @@ def element_label(element: RecipeElement) -> str:
 
 
 def sheet_groups(asset: Asset | None) -> dict[str, tuple[list[tuple[str, str]], list[str]]]:
-    """Por grupo de la receta: (casillas [(texto, id)], ids marcados). Vacío si no hay ficha."""
+    """Por grupo de la receta: (casillas [(nombre, id)], ids marcados). Vacío si no hay ficha.
+
+    Paso 23: la casilla muestra solo el nombre; el detalle va en el tooltip (`sheet_tooltips`).
+    """
     groups: dict[str, tuple[list[tuple[str, str]], list[str]]] = {
         group: ([], []) for group in RECIPE_GROUPS
     }
@@ -202,10 +207,27 @@ def sheet_groups(asset: Asset | None) -> dict[str, tuple[list[tuple[str, str]], 
     selected = set(asset.sheet.selected)
     for element_id, element in asset.sheet.recipe.elements():
         choices, marked = groups[element_id.split(":")[0]]
-        choices.append((element_label(element), element_id))
+        choices.append((element.label, element_id))
         if element_id in selected:
             marked.append(element_id)
     return groups
+
+
+def sheet_tooltips(asset: Asset | None) -> dict[str, list[str]]:
+    """Por grupo, el texto completo de cada casilla en su orden (tooltip al pasar el ratón)."""
+    tips: dict[str, list[str]] = {}
+    if asset is None or asset.sheet is None:
+        return tips
+    for element_id, element in asset.sheet.recipe.elements():
+        tips.setdefault(element_id.split(":")[0], []).append(element_label(element))
+    return tips
+
+
+def tooltips_html(tips: dict[str, list[str]]) -> str:
+    """Contenedor oculto con los tooltips de la ficha: `theme.FORCE_DARK_JS` los aplica como
+    `title` de cada casilla cuando cambia la página."""
+    data = html.escape(json.dumps(tips, ensure_ascii=False), quote=True)
+    return f'<div data-tips="{data}"></div>'
 
 
 def selected_ids(values: list[list[str] | None]) -> list[str]:

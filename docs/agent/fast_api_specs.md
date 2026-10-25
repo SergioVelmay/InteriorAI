@@ -84,12 +84,12 @@ data/
 | POST | `/projects/{id}/briefs/{brief_id}/approve` | `DesignBrief` (el aprobado anterior → `reemplazado`) | 8 ✅ |
 | POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
 | POST | `/projects/{id}/renders/drafts` | `{n=4 (1-8), quality=medium, size=1536x1024, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}`: referencias activas y prompt automático (`prompt_info`), sin brief | 9 · 22 ✅ |
-| POST | `/projects/{id}/renders/compositions` | `{draft_id?, n=1, quality=medium, ...}` (boceto seleccionado) → 201 | 9 ✅ |
+| POST | `/projects/{id}/renders/compositions` | `{draft_id?, source=boceto\|composicion, use_audit=false, audit_notes, n=1, quality=medium, size=1536x1024, ...}` (parte del boceto o de la composición seleccionados; apoyos hasta 12) → 201 | 9 · 23 ✅ |
 | POST | `/projects/{id}/renders/final` | `{composition_id, reference_ids?, n=1, seed?, ...}` (composición seleccionada) → 201 | 9 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/audit` | `{render, audit, cost_eur, request_id}` (solo composición/final) | 10 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`] → 201 `{renders, cost_eur}` (solo composiciones, B-038) | 13b · 17 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/audit` | `{notes?}` → `{render, audit, cost_eur, request_id}` (boceto, composición o final; las imágenes nuevas, frente a todas las referencias del espacio) | 10 · 23 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`, `extra_instructions`, `use_audit`, `audit_notes`] → 201 `{renders, cost_eur}` (solo composiciones, B-038; prompt del PROMPT_ENGINEER, Paso 23) | 13b · 17 ✅ |
 | GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque (los archivos bruto/guía de la v1 quedan en disco) | 13b · 17 ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
@@ -181,5 +181,12 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   (`app/storage/migrations.py`) al arrancar y al restaurar de la papelera, con copia previa en
   `metadatos.v1.json`.
 - Formato de salida por etapa en `_STAGE_ROLES` (todo PNG).
-- Auditoría (`app/pipelines/auditor.py`): compara con la captura de origen (sigue la cadena de
-  renders); a demanda y opcional; historial en `RenderRecord.audits`.
+- Auditoría (`app/pipelines/auditor.py`): a demanda y opcional; historial en
+  `RenderRecord.audits`. Desde el Paso 23 (B-046) audita sobre todo el boceto seleccionado,
+  frente a todas las referencias activas con perspectiva o geometría (`reference_asset_ids`,
+  prompt `auditor_espacio`) y con las observaciones del usuario (`notes`); las imágenes de la v1
+  se comparan con su captura de origen (`reference_asset_id`, siguiendo la cadena de renders).
+- Qué recibe cada generación (`shared/supports.py`, compartido con la interfaz): la imagen de
+  partida (base con perspectiva en los bocetos; boceto o composición seleccionados en la
+  composición) y hasta `MAX_SUPPORTS = 12` apoyos, primero los del espacio y después por
+  antigüedad (`split_supports`).

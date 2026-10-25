@@ -1,4 +1,5 @@
-"""Retoque de zona: solo composiciones, con máscara nativa y la imagen completa (B-038)."""
+"""Retoque de la composición seleccionada (Paso 23): máscara nativa, prompt del PROMPT_ENGINEER y
+la imagen completa del modelo (B-038), al generar con la composición actual y «Usar el retoque»."""
 
 import io
 
@@ -30,23 +31,32 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     project, composition = prepared(api, projects)
     url = project["url"]
     ui.activate(project["name"])
-    ui.tab("Estudio")
-    page.get_by_role("tab", name="Composición").click()
-    page.get_by_text("Retocar zona de la composición").click()
+    ui.tab("Composición")
     expect(page.locator("#iai-inpaint-editor canvas").first).to_be_visible()
     page.wait_for_timeout(2500)  # editor nuevo con la composición (gr.render)
-    page.locator("#iai-inpaint").click()
+    # B-039: pincel rojo fijo, sin paleta de colores.
+    editor = page.locator("#iai-inpaint-editor")
+    expect(editor.get_by_role("button", name="Color")).to_be_hidden()
+    size = editor.get_by_role("button", name="Brush Size")
+    expect(size).to_be_visible()  # icono de tamaño: circunferencias (CSS), no la señal de prohibido
+    expect(size.locator("svg")).to_be_hidden()
+    page.locator("#iai-use-retouch input").check()
+    page.locator("#iai-gen-compositions-current").click()
     ui.toast("Pinta en la imagen la zona")  # sin trazos no hay llamada
 
     ui.paint()
+    page.locator("#iai-gen-compositions-current").click()
+    ui.toast("Describe el cambio")
     page.locator("#iai-inpaint-instruction textarea").fill("Una planta en la esquina")
-    page.locator("#iai-inpaint").click()
+    page.locator("#iai-gen-compositions-current").click()
     ui.toast("Retoque generado", timeout=60_000)
     retouched = page.locator("#iai-compositions .thumbnail-item", has_text="retoque")
     expect(retouched).to_have_count(1)
     stage = api.get(f"{url}/renders", params={"stage": "composicion"}).json()
     retouch = next(r for r in stage if r.get("inpaint"))
     assert retouch["inpaint"]["method"] == "mascara"
+    assert retouch["inpaint"]["instruction"] == "Una planta en la esquina"
     assert 0 < retouch["inpaint"]["coverage"] < 0.2
+    assert retouch["prompt_info"] is not None  # el prompt lo escribe el PROMPT_ENGINEER
     original, edited = image(api, url, composition["id"]), image(api, url, retouch["id"])
     assert edited.size == original.size and edited.tobytes() != original.tobytes()

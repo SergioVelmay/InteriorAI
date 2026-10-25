@@ -26,8 +26,9 @@ from app.pipelines.prompt_writer import InputRole, WrittenPrompt, write_prompt
 from app.pipelines.sources import (
     active_references,
     base_candidates,
+    draft_base,
+    split_supports,
     texture_references,
-    with_group,
 )
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
@@ -50,12 +51,20 @@ GPT_IMAGE_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
 RENDERER_MAX_PIXELS = 4_000_000  # 4 MP
 RENDERER_LONG_SIDE_PX = 1_920
 INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativa (B-038)
-MAX_DRAFT_SUPPORTS = 6  # referencias de apoyo de un boceto, además de la imagen base
 DEFAULT_GPT_SIZE = "1536x1024"  # 3:2 (B-040)
 # Papel de cada imagen de entrada, tal como se explica al PROMPT_ENGINEER.
 BASE_ROLE = "imagen base: se dibuja sobre ella y se conserva su punto de vista y su geometría"
 SUPPORT_ROLE = "apoyo: se toma solo lo marcado en su ficha"
 DRAFT_ROLE = "boceto seleccionado: aporta color, ambiente, mobiliario y distribución"
+START_DRAFT_ROLE = (
+    "imagen de partida: el boceto seleccionado, que se materializa con fidelidad en geometría, "
+    "proporciones y mobiliario"
+)
+START_COMPOSITION_ROLE = (
+    "imagen de partida: la composición actual, que se mejora conservando lo que no se pide cambiar"
+)
+RETOUCH_ROLE = "imagen que se retoca: solo la zona de la máscara (transparente)"
+CompositionSource = Literal["boceto", "composicion"]
 COMPOSITION_ROLE = "composición de partida: se conserva su encuadre, geometría y mobiliario"
 TEXTURE_ROLE = "textura: se toma solo lo marcado en su ficha (color, material, acabado)"
 _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
@@ -312,6 +321,7 @@ async def _prompt(
     inputs: list[InputRole],
     size: str,
     options: RenderOptions,
+    extras: dict[str, str] | None = None,
 ) -> tuple[str, WrittenPrompt | None]:
     """El prompt de la generación: el que escribe el PROMPT_ENGINEER con las entradas reales
     (Paso 22) o, si el usuario lo da, el suyo tal cual."""
@@ -319,7 +329,7 @@ async def _prompt(
         return build_prompt(options.prompt_override, options), None
     written = await write_prompt(
         repo, client, project, stage, inputs, active_references(project),
-        options.extra_instructions, size,
+        options.extra_instructions, size, extras,
     )  # fmt: skip
     return written.prompt.prompt, written
 
@@ -339,8 +349,8 @@ async def generate_drafts(
         raise PipelineInputError(
             "Activa al menos una referencia (marca algo en su ficha) para generar bocetos"
         )
-    base = next((a for a in with_group(project, "perspectiva") if a in active), None)
-    supports = [a for a in active if base is None or a.id != base.id][:MAX_DRAFT_SUPPORTS]
+    base = draft_base(project)
+    supports, _ = split_supports(project, base)  # hasta MAX_SUPPORTS, por prioridad
     inputs = [InputRole(base, BASE_ROLE)] if base else []
     inputs += [InputRole(a, SUPPORT_ROLE) for a in supports]
     size = resolve_size(Role.FAST_DRAFT, options.size or DEFAULT_GPT_SIZE, inputs[0].asset)
@@ -363,24 +373,48 @@ def _render_asset(project: ProjectMetadata, render: RenderRecord) -> Asset:
     return next(a for a in project.assets if a.id == render.id)
 
 
+def audit_corrections(project: ProjectMetadata, draft: RenderRecord | None, notes: str = "") -> str:
+    """Correcciones para la composición (B-046): las de la última auditoría con IA del boceto y
+    las notas del usuario («auditoría manual»)."""
+    parts = []
+    if draft is not None and draft.audits:
+        report = draft.audits[-1].report
+        parts.append(f"Auditoría con IA ({report.verdict}, {report.score}/100): {report.summary}")
+        if report.suggested_prompt_adjustments.strip():
+            parts.append(f"Correcciones propuestas: {report.suggested_prompt_adjustments.strip()}")
+    if notes.strip():
+        parts.append(f"Notas del usuario: {notes.strip()}")
+    return "\n".join(parts)
+
+
 async def generate_composition(
     repo: ProjectRepository,
     client: FoundryClient,
     project_id: UUID,
     options: RenderOptions,
     draft_id: UUID | None = None,
+    source: CompositionSource = "boceto",
+    use_audit: bool = False,
+    audit_notes: str = "",
 ) -> list[RenderRecord]:
-    """Etapa 2: composición a partir del boceto seleccionado (provisional hasta el Paso 23).
+    """Etapa 2 (B-045, B-055): composición a partir del boceto seleccionado o de la composición
+    actual (la seleccionada), con las referencias activas como apoyo (hasta 12, por prioridad) y,
+    si se pide, las correcciones de la auditoría del boceto.
 
-    Cadenas de la v1: la captura editada con el prompt del brief y el boceto como referencia.
-    Desde el Paso 22: prompt automático; se edita la imagen base (perspectiva marcada) con el
-    boceto como referencia o, si no hay, el propio boceto.
+    Cadenas de la v1 (boceto con brief): la captura editada con el prompt del brief.
     """
     project = await repo.get(project_id)
-    draft = selected_render(project, draft_id, RenderStage.DRAFT) if draft_id else None
-    brief = _brief_of(project, draft) if draft else approved_brief(project, options.brief_id)
     options = RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"})
-    if brief is not None:  # v1
+    draft = (
+        selected_render(project, draft_id, RenderStage.DRAFT)
+        if draft_id
+        else _selected(project, RenderStage.DRAFT)
+    )
+    brief = _brief_of(project, draft) if draft else None
+    approved = any(b.status is BriefStatus.APPROVED for b in project.briefs)
+    if source == "boceto" and draft is None and (options.brief_id or approved):
+        brief = approved_brief(project, options.brief_id)  # v1: la captura con el brief
+    if source == "boceto" and brief is not None:  # v1
         base = base_asset(project, brief)
         inputs = [base.id] + ([draft.id] if draft else [])
         size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size, base)
@@ -389,22 +423,36 @@ async def generate_composition(
             repo, client, project, RenderStage.COMPOSITION, inputs, draft, prompt, size, options,
             brief=brief,
         )  # fmt: skip
-    if draft is None:
-        raise PipelineInputError("Selecciona un boceto para generar la composición")
-    draft_asset = _render_asset(project, draft)
-    perspective = next(iter(with_group(project, "perspectiva")), None)
-    if perspective is not None:
-        roles = [InputRole(perspective, BASE_ROLE), InputRole(draft_asset, DRAFT_ROLE)]
+
+    if source == "composicion":
+        start = _selected(project, RenderStage.COMPOSITION)
+        if start is None:
+            raise PipelineInputError("Selecciona una composición para generar a partir de ella")
+        start_role = START_COMPOSITION_ROLE
     else:
-        roles = [InputRole(draft_asset, "imagen base: el boceto seleccionado, que se materializa")]
-    size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size, roles[0].asset)
+        if draft is None:
+            raise PipelineInputError("Selecciona un boceto para generar la composición")
+        start, start_role = draft, START_DRAFT_ROLE
+    supports, _ = split_supports(project, None)
+    roles = [InputRole(_render_asset(project, start), start_role)]
+    roles += [InputRole(a, SUPPORT_ROLE) for a in supports]
+    size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size or DEFAULT_GPT_SIZE, roles[0].asset)
+    corrections = audit_corrections(project, draft, audit_notes) if use_audit else ""
+    extras = {"Correcciones de la auditoría del boceto": corrections} if corrections else None
     prompt, written = await _prompt(
-        repo, client, project, RenderStage.COMPOSITION, roles, size, options
+        repo, client, project, RenderStage.COMPOSITION, roles, size, options, extras
     )
     return await _run_stage(
-        repo, client, project, RenderStage.COMPOSITION, [r.asset.id for r in roles], draft,
+        repo, client, project, RenderStage.COMPOSITION, [r.asset.id for r in roles], start,
         prompt, size, options, written=written,
     )  # fmt: skip
+
+
+def _selected(project: ProjectMetadata, stage: RenderStage) -> RenderRecord | None:
+    return next(
+        (r for r in project.renders if r.stage is stage and r.status is RenderStatus.SELECTED),
+        None,
+    )
 
 
 async def generate_final(
@@ -477,17 +525,25 @@ async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UU
 # --- Retoque de una zona (inpainting, Paso 13b) ---------------------------------------------
 
 
-def inpaint_prompt(instruction: str, bounds: str) -> str:
-    """Prompt del retoque con máscara: el cambio debe quedar dentro de la zona pintada."""
-    change = instruction.strip()
+def inpaint_prompt(change: str, bounds: str, *, written: bool = False) -> str:
+    """Prompt del retoque con máscara: el cambio debe quedar dentro de la zona pintada.
+
+    `written`: el cambio ya es el prompt en inglés del PROMPT_ENGINEER (Paso 23), que ya pide
+    editar solo la zona; si no, es la instrucción del usuario en español.
+    """
     keep = "same framing, geometry, perspective, camera, lighting, materials and colors"
     contain = (
         f"The area spans {bounds}. Everything you add or change must fit entirely inside "
         "that area, with a clear margin to its edges: nothing new may cross or touch them."
     )
+    head = (
+        change.strip()
+        if written
+        else "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
+        f"it): {change.strip()}"
+    )
     return (
-        "Edit only the transparent area of the mask. Requested change (in Spanish, apply "
-        f"it): {change}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
+        f"{head}\n\n{contain}\n\nKeep everything else exactly as it is: {keep}. "
         "Blend the edit seamlessly with its surroundings."
     )
 
@@ -501,11 +557,17 @@ async def inpaint_render(
     instruction: str,
     *,
     quality: Quality | None = None,
+    indications: str = "",
+    use_audit: bool = False,
+    audit_notes: str = "",
 ) -> RenderRecord:
     """Retoca la zona pintada de una composición con la máscara nativa del STRUCTURAL_COMPOSER.
 
-    El resultado es la imagen completa que devuelve el modelo (B-038: sin recomponer), como
-    imagen nueva de la misma etapa y sin seleccionar; la original no cambia.
+    Paso 23: es «Generar con la composición actual» con «Usar el retoque»: el PROMPT_ENGINEER
+    escribe el prompt del cambio (con los límites de la zona, las referencias activas, las
+    indicaciones y, si se pide, la auditoría del boceto) y el modelo recibe la composición y
+    los apoyos. El resultado es la imagen completa que devuelve el modelo (B-038: sin
+    recomponer), como imagen nueva de la misma etapa y sin seleccionar; la original no cambia.
     """
     if not instruction.strip():
         raise PipelineInputError("Describe el cambio que quieres en la zona pintada")
@@ -527,9 +589,30 @@ async def inpaint_render(
     if size not in GPT_IMAGE_SIZES:
         size = _DEFAULT_SIZES["gpt"][_orientation_of(width, height)]
     model_mask = await anyio.to_thread.run_sync(masks.model_mask, zone, _size_of(source_image.data))
-    images = [source_image]
+    bounds = masks.zone_bounds_text(zone)
+
+    supports, _ = split_supports(project, None)
+    roles = [InputRole(_render_asset(project, source), RETOUCH_ROLE)]
+    roles += [InputRole(a, SUPPORT_ROLE) for a in supports]
+    retouch = (
+        f"Cambio pedido por el usuario en la zona: {instruction.strip()}\n"
+        f"Límites de la zona: {bounds}"
+    )
+    extras = {"Modo retoque": retouch}
+    draft = _selected(project, RenderStage.DRAFT)
+    corrections = audit_corrections(project, draft, audit_notes) if use_audit else ""
+    if corrections:
+        extras["Correcciones de la auditoría del boceto"] = corrections
+    written = await write_prompt(
+        repo, client, project, RenderStage.COMPOSITION, roles, active_references(project),
+        indications, size, extras,
+    )  # fmt: skip
+    images = [source_image] + [
+        await prepare_image(await repo.read_asset_bytes(project.id, a.id), INPUT_MAX_SIDE_PX)
+        for a in supports
+    ]
     request = ImageEditRequest(
-        prompt=inpaint_prompt(instruction, masks.zone_bounds_text(zone)), size=size,
+        prompt=inpaint_prompt(written.prompt.prompt, bounds, written=True), size=size,
         quality=quality_used, output_format=output_format, images=images,
         mask=InputImage(data=model_mask, mime_type="image/png"),
     )  # fmt: skip
@@ -547,7 +630,9 @@ async def inpaint_render(
         brief_id=source.brief_id,
         brief_version=source.brief_version,
         prompt=request.prompt,
-        input_asset_ids=[source.id],
+        prompt_info=written.prompt,
+        prompt_version=written.version,
+        input_asset_ids=[r.asset.id for r in roles],
         parent_render_id=source.parent_render_id,
         batch_id=uuid4(),
         size=f"{width}x{height}",

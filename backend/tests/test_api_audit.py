@@ -4,6 +4,7 @@ import io
 from collections.abc import Callable
 
 import pytest
+from conftest import mark_active
 from fastapi.testclient import TestClient
 from PIL import Image
 from test_api_renders import approve_brief, new_project, run, select
@@ -83,50 +84,82 @@ def chain(api: TestClient, spy: SpyClient) -> dict:
     return project | {"draft": draft, "composition": composition, "final": final}
 
 
-def audit(api: TestClient, chain: dict, render_id: str):
-    return api.post(f"{chain['url']}/renders/{render_id}/audit")
+def audit(api: TestClient, chain: dict, render_id: str, **body: str):
+    return api.post(f"{chain['url']}/renders/{render_id}/audit", json=body or None)
 
 
 # --- Auditoría ---------------------------------------------------------------------------------
 
 
-def test_audit_final_render_against_capture(api: TestClient, spy: SpyClient, chain: dict) -> None:
-    response = audit(api, chain, chain["final"]["id"])
+def test_audit_draft_against_space_references(api: TestClient, spy: SpyClient, chain: dict) -> None:
+    """B-046: el boceto se compara con todas las referencias activas de perspectiva o geometría
+    (aquí, la vista), con las observaciones del usuario."""
+    response = audit(api, chain, chain["draft"]["id"], notes="La ventana está desplazada")
     assert response.status_code == 200, response.text
     body = response.json()
     report = body["audit"]
-    assert report["reference_asset_id"] == chain["capture"]  # captura de origen, no la composición
+    assert report["reference_asset_ids"] == [chain["capture"]]
+    assert report["reference_asset_id"] is None  # solo en las imágenes de la v1
+    assert report["notes"] == "La ventana está desplazada"
     assert report["deployment"] == "gpt-6-astra"
     assert report["reasoning_effort"] == "max"
-    assert report["prompt_version"].startswith("geometric_auditor@")
+    assert report["prompt_version"].startswith("auditor_espacio@")
     assert report["report"]["verdict"] in {"conforme", "conforme_con_observaciones", "no_conforme"}
     assert body["cost_eur"] > 0
     assert report["cost_eur"] == pytest.approx(body["cost_eur"], abs=1e-6)
     assert body["render"]["audits"][-1]["id"] == report["id"]
-    assert body["render"]["status"] == "generado"  # auditar no cambia el estado
+    assert body["render"]["status"] == "seleccionado"  # auditar no cambia el estado
 
     [(role, request)] = spy.texts
     assert role is Role.GEOMETRIC_AUDITOR
     assert request.schema_name == "auditoria"
     assert request.max_output_tokens == 12_000
-    assert len(request.images) == 2
+    assert len(request.images) == 2  # la vista y el boceto, en ese orden
     for image in request.images:
         with Image.open(io.BytesIO(image.data)) as opened:
             assert max(opened.size) <= 1_536
-    assert "Lo marcado en las fichas del usuario" in request.input  # sin brief (Paso 22)
-    assert chain["final"]["prompt"] in request.input
+    assert "Imagen 1: referencia del espacio — «vista.png»" in request.input
+    assert "Imagen 2: imagen auditada" in request.input
+    assert "Lo marcado en las fichas del usuario" in request.input
+    assert "La ventana está desplazada" in request.input
+    assert chain["draft"]["prompt"] in request.input
+
+
+def test_audit_uses_every_space_reference(api: TestClient, spy: SpyClient, chain: dict) -> None:
+    pid = chain["url"].rsplit("/", 1)[1]
+    mark_active(api, pid, {chain["product"]: ["geometria"], chain["inspiration"]: ["colores"]})
+    report = audit(api, chain, chain["draft"]["id"]).json()["audit"]
+    assert report["reference_asset_ids"] == [chain["capture"], chain["product"]]
+    assert len(spy.texts[-1][1].images) == 3
+
+    # Sin referencias del espacio: solo la imagen auditada y lo marcado.
+    mark_active(api, pid, {chain["capture"]: ["colores"], chain["product"]: ["objetos"]})
+    report = audit(api, chain, chain["draft"]["id"]).json()["audit"]
+    assert report["reference_asset_ids"] == []
+    assert len(spy.texts[-1][1].images) == 1
 
 
 def test_audit_composition_and_history(api: TestClient, spy: SpyClient, chain: dict) -> None:
     audit(api, chain, chain["composition"]["id"])
     second = audit(api, chain, chain["composition"]["id"]).json()
     assert len(second["render"]["audits"]) == 2
-    assert second["audit"]["reference_asset_id"] == chain["capture"]
+    assert second["audit"]["reference_asset_ids"] == [chain["capture"]]
 
 
-def test_drafts_cannot_be_audited(api: TestClient, spy: SpyClient, chain: dict) -> None:
-    assert audit(api, chain, chain["draft"]["id"]).status_code == 422
+def test_v1_images_are_audited_against_their_capture(api: TestClient, spy: SpyClient) -> None:
+    project = new_project(api)
+    brief = approve_brief(api, project)
+    composition = run(api, project, "compositions", brief_id=brief["id"])["renders"][0]
+    assert composition["brief_id"] == brief["id"]
+    report = audit(api, project, composition["id"]).json()["audit"]
+    assert report["reference_asset_id"] == project["capture"]  # la de origen, no la composición
+    assert report["prompt_version"].startswith("geometric_auditor@")
+
+
+def test_audit_validation(api: TestClient, spy: SpyClient, chain: dict) -> None:
     assert audit(api, chain, "00000000-0000-0000-0000-000000000000").status_code == 404
+    long_notes = audit(api, chain, chain["draft"]["id"], notes="x" * 2_001)
+    assert long_notes.status_code == 422
     assert spy.texts == []
 
 

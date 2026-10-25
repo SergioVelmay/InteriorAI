@@ -1,6 +1,10 @@
-"""GEOMETRIC_AUDITOR: compara una composición o render final con la captura de SketchUp.
+"""GEOMETRIC_AUDITOR: compara una imagen generada con las referencias del espacio.
 
 A demanda (es el rol más caro): el informe se guarda en el render y no bloquea la selección.
+Desde el Paso 23 (B-046) se audita el boceto seleccionado frente a TODAS las referencias activas
+con perspectiva o geometría marcadas (ninguna, una o varias), con lo marcado en las fichas como
+lista de comprobación; sus correcciones alimentan la composición. Las imágenes de la v1 (con
+brief) se siguen comparando con su captura de origen.
 """
 
 from __future__ import annotations
@@ -17,10 +21,11 @@ from app.pipelines.images import prepare_image
 from app.pipelines.prompts import load_prompt
 from app.pipelines.renders import RenderNotFoundError
 from app.pipelines.schemas import strict_schema
-from app.pipelines.sources import active_references
+from app.pipelines.sources import active_references, geometric_references
 from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
+    Asset,
     AssetKind,
     AuditReport,
     DesignBrief,
@@ -34,7 +39,7 @@ from shared.roles import Role
 AUDIT_MAX_SIDE_PX = 1_536  # cotas legibles sin disparar los tokens de imagen
 MAX_OUTPUT_TOKENS = 12_000  # razonamiento `max`: tope de coste por auditoría (~0,55 €)
 SCHEMA = strict_schema(AuditReport)
-AUDITABLE = frozenset({RenderStage.COMPOSITION, RenderStage.FINAL})
+AUDITABLE = frozenset({RenderStage.DRAFT, RenderStage.COMPOSITION, RenderStage.FINAL})
 
 
 def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
@@ -50,7 +55,13 @@ def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
     return current
 
 
-def _context(project: ProjectMetadata, brief: DesignBrief | None, render: RenderRecord) -> str:
+def _context(
+    project: ProjectMetadata,
+    brief: DesignBrief | None,
+    render: RenderRecord,
+    references: list[Asset],
+    notes: str,
+) -> str:
     """Lo que debe cumplir la imagen: lo marcado en las fichas y, en las imágenes de la v1, su
     brief (desde el Paso 22 no hay brief: lo sustituye el prompt de cada generación)."""
     validated = [  # lo marcado en las referencias activas (B-030)
@@ -64,6 +75,13 @@ def _context(project: ProjectMetadata, brief: DesignBrief | None, render: Render
         for a in active_references(project)
     ]
     sections = [f"## Imagen auditada: {render.stage.label}"]
+    if brief is None:
+        images = [
+            f"- Imagen {i}: referencia del espacio — «{a.original_name}»"
+            for i, a in enumerate(references, start=1)
+        ]
+        images.append(f"- Imagen {len(references) + 1}: imagen auditada")
+        sections += ["## Imágenes (en este orden)", "\n".join(images)]
     if brief is not None:
         content = brief.content
         sections += [
@@ -84,6 +102,8 @@ def _context(project: ProjectMetadata, brief: DesignBrief | None, render: Render
         "## Prompt con el que se generó la imagen auditada",
         render.prompt,
     ]
+    if notes.strip():
+        sections += ["## Observaciones del usuario", notes.strip()]
     return "\n\n".join(sections)
 
 
@@ -93,26 +113,35 @@ async def audit_render(
     project_id: UUID,
     render_id: UUID,
     reasoning_effort: str,
+    notes: str = "",
 ) -> tuple[RenderRecord, RenderAudit]:
     project = await repo.get(project_id)
     render = next((r for r in project.renders if r.id == render_id), None)
     if render is None:
         raise RenderNotFoundError(str(render_id))
     if render.stage not in AUDITABLE:
-        raise PipelineInputError("Solo se auditan composiciones y renders finales")
+        raise PipelineInputError("Esta imagen no se puede auditar")
     brief = find_brief(project, render.brief_id) if render.brief_id else None
-    reference_id = reference_asset_id(project, render)
-    prompt = load_prompt("geometric_auditor")
+    if brief is not None:  # v1: frente a su captura de origen
+        reference_id: UUID | None = reference_asset_id(project, render)
+        references: list[Asset] = []
+        compared = [reference_id]
+        prompt = load_prompt("geometric_auditor")
+    else:
+        reference_id = None
+        references = geometric_references(project)
+        compared = [a.id for a in references]
+        prompt = load_prompt("auditor_espacio")
 
     images = [
         await prepare_image(await repo.read_asset_bytes(project.id, asset_id), AUDIT_MAX_SIDE_PX)
-        for asset_id in (reference_id, render.id)
+        for asset_id in (*compared, render.id)
     ]
     result = await client.complete_text(
         Role.GEOMETRIC_AUDITOR,
         TextRequest(
             instructions=prompt.text,
-            input=_context(project, brief, render),
+            input=_context(project, brief, render, references, notes),
             images=images,
             json_schema=SCHEMA,
             schema_name="auditoria",
@@ -129,6 +158,8 @@ async def audit_render(
     audit = RenderAudit(
         report=report,
         reference_asset_id=reference_id,
+        reference_asset_ids=[a.id for a in references],
+        notes=notes.strip(),
         deployment=deployment_name(Role.GEOMETRIC_AUDITOR)
         if deployment_name
         else result.deployment,
