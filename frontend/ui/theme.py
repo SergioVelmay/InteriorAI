@@ -19,7 +19,9 @@ CSS = f"""
 }}
 .iai-header h1 {{ font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }}
 .iai-header p {{ color: #a1a1aa; margin: 0.25rem 0 0; }}
-.iai-badges {{ display: flex; flex-wrap: wrap; gap: 0.5rem; }}
+.iai-badges {{
+    display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; margin-left: auto;
+}}
 .iai-badge {{
     display: inline-flex; align-items: center; gap: 0.5rem;
     padding: 0.35rem 0.75rem; border-radius: 999px;
@@ -44,6 +46,11 @@ CSS = f"""
 .iai-kpi strong {{ font-size: 1.35rem; font-weight: 600; }}
 .iai-muted {{ color: #a1a1aa; font-size: 0.875rem; }}
 /* Galería de proyectos: tarjetas 3:2 de ancho fijo mínimo y pie siempre visible. */
+/* Llamadas del proyecto (B-027): compactas para caber en media pantalla. */
+#iai-project-calls table {{ width: 100%; }}
+#iai-project-calls th, #iai-project-calls td {{
+    font-size: 0.8rem !important; padding: 0.3rem 0.5rem !important; white-space: nowrap;
+}}
 .iai-gallery .grid-container {{
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
     grid-auto-rows: auto !important; gap: 1rem !important;

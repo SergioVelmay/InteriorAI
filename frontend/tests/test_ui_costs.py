@@ -15,6 +15,7 @@ from ui.cost_views import (
     kpi_html,
     notes_md,
     pricing_frame,
+    project_calls_md,
     project_frame,
     records_csv,
     records_frame,
@@ -219,3 +220,18 @@ async def test_cost_alerts_client_never_fails() -> None:
 
     client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
     assert await client.cost_alerts() is None  # un aviso nunca impide usar la app
+
+
+def test_project_calls_md_is_compact() -> None:
+    """B-027: las llamadas en el resumen del proyecto, con lo esencial."""
+    records = [
+        {"timestamp": "2026-10-24T22:48:19.123Z", "role": "PROMPT_ENGINEER", "status": "ok",
+         "simulated": True, "cost_eur": 0.00107},
+        {"timestamp": "2026-10-24T09:13:19Z", "role": "PHOTOREALISTIC_RENDERER",
+         "status": "error", "simulated": False, "cost_eur": None},
+    ]  # fmt: skip
+    lines = project_calls_md(records).splitlines()
+    assert lines[0] == "| Fecha (UTC) | Rol | Estado | Coste (€) |"
+    assert lines[2] == "| 24/10/26 22:48 | PROMPT_ENGINEER | ✓ (sim.) | 0.0011 |"
+    assert lines[3] == "| 24/10/26 09:13 | PHOTOREALISTIC_RENDERER | error | — |"
+    assert project_calls_md([]) == "_Sin llamadas de IA._"

@@ -12,8 +12,16 @@ import gradio as gr
 
 from shared.models import ProjectCreate, ProjectMetadata
 from ui.api_client import ApiError, BackendClient, Health
+from ui.cost_views import project_calls_md
 from ui.covers import cover_image
-from ui.views import form_values, gallery_caption, header_html, parse_form, project_summary_md
+from ui.views import (
+    calls_label,
+    form_values,
+    gallery_caption,
+    header_html,
+    parse_form,
+    project_summary_md,
+)
 
 EMPTY_SUMMARY = (
     "### Ningún proyecto seleccionado\nElige una tarjeta de la galería o crea un proyecto nuevo."
@@ -73,6 +81,10 @@ def build_projects_tab(
                 create = gr.Button("Crear proyecto", variant="primary")
         with gr.Column(scale=2):
             summary = gr.Markdown(EMPTY_SUMMARY)
+            with gr.Accordion(calls_label(None), open=False) as calls_box:  # B-027
+                calls = gr.Markdown(
+                    project_calls_md([]), max_height=420, elem_id="iai-project-calls"
+                )
             with gr.Group():
                 name = gr.Textbox(label="Nombre", elem_id="iai-project-name")
                 description = gr.Textbox(
@@ -88,7 +100,7 @@ def build_projects_tab(
                 cancel_delete = gr.Button("Cancelar", visible=False, variant="secondary")
 
     fields = [name, description]
-    detail_outputs = [summary, *fields, save, delete]
+    detail_outputs = [summary, calls_box, calls, *fields, save, delete]
 
     # --- Manejadores ---------------------------------------------------------------------
 
@@ -100,12 +112,16 @@ def build_projects_tab(
         if project is None:
             return {
                 summary: EMPTY_SUMMARY,
+                calls_box: gr.update(label=calls_label(None)),
+                calls: project_calls_md([]),
                 **dict.fromkeys(fields, None),
                 save: gr.update(interactive=False),
                 delete: gr.update(interactive=False),
             }
         return {
             summary: project_summary_md(project, costs),
+            calls_box: gr.update(label=calls_label(costs)),
+            calls: project_calls_md((costs or {}).get("records", [])),
             **dict(zip(fields, form_values(project), strict=True)),
             save: gr.update(interactive=True),
             delete: gr.update(interactive=True),
@@ -118,13 +134,16 @@ def build_projects_tab(
         except ApiError as exc:
             gr.Warning(exc.detail)
             return {header: header_html(health, None)}
+        # El proyecto que recuerda el navegador o, si no hay (otro navegador, borrado o en la
+        # papelera), el último actualizado: la galería ya va de más a menos reciente (B-025).
         current = next((p for p in projects if str(p.id) == active_id), None)
+        current = current or (projects[0] if projects else None)
         costs = await client.project_costs(current.id) if current else None
         return {
             header: header_html(health, current, await client.cost_alerts()),
             gallery: gr.update(
                 value=items,
-                selected_index=project_ids.index(active_id) if current else None,
+                selected_index=project_ids.index(str(current.id)) if current else None,
             ),
             ids: project_ids,
             active: str(current.id) if current else None,

@@ -88,12 +88,21 @@ async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:
     assert result[tab.fields[0]] == "Estudio"
 
 
-async def test_refresh_drops_unknown_active_project(tmp_path: Path) -> None:
-    tab, active, header = build_tab(fake_backend([project_json("Dormitorio")]), tmp_path)
-    result = await tab.refresh_all(str(uuid4()))  # el proyecto recordado ya no existe
+async def test_refresh_falls_back_to_the_latest_project(tmp_path: Path) -> None:
+    """B-025: si el proyecto recordado no existe (o no hay ninguno), el último actualizado."""
+    latest = project_json("Dormitorio")
+    tab, active, header = build_tab(fake_backend([latest, project_json("Estudio")]), tmp_path)
+    for remembered in (str(uuid4()), None):  # ya no existe / otro navegador
+        result = await tab.refresh_all(remembered)
+        assert result[active] == latest["id"]
+        assert "Proyecto: Dormitorio" in result[header]
+        assert result[tab.gallery]["selected_index"] == 0
+
+    empty, active, header = build_tab(fake_backend([]), tmp_path)
+    result = await empty.refresh_all(None)
     assert result[active] is None
     assert "Sin proyecto activo" in result[header]
-    assert "Ningún proyecto seleccionado" in result[tab.summary]
+    assert "Ningún proyecto seleccionado" in result[empty.summary]
 
 
 def test_handlers_never_return_an_empty_dict() -> None:

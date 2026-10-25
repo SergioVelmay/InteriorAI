@@ -55,7 +55,8 @@ Coste real del paso: unos 0,10 € (smoke 0,058 €, semillas y retoque sin `inp
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-18`, PR #26. **Después del merge hay que reconstruir Docker:** la
+✅ Cerrado — rama `feat/paso-18`, PR #26 revisada y mergeada por el usuario; Docker reconstruido
+el 2026-10-25 con los roles nuevos (verificados en el contenedor). **Después del merge hay que reconstruir Docker:** la
 variable `DEPLOYMENT_ROLE_CONTEXT_MANAGER` ya no existe en el `.env`, así que la imagen anterior
 no arrancaría en modo `azure`.
 

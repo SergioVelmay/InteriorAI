@@ -120,8 +120,9 @@ class BackendClient:
         await self._request("DELETE", f"/api/v1/projects/{project_id}")
 
     async def project_costs(self, project_id: UUID | str) -> dict[str, Any]:
+        """Resumen del proyecto con sus llamadas (las 1000 últimas, el máximo de la API)."""
         response = await self._request(
-            "GET", f"/api/v1/projects/{project_id}/costs", params={"limit": 0}
+            "GET", f"/api/v1/projects/{project_id}/costs", params={"limit": 1000}
         )
         return response.json()
 
