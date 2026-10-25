@@ -46,6 +46,11 @@ CSS = f"""
 .iai-kpi strong {{ font-size: 1.35rem; font-weight: 600; }}
 .iai-muted {{ color: #a1a1aa; font-size: 0.875rem; }}
 /* Galería de proyectos: tarjetas 3:2 de ancho fijo mínimo y pie siempre visible. */
+/* Registro de Costes IA (B-033): letra compacta para que quepan todas las columnas. */
+#iai-cost-table table, #iai-cost-table table * {{
+    font-size: 0.75rem !important; word-break: normal !important; overflow-wrap: normal !important;
+    hyphens: none !important;
+}}
 /* Llamadas del proyecto (B-027): compactas para caber en media pantalla. */
 #iai-project-calls table {{ width: 100%; }}
 #iai-project-calls th, #iai-project-calls td {{

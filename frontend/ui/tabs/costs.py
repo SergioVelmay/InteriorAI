@@ -1,8 +1,9 @@
-"""Pestaña Costes: lo que cuesta la IA, del proyecto activo o de todos los proyectos.
+"""Pestaña Costes IA: el gasto real en IA del proyecto activo o de todos los proyectos.
 
-Indicadores, coste por rol, por día (apilado por rol) y por proyecto, registro de llamadas con
-filtros y descarga en CSV, y la tabla de precios vigente. Por defecto, sin las llamadas
-simuladas (modo mock).
+Indicadores, coste por rol y despliegue, por día y por proyecto (Altair, B-032), registro de
+llamadas con filtros, detalle de la fila seleccionada y descarga en CSV (B-033), y la tabla de
+precios vigente (B-034). Solo gasto real: las llamadas simuladas del modo mock no cuentan
+(B-031).
 """
 
 from __future__ import annotations
@@ -19,22 +20,22 @@ from shared.roles import Role
 from ui.api_client import ApiError, BackendClient
 from ui.cost_views import (
     ALL,
-    ROLE_COLORS,
     alert_lines,
-    day_role_frame,
+    column_widths,
+    day_chart,
     filter_records,
     kpi_html,
     notes_md,
     pricing_frame,
-    project_frame,
+    project_chart,
+    record_detail_md,
     records_csv,
     records_frame,
-    role_frame,
-    y_range,
+    role_chart,
 )
 
 ACTIVE, EVERYTHING = "Proyecto activo", "Todos los proyectos"
-NO_PROJECT = "### Ningún proyecto activo\nElige un proyecto en **Proyectos** o mira **todos**."
+NO_PROJECT = "Ningún proyecto activo: elige uno en **Proyectos** o mira **todos los proyectos**."
 MAX_RECORDS = 1000
 
 
@@ -47,32 +48,20 @@ class CostsTab:
 
 
 def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
-    records_state = gr.State([])
+    records_state = gr.State([])  # todas las llamadas cargadas
+    shown_state = gr.State([])  # las que muestra la tabla (tras los filtros), en su orden
     all_projects = gr.State(False)
-    heading = gr.Markdown()
     with gr.Row(equal_height=True):
         scope = gr.Radio(
             [ACTIVE, EVERYTHING], value=ACTIVE, label="Alcance", elem_id="iai-cost-scope"
         )
-        include_simulated = gr.Checkbox(
-            value=False, label="Incluir simulación (modo mock)", elem_id="iai-cost-sim"
-        )
         refresh = gr.Button("Actualizar", variant="secondary", scale=0)
     kpis = gr.HTML()
-    notes = gr.Markdown(elem_classes="iai-muted")
+    notes = gr.Markdown(elem_classes="iai-muted", elem_id="iai-cost-notes")
     with gr.Row():
-        by_role = gr.BarPlot(
-            x="Rol", y="Coste (€)", color="Rol", color_map=ROLE_COLORS, title="Coste por rol",
-            x_label_angle=-30, height=300, elem_id="iai-cost-role",
-        )  # fmt: skip
-        by_day = gr.BarPlot(
-            x="Día", y="Coste (€)", color="Rol", color_map=ROLE_COLORS,
-            title="Coste por día (apilado por rol)", height=300, elem_id="iai-cost-day",
-        )  # fmt: skip
-    by_project = gr.BarPlot(
-        x="Proyecto", y="Coste (€)", title="Coste por proyecto", height=260, visible=False,
-        elem_id="iai-cost-project",
-    )  # fmt: skip
+        by_role = gr.Plot(show_label=False, elem_id="iai-cost-role")
+        by_day = gr.Plot(show_label=False, elem_id="iai-cost-day")
+    by_project = gr.Plot(show_label=False, visible=False, elem_id="iai-cost-project")
     with gr.Accordion("Registro de llamadas", open=True):
         with gr.Row(equal_height=True):
             role_filter = gr.Dropdown(
@@ -82,20 +71,27 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
             download = gr.DownloadButton(
                 "Descargar CSV", variant="secondary", elem_id="iai-cost-csv"
             )
-        table = gr.Dataframe(interactive=False, wrap=True, max_height=480, elem_id="iai-cost-table")
+        table = gr.Dataframe(
+            interactive=False,
+            wrap=True,
+            max_height=480,
+            column_widths=column_widths(False),
+            elem_id="iai-cost-table",
+        )
+        detail = gr.Markdown(record_detail_md(None), elem_id="iai-cost-detail")
     with gr.Accordion("Precios vigentes (config/pricing.yaml)", open=False):
-        pricing = gr.Dataframe(interactive=False, wrap=True)
+        pricing = gr.Dataframe(interactive=False, wrap=False, elem_id="iai-cost-pricing")
 
     outputs: list[gr.components.Component] = [
-        heading, kpis, notes, by_role, by_day, by_project, records_state, all_projects, table,
-        download, pricing,
+        kpis, notes, by_role, by_day, by_project, records_state, shown_state, all_projects,
+        table, detail, download, pricing,
     ]  # fmt: skip
 
     def empty(message: str) -> dict:
         return {
-            heading: message, kpis: "", notes: "", by_role: None, by_day: None,
-            by_project: gr.update(visible=False), records_state: [], all_projects: False,
-            table: None,
+            kpis: "", notes: message, by_role: None, by_day: None,
+            by_project: gr.update(visible=False), records_state: [], shown_state: [],
+            all_projects: False, table: None, detail: record_detail_md(None),
             download: gr.update(value=None, interactive=False), pricing: gr.skip(),
         }  # fmt: skip
 
@@ -110,47 +106,42 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
                 file.write(records_csv(shown))
             path = Path(name)
         return {
-            table: records_frame(shown, with_project),
+            shown_state: shown,
+            table: gr.update(
+                value=records_frame(shown, with_project),
+                column_widths=column_widths(with_project),
+            ),
+            detail: record_detail_md(None),
             download: gr.update(value=str(path) if path else None, interactive=bool(path)),
         }
 
-    async def load(
-        active_id: str | None, chosen_scope: str, simulated: bool, role: str, status: str
-    ) -> dict:
+    async def load(active_id: str | None, chosen_scope: str, role: str, status: str) -> dict:
         project_id = active_id if chosen_scope == ACTIVE else None
         if chosen_scope == ACTIVE and not active_id:
             return empty(NO_PROJECT)
         try:
-            summary = await client.costs(project_id, simulated, MAX_RECORDS)
+            summary = await client.costs(project_id, include_simulated=False, limit=MAX_RECORDS)
             prices = await client.pricing()
         except ApiError as exc:
             gr.Warning(exc.detail)
-            return empty(f"### Costes no disponibles\n{exc.detail}")
-        name = summary.get("project_name")
-        title = (
-            "todos los proyectos" if project_id is None else f"«{name}»" if name else "el proyecto"
-        )
+            return empty(f"Costes no disponibles: {exc.detail}")
         records = summary["records"]
-        roles, projects = role_frame(summary), project_frame(summary)
         return {
-            heading: f"### Costes de IA de {title}",
             kpis: kpi_html(summary),
             notes: " ".join(
                 [*alert_lines(await client.cost_alerts(), project_id), notes_md(summary)]
             ),
-            by_role: gr.update(value=roles, y_lim=y_range(roles)),
-            by_day: day_role_frame(records),
-            by_project: gr.update(
-                value=projects, y_lim=y_range(projects), visible=project_id is None
-            ),
+            by_role: role_chart(summary),
+            by_day: day_chart(records),
+            by_project: gr.update(value=project_chart(summary), visible=project_id is None),
             records_state: records,
             all_projects: project_id is None,
             pricing: pricing_frame(prices),
             **table_updates(records, role, status, project_id is None),
         }
 
-    inputs = [active, scope, include_simulated, role_filter, status_filter]
-    for trigger in (scope.change, include_simulated.change, refresh.click):
+    inputs = [active, scope, role_filter, status_filter]
+    for trigger in (scope.change, refresh.click):
         trigger(load, inputs=inputs, outputs=outputs)
 
     def on_filter(
@@ -162,10 +153,17 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         dropdown.change(
             on_filter,
             inputs=[records_state, role_filter, status_filter, all_projects],
-            outputs=[table, download],
+            outputs=[shown_state, table, detail, download],
         )
 
+    def on_row(evt: gr.SelectData, shown: list[dict[str, Any]]) -> str:
+        """«Ver más» (B-033): el detalle de la llamada de la fila seleccionada."""
+        row = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
+        return record_detail_md(shown[row] if 0 <= row < len(shown) else None)
+
+    table.select(on_row, inputs=shown_state, outputs=detail)
+
     async def refresh_all(active_id: str | None) -> dict:
-        return await load(active_id, ACTIVE, False, ALL, ALL)
+        return await load(active_id, ACTIVE, ALL, ALL)
 
     return CostsTab(refresh_all, outputs, load, inputs)

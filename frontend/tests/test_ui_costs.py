@@ -10,17 +10,20 @@ from ui.api_client import BackendClient
 from ui.cost_views import (
     alert_lines,
     chain_cost_md,
-    day_role_frame,
+    day_chart,
+    day_frame,
     filter_records,
     kpi_html,
     notes_md,
     pricing_frame,
     project_calls_md,
-    project_frame,
+    project_chart,
+    record_detail_md,
     records_csv,
     records_frame,
+    role_chart,
     role_frame,
-    y_range,
+    series_colors,
 )
 from ui.tabs.costs import ACTIVE, EVERYTHING, build_costs_tab
 
@@ -31,13 +34,16 @@ def record(role: str, cost: float | None, day: str = "2026-10-18", **extra) -> d
     return {
         "id": str(uuid4()), "timestamp": f"{day}T10:00:00Z", "request_id": "r1", "role": role,
         "deployment": "d", "operation": "edit_image", "status": "ok", "error_type": None,
-        "latency_s": 12.34, "input_tokens": 100, "output_tokens": 50, "megapixels_out": 2.4576,
-        "cost_eur": cost, "simulated": False, "project_id": PROJECT, "project_name": "Salón",
+        "latency_s": 12.34, "input_tokens": 100, "cached_input_tokens": 20,
+        "output_tokens": 50, "reasoning_tokens": 7, "megapixels_out": 2.4576,
+        "megapixels_ref": 1.0, "images_out": 1, "cost_eur": cost, "cost_breakdown":
+        {"output": 0.08}, "pricing_tier": "global", "simulated": False, "project_id": PROJECT,
+        "project_name": "Salón",
     } | extra  # fmt: skip
 
 
 RECORDS = [
-    record("PHOTOREALISTIC_RENDERER", 0.0873),
+    record("PHOTOREALISTIC_RENDERER", 0.0873, deployment="FLUX.2-pro"),
     record("FAST_DRAFT", 0.0305, day="2026-10-17"),
     record("GEOMETRIC_AUDITOR", 0.0, status="error", error_type="FoundryTimeoutError"),
 ]
@@ -51,6 +57,10 @@ def summary(**extra) -> dict:
                    "images_out": 2, "megapixels_out": 4.9152, "latency_s": 37.02},
         "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.0305, "calls": 1},
                     {"key": "PHOTOREALISTIC_RENDERER", "cost_eur": 0.0873, "calls": 1}],
+        "by_role_deployment": [
+            {"key": "FAST_DRAFT (d)", "label": "FAST_DRAFT", "cost_eur": 0.0305, "calls": 1},
+            {"key": "PHOTOREALISTIC_RENDERER (FLUX.2-pro)", "label": "PHOTOREALISTIC_RENDERER",
+             "cost_eur": 0.0873, "calls": 1}],
         "by_project": [{"key": PROJECT, "label": "Salón", "cost_eur": 0.1178}],
         "records": RECORDS,
     } | extra  # fmt: skip
@@ -75,45 +85,91 @@ PRICING = {
 def test_kpis_and_notes() -> None:
     html = kpi_html(summary())
     assert "0.1178 €" in html and "Latencia media" in html and "12.3 s" in html
-    notes = notes_md(summary(simulated_excluded=4))
-    assert "estimado" in notes and "4 llamada(s) simulada(s) ocultas" in notes
+    notes = notes_md(summary())
+    assert "Gasto **real**" in notes and "estimado" in notes
     assert "pudo facturarlas" in notes  # hay un error
-    assert "simuladas" in notes_md(summary(includes_simulated=True))
+    empty = summary(totals=summary()["totals"] | {"calls": 0, "errors": 0})
+    assert "Todavía no hay llamadas reales" in notes_md(empty)
 
 
-def test_frames_for_the_charts() -> None:
-    assert role_frame(summary())["Coste (€)"].tolist() == [0.0305, 0.0873]
-    days = day_role_frame(RECORDS)
-    assert days.to_dict("records")[0] == {"Día": "2026-10-17", "Rol": "FAST_DRAFT",
-                                          "Coste (€)": 0.0305}  # fmt: skip
-    assert len(days) == 3
-    assert project_frame(summary())["Proyecto"].tolist() == ["Salón"]
-    assert role_frame(summary(by_role=[])).empty
-    assert y_range(project_frame(summary())) == [0.0, 0.13547]
-    assert y_range(role_frame(summary(by_role=[]))) == [0.0, 0.01]
+def test_series_colors_follow_the_role() -> None:
+    colors = series_colors({
+        "PROMPT_ENGINEER (gpt-6-luna)": "PROMPT_ENGINEER",
+        "PROMPT_ENGINEER (gpt-6.1-sol)": "PROMPT_ENGINEER",
+        "FAST_DRAFT (flare)": "FAST_DRAFT",
+    })  # fmt: skip
+    assert colors["FAST_DRAFT (flare)"] == "#38bdf8"
+    assert colors["PROMPT_ENGINEER (gpt-6-luna)"] == "#a1a1aa"
+    assert colors["PROMPT_ENGINEER (gpt-6.1-sol)"] not in {"#a1a1aa", "#38bdf8"}  # más claro
 
 
-def test_records_table_filters_and_csv() -> None:
+def test_charts_have_a_full_legend_and_readable_labels() -> None:
+    """B-032: leyenda «rol (despliegue)», una por línea y sin recortar; rol en dos líneas."""
+    spec = role_chart(summary()).to_dict()
+    legend = spec["encoding"]["color"]["legend"]
+    assert legend["columns"] == 1 and legend["labelLimit"] == 0 and legend["orient"] == "bottom"
+    assert spec["encoding"]["color"]["scale"]["domain"] == [
+        "FAST_DRAFT (d)", "PHOTOREALISTIC_RENDERER (FLUX.2-pro)",
+    ]  # fmt: skip
+    assert "split(datum.label" in spec["encoding"]["x"]["axis"]["labelExpr"]
+    assert role_frame(summary(by_role_deployment=[])).empty
+
+    days = day_frame(RECORDS)
+    assert days.to_dict("records")[0] == {
+        "Día": "2026-10-17", "Serie": "FAST_DRAFT (d)", "Rol": "FAST_DRAFT", "Coste (€)": 0.0305,
+    }  # fmt: skip
+    assert day_chart(RECORDS).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == 0  # caben
+    many = [record("FAST_DRAFT", 0.01, day=f"2026-10-{d:02d}") for d in range(1, 20)]
+    assert day_chart(many).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == -40  # giradas
+
+    projects = summary(by_project=[{"key": str(i), "label": f"Proyecto con nombre largo {i}",
+                                    "cost_eur": 0.1} for i in range(5)])  # fmt: skip
+    assert project_chart(projects).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == -40
+    assert project_chart(summary()).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == 0
+
+
+def test_records_table_detail_and_csv() -> None:
+    """B-033: tabla con despliegue y MPx, sin simulada ni petición; el resto en el detalle."""
     assert len(filter_records(RECORDS, "Todos", "error")) == 1
     assert len(filter_records(RECORDS, "FAST_DRAFT", "Todos")) == 1
     frame = records_frame(RECORDS)
     assert isinstance(frame, pd.DataFrame) and len(frame) == 3
-    assert frame.iloc[2]["Estado"] == "error (FoundryTimeoutError)"
-    assert frame.iloc[0]["Fecha (UTC)"] == "2026-10-18 10:00:00"
+    assert list(frame.columns) == [
+        "Fecha (UTC)", "Proyecto", "Rol", "Despliegue", "Estado", "Coste (€)", "Latencia (s)",
+        "Tokens entrada", "Tokens salida", "MPx generados", "MPx referencia",
+    ]  # fmt: skip
+    assert frame.iloc[2]["Estado"] == "error"  # sin el error concreto
+    assert frame.iloc[0]["Estado"] == "✓"
+    assert frame.iloc[0]["Despliegue"] == "FLUX.2-pro"
+    assert frame.iloc[0]["MPx referencia"] == 1.0
     assert "Proyecto" not in records_frame(RECORDS, with_project=False).columns
-    text = records_csv(RECORDS)
-    assert text.splitlines()[0].startswith("Fecha (UTC);Proyecto;Rol")
-    assert ";PHOTOREALISTIC_RENDERER;" in text.splitlines()[1]
+
+    detail = record_detail_md(RECORDS[2])
+    assert "`FoundryTimeoutError`" in detail and "`edit_image`" in detail
+    assert "en caché 20" in detail and "razonamiento 7" in detail and "`r1`" in detail
+    assert "Selecciona una fila" in record_detail_md(None)
+
+    lines = records_csv(RECORDS).splitlines()
+    header = lines[0].split(";")
+    assert header[:4] == ["Fecha (UTC)", "Proyecto", "Rol", "Despliegue"]
+    assert {"Error", "Petición", "Tokens en caché", "Desglose del coste"} <= set(header)
+    assert "FoundryTimeoutError" in lines[3] and len(lines) == 4
 
 
-def test_pricing_and_chain_cost() -> None:
+def test_pricing_rates_in_columns_with_units() -> None:
+    """B-034: tres tarifas en columnas y las unidades aparte (MPx para megapíxeles)."""
     frame = pricing_frame(PRICING)
-    assert frame["Despliegue"].tolist() == ["gpt-6-luna", "gpt-image-2.5-flare", "FLUX.2-pro"]
-    assert (
-        "salida 0.44" in frame.iloc[0]["Tarifas"]
-        and "MP adicional 0.0132" in frame.iloc[2]["Tarifas"]
-    )
+    assert list(frame.columns) == [
+        "Despliegue", "Tipo", "Tarifa 1", "Tarifa 2", "Tarifa 3", "Unidades",
+    ]  # fmt: skip
+    assert frame.iloc[0][["Tarifa 1", "Tarifa 3", "Unidades"]].tolist() == [
+        "entrada 0,088", "salida 0,44", "€/M tokens",
+    ]  # fmt: skip
+    assert frame.iloc[2][["Tarifa 2", "Unidades"]].tolist() == ["MPx adicional 0,0132", "€/MPx"]
     assert pricing_frame(None).empty
+
+
+def test_chain_cost_line() -> None:
     line = chain_cost_md({"totals": {"cost_eur": 0.2969, "calls": 6}, "simulated_calls": 2})
     assert "0.2969 €" in line and "6 llamada(s)" in line and "simulación: 2" in line
     assert chain_cost_md(None) == ""
@@ -168,22 +224,22 @@ async def test_costs_tab_scopes(tmp_path: Path) -> None:
     seen: list[httpx.Request] = []
     tab = build(seen)
 
-    assert "Ningún proyecto activo" in (await tab.refresh_all(None))[tab.all_outputs[0]]
+    assert "Ningún proyecto activo" in by_id(await tab.refresh_all(None), "iai-cost-notes")
     assert seen == []  # sin proyecto no se consulta nada
 
     result = await tab.refresh_all(PROJECT)
-    assert result[tab.all_outputs[0]] == "### Costes de IA de «Salón»"
+    assert all(r.url.params.get("include_simulated", "false") == "false" for r in seen)  # B-031
     assert by_id(result, "iai-cost-project")["visible"] is False
-    assert len(by_id(result, "iai-cost-table")) == 3
+    assert by_id(result, "iai-cost-role").to_dict()["mark"]["type"] == "bar"
+    assert len(by_id(result, "iai-cost-table")["value"]) == 3
     csv_path = anyio.Path(by_id(result, "iai-cost-csv")["value"])
     assert (await csv_path.read_text(encoding="utf-8-sig")).count("\n") == 4  # cabecera + 3
 
-    result = await tab.load(PROJECT, EVERYTHING, True, "Todos", "error")
-    assert result[tab.all_outputs[0]] == "### Costes de IA de todos los proyectos"
+    result = await tab.load(PROJECT, EVERYTHING, "Todos", "error")
     assert by_id(result, "iai-cost-project")["visible"] is True
-    assert len(by_id(result, "iai-cost-table")) == 1  # filtro de estado
+    assert len(by_id(result, "iai-cost-table")["value"]) == 1  # filtro de estado
     assert "/api/v1/costs" in [r.url.path for r in seen]
-    assert "Proyectos por encima de 3 €" in result[tab.all_outputs[2]]  # aviso en las notas
+    assert "Proyectos por encima de 3 €" in by_id(result, "iai-cost-notes")  # aviso
     assert ACTIVE != EVERYTHING
 
 
@@ -232,6 +288,6 @@ def test_project_calls_md_is_compact() -> None:
     ]  # fmt: skip
     lines = project_calls_md(records).splitlines()
     assert lines[0] == "| Fecha (UTC) | Rol | Estado | Coste (€) |"
-    assert lines[2] == "| 24/10/26 22:48 | PROMPT_ENGINEER | ✓ (sim.) | 0.0011 |"
+    assert lines[2] == "| 24/10/26 22:48 | PROMPT_ENGINEER | ✓ | 0.0011 |"
     assert lines[3] == "| 24/10/26 09:13 | PHOTOREALISTIC_RENDERER | error | — |"
-    assert project_calls_md([]) == "_Sin llamadas de IA._"
+    assert project_calls_md([]) == "_Sin llamadas reales de IA._"

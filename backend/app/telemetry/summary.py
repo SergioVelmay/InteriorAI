@@ -48,6 +48,9 @@ class CostSummary(BaseModel):
     by_role: list[GroupTotals]
     by_day: list[GroupTotals]
     by_deployment: list[GroupTotals]
+    # Rol y despliegue juntos (B-032): clave «ROL (despliegue)», `label` = rol. Un rol puede
+    # haber usado varios despliegues (p. ej. tras cambiar su asignación en `.env`).
+    by_role_deployment: list[GroupTotals] = []
     by_project: list[GroupTotals] = []
     records: list[CostRecord]
 
@@ -87,6 +90,10 @@ def _group(
     return sorted((_rounded(g) for g in groups.values()), key=lambda g: g.key)  # type: ignore[misc]
 
 
+def role_deployment(record: TelemetryRecord) -> str:
+    return f"{record.role.value} ({record.deployment})"
+
+
 def summarize(
     project_id: UUID | None,
     records: list[CostRecord],
@@ -110,6 +117,7 @@ def summarize(
         by_role=_group(kept, lambda r: r.role.value),
         by_day=_group(kept, lambda r: r.timestamp.date().isoformat()),
         by_deployment=_group(kept, lambda r: r.deployment),
+        by_role_deployment=_group(kept, role_deployment, lambda r: r.role.value),
         by_project=_group(kept, lambda r: str(r.project_id), lambda r: r.project_name),
         records=latest,
     )

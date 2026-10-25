@@ -93,10 +93,9 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
     ]
     if costs is not None:
         totals = costs.get("totals", {})
-        simulated = " (incluye simulaciones)" if costs.get("includes_simulated") else ""
         lines.append(
-            f"- Coste estimado de IA: **{totals.get('cost_eur', 0):.4f} €** en "
-            f"{totals.get('calls', 0)} llamadas{simulated}"
+            f"- Gasto real estimado en IA: **{totals.get('cost_eur', 0):.4f} €** en "
+            f"{totals.get('calls', 0)} llamadas"
         )
         # Desglose por rol (B-027), del más caro al más barato.
         for group in sorted(costs.get("by_role", []), key=lambda g: -g["cost_eur"]):

@@ -40,9 +40,10 @@ de la cabecera, independientes del Estudio nuevo. Sin llamadas reales.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-19`, PR #27.
+✅ Cerrado — rama `feat/paso-19`, PR #27 revisada y mergeada por el usuario; Docker reconstruido
+el 2026-10-25.
 
 ## 6. Pendiente / futuro
 
-- Paso 20 (Costes IA): la pestaña de costes pasará a mostrar solo el gasto real (B-031). Habrá
-  que decidir si el resumen del proyecto hace lo mismo.
+- Resuelto en el [Paso 20](paso-20-costes-ia.md): el resumen del proyecto también muestra solo el
+  gasto real (decisión del usuario).
