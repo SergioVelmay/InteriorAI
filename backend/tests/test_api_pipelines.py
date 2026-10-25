@@ -36,7 +36,7 @@ class SpyClient(MockFoundryClient):
 
 @pytest.fixture
 def api(make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setenv("DEPLOYMENT_ROLE_CONTEXT_MANAGER", "gpt-6-luna")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_REFERENCE_ANALYST", "gpt-6-luna")
     monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ENGINEER", "gpt-6.1-sol")
     return make_api()
 
@@ -105,11 +105,11 @@ def test_index_references(api: TestClient, spy: SpyClient, project: dict) -> Non
     assert body["request_id"] == response.headers["x-request-id"]
     for asset in body["indexed"]:
         assert asset["analysis"]["status"] == "proposed"
-        assert asset["analysis"]["prompt_version"].startswith("context_manager@")
+        assert asset["analysis"]["prompt_version"].startswith("reference_analyst@")
 
     assert len(spy.requests) == 2
     for role, request in spy.requests:
-        assert role is Role.CONTEXT_MANAGER
+        assert role is Role.REFERENCE_ANALYST
         assert request.schema_name == "ficha_referencia"
         assert len(request.images) == 1
         assert request.images[0].mime_type == "image/jpeg"
@@ -346,7 +346,7 @@ def test_pipeline_calls_are_in_project_telemetry(
     brief = api.post(f"{project['url']}/briefs")
     costs = api.get(f"{project['url']}/costs").json()
     by_role = {g["key"]: g for g in costs["by_role"]}
-    assert by_role["CONTEXT_MANAGER"]["calls"] == 2
+    assert by_role["REFERENCE_ANALYST"]["calls"] == 2
     assert by_role["PROMPT_ENGINEER"]["calls"] == 1
     request_ids = {r["request_id"] for r in costs["records"]}
     assert request_ids == {index.headers["x-request-id"], brief.headers["x-request-id"]}

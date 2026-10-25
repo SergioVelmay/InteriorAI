@@ -13,7 +13,7 @@ from shared import Settings
 
 _PREFIXES = (
     "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_", "DATA_DIR", "LOG_", "APP_",
-    "MAX_UPLOAD", "PRICING_",
+    "MAX_UPLOAD", "PRICING_", "PROMPT_ENGINEER_", "REFERENCE_ANALYST_", "COST_ALERT_",
 )  # fmt: skip
 PRICING_FILE = Path(__file__).resolve().parents[2] / "config" / "pricing.yaml"
 

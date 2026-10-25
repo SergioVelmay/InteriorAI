@@ -83,25 +83,25 @@ def build_plan() -> list[Check]:
     base, mask = _room_sketch()
     return [
         Check(
-            "1", Role.PROMPT_ENGINEER, "1 texto corto (≤ 200 tokens de salida)",
+            "1", Role.PROMPT_ENGINEER, "1 texto corto con su reasoning_effort (B-053)",
             lambda c: c.complete_text(Role.PROMPT_ENGINEER, TextRequest(
                 instructions=(
                     "Eres un asistente de interiorismo. Responde en español, en una frase."
                 ),
                 input="Describe un salón nórdico de 20 m² con mucha luz natural.",
-                max_output_tokens=200,
+                max_output_tokens=2000,  # incluye el razonamiento
             )),
         ),
         Check(
-            "2", Role.CONTEXT_MANAGER, "1 texto corto con salida JSON estructurada",
-            lambda c: c.complete_text(Role.CONTEXT_MANAGER, TextRequest(
+            "2", Role.REFERENCE_ANALYST, "1 texto con salida JSON y su reasoning_effort (B-053)",
+            lambda c: c.complete_text(Role.REFERENCE_ANALYST, TextRequest(
                 instructions="Extrae estilo y colores del producto. Responde solo con el JSON.",
                 input=(
                     "Sofá de tres plazas, tapizado gris claro, patas de roble, estilo escandinavo."
                 ),
                 json_schema=CONTEXT_SCHEMA,
                 schema_name="producto",
-                max_output_tokens=200,
+                max_output_tokens=2000,  # incluye el razonamiento
             )),
         ),
         Check(
@@ -124,7 +124,8 @@ def build_plan() -> list[Check]:
             )),
         ),
         Check(
-            "5", Role.STRUCTURAL_COMPOSER, "1 edición 1024x1024 con máscara, calidad baja",
+            "5", Role.STRUCTURAL_COMPOSER,
+            "1 edición 1024x1024 con máscara, calidad baja",
             lambda c: c.edit_image(Role.STRUCTURAL_COMPOSER, ImageEditRequest(
                 prompt="Añade un sofá gris de tres plazas en la zona inferior marcada",
                 size="1024x1024",
@@ -143,6 +144,19 @@ def build_plan() -> list[Check]:
                 size="1024x1024",
                 output_format="jpeg",
             )),
+        ),
+        *(
+            Check(
+                key, Role.PHOTOREALISTIC_RENDERER, "1 imagen 512x512 con semilla 7 (B-041)",
+                lambda c: c.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(
+                    prompt="Fotografía realista de un sillón de terciopelo verde junto a una "
+                    "ventana, luz de mañana",
+                    size="512x512",
+                    output_format="png",
+                    seed=7,
+                )),
+            )
+            for key in ("7a", "7b")  # misma semilla y prompt (Paso 18: salen distintas)
         ),
     ]  # fmt: skip
 

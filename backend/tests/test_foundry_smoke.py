@@ -48,7 +48,7 @@ def test_answering_no_skips_every_call(tmp_path: Path, monkeypatch: pytest.Monke
 
     assert main(["--out", str(tmp_path / "out")], lambda s: Spy(), lambda _: "n") == 0
     report = json.loads((tmp_path / "out" / "informe.json").read_text(encoding="utf-8"))
-    assert [o["status"] for o in report] == ["skipped"] * 6
+    assert [o["status"] for o in report] == ["skipped"] * 8
     assert calls == []
 
 
@@ -57,7 +57,7 @@ def test_full_plan_with_mock_client(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     out = tmp_path / "out"
     assert main(["--out", str(out)], lambda s: MockFoundryClient(), lambda _: "s") == 0
     report = json.loads((out / "informe.json").read_text(encoding="utf-8"))
-    assert [o["key"] for o in report] == ["1", "2", "3", "4", "5", "6"]
+    assert [o["key"] for o in report] == ["1", "2", "3", "4", "5", "6", "7a", "7b"]
     assert all(o["status"] == "ok" for o in report)
     assert report[1]["data"] == {"estilo": "mock", "colores": ["mock"]}
     assert report[2]["usage"]["reasoning_tokens"] > 0
@@ -66,6 +66,8 @@ def test_full_plan_with_mock_client(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         "4_fast_draft_0.png",
         "5_structural_composer_0.png",
         "6_photorealistic_renderer_0.jpeg",
+        "7a_photorealistic_renderer_0.png",
+        "7b_photorealistic_renderer_0.png",
     ]
 
 

@@ -35,7 +35,7 @@ def _png(size: tuple[int, int], mode: str = "RGB", color: object = "#d4d4d8") ->
 
 
 async def _call(client: MeteredFoundryClient, role: Role) -> None:
-    if role in {Role.PROMPT_ENGINEER, Role.CONTEXT_MANAGER, Role.GEOMETRIC_AUDITOR}:
+    if role in {Role.PROMPT_ENGINEER, Role.REFERENCE_ANALYST, Role.GEOMETRIC_AUDITOR}:
         await client.complete_text(
             role, TextRequest(input="Salón nórdico de 20 m² con mucha luz natural.")
         )

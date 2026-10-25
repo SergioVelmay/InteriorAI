@@ -26,7 +26,7 @@ PRICING = load_pricing(Path(__file__).resolve().parents[2] / "config" / "pricing
 REAL_NAMES = {
     Role.PROMPT_ENGINEER: "gpt-6.1-sol",
     Role.GEOMETRIC_AUDITOR: "gpt-6-astra",
-    Role.CONTEXT_MANAGER: "gpt-6-luna",
+    Role.REFERENCE_ANALYST: "gpt-6-luna",
     Role.FAST_DRAFT: "gpt-image-2.5-flare",
     Role.STRUCTURAL_COMPOSER: "gpt-image-2.5-sunburst",
     Role.PHOTOREALISTIC_RENDERER: "FLUX.2-pro",
@@ -145,7 +145,7 @@ async def test_sink_failure_does_not_break_the_call() -> None:
 async def test_without_pricing_cost_is_none() -> None:
     client, sink = metered(pricing=None)
     with telemetry_scope(uuid4()):
-        await client.complete_text(Role.CONTEXT_MANAGER, TextRequest(input="x"))
+        await client.complete_text(Role.REFERENCE_ANALYST, TextRequest(input="x"))
     [(_, record)] = sink.records
     assert record.cost_eur is None
     assert record.pricing_tier is None

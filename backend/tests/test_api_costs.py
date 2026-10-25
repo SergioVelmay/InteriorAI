@@ -226,7 +226,7 @@ def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
     )  # fmt: skip
     analyzed = reference.analysis.analyzed_at
     records = [
-        _real_record(0.0004, Role.CONTEXT_MANAGER, request_id="r-ficha",
+        _real_record(0.0004, Role.REFERENCE_ANALYST, request_id="r-ficha",
                      timestamp=analyzed - timedelta(seconds=2)),
         _real_record(0.02, Role.PROMPT_ENGINEER, request_id="r-brief",
                      timestamp=brief.created_at - timedelta(seconds=1)),

@@ -140,7 +140,7 @@ class DeploymentSettings(BaseSettings):
 
     prompt_engineer: str | None = None
     geometric_auditor: str | None = None
-    context_manager: str | None = None
+    reference_analyst: str | None = None
     fast_draft: str | None = None
     structural_composer: str | None = None
     photorealistic_renderer: str | None = None
@@ -165,6 +165,21 @@ class AuditorSettings(BaseSettings):
     timeout_s: float = Field(default=900, gt=0)
 
     @field_validator("reasoning_effort", mode="before")
+    @classmethod
+    def _lower(cls, value: Any) -> Any:
+        return value.strip().lower() if isinstance(value, str) else value
+
+
+class ReasoningSettings(BaseSettings):
+    """Esfuerzo de razonamiento de los demás roles de texto (`<ROL>_REASONING_EFFORT`, B-053);
+    el del auditor está en `AuditorSettings`. El razonamiento se factura como salida."""
+
+    model_config = _config()
+
+    prompt_engineer_reasoning_effort: str = Field(default="medium", min_length=1)
+    reference_analyst_reasoning_effort: str = Field(default="medium", min_length=1)
+
+    @field_validator("*", mode="before")
     @classmethod
     def _lower(cls, value: Any) -> Any:
         return value.strip().lower() if isinstance(value, str) else value
@@ -217,6 +232,7 @@ class Settings(BaseModel):
     foundry: FoundrySettings
     deployments: DeploymentSettings
     auditor: AuditorSettings
+    reasoning: ReasoningSettings
     cost_alerts: CostAlertSettings
     storage: StorageSettings
     network: NetworkSettings
@@ -230,6 +246,7 @@ class Settings(BaseModel):
             foundry=FoundrySettings(**kwargs),
             deployments=DeploymentSettings(**kwargs),
             auditor=AuditorSettings(**kwargs),
+            reasoning=ReasoningSettings(**kwargs),
             cost_alerts=CostAlertSettings(**kwargs),
             storage=StorageSettings(**kwargs),
             network=NetworkSettings(**kwargs),
@@ -258,6 +275,14 @@ class Settings(BaseModel):
         if not self.is_mock and (missing := self.azure_missing()):
             raise ValueError("AI_PROVIDER_MODE=azure requiere: " + ", ".join(missing))
         return self
+
+    def reasoning_effort(self, role: Role) -> str | None:
+        """Esfuerzo de razonamiento de un rol de texto; None en los roles de imagen."""
+        return {
+            Role.PROMPT_ENGINEER: self.reasoning.prompt_engineer_reasoning_effort,
+            Role.REFERENCE_ANALYST: self.reasoning.reference_analyst_reasoning_effort,
+            Role.GEOMETRIC_AUDITOR: self.auditor.reasoning_effort,
+        }.get(role)
 
     def deployment_for(self, role: Role) -> str:
         """Único punto para obtener el despliegue de un rol."""
@@ -316,8 +341,13 @@ def render_report(s: Settings) -> str:
         )
     lines += [
         "",
-        f"  Auditor: reasoning_effort {s.auditor.reasoning_effort} "
-        f"| timeout {s.auditor.timeout_s:g}s",
+        "  Razonamiento: "
+        + " | ".join(
+            f"{role.value} {s.reasoning_effort(role)}"
+            for role in Role
+            if s.reasoning_effort(role) is not None
+        ),
+        f"  Auditor: timeout {s.auditor.timeout_s:g}s",
         f"  Avisos de gasto: {s.cost_alerts.project_eur:g} € por proyecto "
         f"| {s.cost_alerts.total_eur:g} € en total",
         f"  Datos: {s.storage.data_dir.as_posix()} | precios: {s.storage.pricing_file.as_posix()} "

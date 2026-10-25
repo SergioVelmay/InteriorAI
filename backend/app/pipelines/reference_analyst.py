@@ -1,4 +1,4 @@
-"""CONTEXT_MANAGER: indexa las referencias del proyecto en fichas estructuradas."""
+"""REFERENCE_ANALYST: indexa las referencias del proyecto en fichas estructuradas."""
 
 from __future__ import annotations
 
@@ -53,10 +53,10 @@ def _input_text(project: ProjectMetadata, asset: Asset) -> str:
 async def analyze_reference(
     client: FoundryClient, repo: ProjectRepository, project: ProjectMetadata, asset: Asset
 ) -> AssetAnalysis:
-    prompt = load_prompt("context_manager")
+    prompt = load_prompt("reference_analyst")
     image = await prepare_image(await repo.read_asset_bytes(project.id, asset.id))
     result = await client.complete_text(
-        Role.CONTEXT_MANAGER,
+        Role.REFERENCE_ANALYST,
         TextRequest(
             instructions=prompt.text,
             input=_input_text(project, asset),
