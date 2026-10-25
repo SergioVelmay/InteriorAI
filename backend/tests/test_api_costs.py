@@ -85,6 +85,9 @@ def test_costs_summary_aggregates(api: TestClient) -> None:
         "mock-photorealistic_renderer",
         "mock-prompt_engineer",
     }  # sin DEPLOYMENT_ROLE_* configurados en el test → sin precio
+    by_pair = {g["key"]: g["label"] for g in summary["by_role_deployment"]}  # B-032
+    assert by_pair["PROMPT_ENGINEER (mock-prompt_engineer)"] == "PROMPT_ENGINEER"
+    assert len(by_pair) == 3
     assert totals["unpriced_calls"] == 3
     assert len(summary["records"]) == 3
 

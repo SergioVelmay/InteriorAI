@@ -26,6 +26,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- Pestaña «Costes IA»: solo gasto real (también en el resumen del proyecto); gráficos con
+  Altair y leyenda «rol (despliegue)» completa; registro con despliegue y MPx, detalle de la
+  llamada al seleccionar una fila y CSV con todas las columnas; precios con las tarifas en
+  columnas y sus unidades (Paso 20: B-031 a B-034).
+
 - Proyectos: al abrir la app se activa el proyecto recordado o, si no hay, el último actualizado;
   el resumen desglosa el coste por rol y lista las llamadas de IA en un desplegable; la portada
   muestra la imagen más avanzada del proyecto; cabecera en el orden proyecto, backend y modo
@@ -63,6 +68,11 @@ Primera versión completa: estudio de interiorismo asistido por IA con supervisi
 cada etapa.
 
 ### Añadido
+
+- Pestaña «Costes IA»: solo gasto real (también en el resumen del proyecto); gráficos con
+  Altair y leyenda «rol (despliegue)» completa; registro con despliegue y MPx, detalle de la
+  llamada al seleccionar una fila y CSV con todas las columnas; precios con las tarifas en
+  columnas y sus unidades (Paso 20: B-031 a B-034).
 
 - Proyectos: al abrir la app se activa el proyecto recordado o, si no hay, el último actualizado;
   el resumen desglosa el coste por rol y lista las llamadas de IA en un desplegable; la portada

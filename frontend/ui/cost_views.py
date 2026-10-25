@@ -1,13 +1,15 @@
-"""Presentación pura de la pestaña Costes (sin Gradio): indicadores, tablas para los gráficos,
-registro de llamadas, CSV y tabla de precios."""
+"""Presentación pura de la pestaña Costes IA (sin Gradio): indicadores, gráficos (Altair),
+registro de llamadas con su detalle, CSV y tabla de precios. Solo gasto real (B-031)."""
 
 from __future__ import annotations
 
 import csv
 import html
 import io
+import json
 from typing import Any
 
+import altair as alt
 import pandas as pd
 
 from shared.roles import Role
@@ -22,10 +24,24 @@ ROLE_COLORS = {  # colores estables por rol en todos los gráficos
     Role.PHOTOREALISTIC_RENDERER.value: "#f59e0b",
     Role.GEOMETRIC_AUDITOR.value: "#f43f5e",
 }
+# Tabla del registro (B-033): lo esencial; el resto, en el detalle de la fila y en el CSV.
 RECORD_COLUMNS = [
-    "Fecha (UTC)", "Proyecto", "Rol", "Operación", "Estado", "Coste (€)", "Latencia (s)",
-    "Tokens entrada", "Tokens salida", "MP generados", "Simulada", "Petición",
+    "Fecha (UTC)", "Proyecto", "Rol", "Despliegue", "Estado", "Coste (€)", "Latencia (s)",
+    "Tokens entrada", "Tokens salida", "MPx generados", "MPx referencia",
 ]  # fmt: skip
+# CSV: todas las columnas, también las que la tabla no muestra (decisión del usuario).
+CSV_COLUMNS = [
+    "Fecha (UTC)", "Proyecto", "Rol", "Despliegue", "Operación", "Estado", "Error", "Coste (€)",
+    "Desglose del coste", "Tarifa", "Latencia (s)", "Tokens entrada", "Tokens en caché",
+    "Tokens escritos en caché", "Tokens de texto", "Tokens de imagen", "Tokens salida",
+    "Tokens de razonamiento", "Imágenes", "MPx generados", "MPx referencia", "Petición", "Id",
+]  # fmt: skip
+
+# Gráficos en el tema oscuro de la app.
+_AXIS = {"labelColor": "#a1a1aa", "titleColor": "#a1a1aa", "gridColor": "#27272a",
+         "domainColor": "#3f3f46", "tickColor": "#3f3f46", "labelFontSize": 12,
+         "titleFontSize": 12}  # fmt: skip
+_LABEL_CHARS = 90  # caracteres de etiquetas que caben en horizontal en media pantalla
 
 
 def money(value: float | None) -> str:
@@ -53,16 +69,11 @@ def kpi_html(summary: dict[str, Any]) -> str:
 
 def notes_md(summary: dict[str, Any]) -> str:
     parts = [
-        "Coste **estimado** con los precios de lista de `pricing.yaml`; la cifra real está en "
-        "Azure Cost Management."
+        "Gasto **real** (sin las llamadas simuladas del modo mock), **estimado** con los precios "
+        "de lista de `pricing.yaml`; la cifra facturada está en Azure Cost Management."
     ]
-    if summary["simulated_excluded"]:
-        parts.append(
-            f"{summary['simulated_excluded']} llamada(s) simulada(s) ocultas "
-            "(marca «Incluir simulación» para verlas)."
-        )
-    elif summary["includes_simulated"]:
-        parts.append("Incluye llamadas **simuladas** (modo mock: sin coste real).")
+    if not summary["totals"]["calls"]:
+        parts.append("Todavía no hay llamadas reales a la IA.")
     if summary["totals"]["unpriced_calls"]:
         parts.append(f"{summary['totals']['unpriced_calls']} llamada(s) sin precio configurado.")
     if summary["totals"]["errors"]:
@@ -73,12 +84,119 @@ def notes_md(summary: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+# --- Gráficos (B-032) -------------------------------------------------------------------------
+
+
+def series_colors(pairs: dict[str, str]) -> dict[str, str]:
+    """Color de cada serie «ROL (despliegue)» ({serie: rol}): el de su rol y, si el rol tiene
+    varios despliegues, cada uno más claro que el anterior."""
+    colors: dict[str, str] = {}
+    seen: dict[str, int] = {}
+    for series in sorted(pairs):
+        role = pairs[series]
+        base = ROLE_COLORS.get(role, "#a1a1aa")
+        step = seen.get(role, 0)
+        seen[role] = step + 1
+        colors[series] = _lighten(base, 0.35 * step)
+    return colors
+
+
+def _lighten(color: str, amount: float) -> str:
+    rgb = [int(color[i : i + 2], 16) for i in (1, 3, 5)]
+    mixed = [round(c + (255 - c) * min(amount, 0.8)) for c in rgb]
+    return "#" + "".join(f"{c:02x}" for c in mixed)
+
+
+def _color(colors: dict[str, str]) -> alt.Color:
+    """Leyenda completa y legible (B-032): debajo, un elemento por línea y sin recortar."""
+    return alt.Color(
+        "Serie:N",
+        title="Rol (despliegue)",
+        scale=alt.Scale(domain=list(colors), range=list(colors.values())),
+        legend=alt.Legend(
+            orient="bottom", direction="vertical", columns=1, labelLimit=0,
+            labelColor="#d4d4d8", titleColor="#a1a1aa", symbolType="square",
+            labelFontSize=13, titleFontSize=13, symbolSize=120,
+        ),
+    )  # fmt: skip
+
+
+# Ancho fijo: `gr.Plot` no da tamaño al contenedor y `width="container"` deja el gráfico vacío.
+HALF_WIDTH, FULL_WIDTH = 420, 900  # media pantalla (por rol y por día) y pantalla completa
+
+
+def _finish(chart: alt.Chart, title: str, width: int, height: int = 260) -> alt.Chart:
+    return (
+        chart.properties(title=title, width=width, height=height)
+        .configure(background="transparent")
+        .configure_axis(**_AXIS)
+        .configure_title(color="#e4e4e7", fontSize=14)
+        .configure_view(stroke=None)
+    )
+
+
+def _angle(labels: list[str]) -> int:
+    """Etiquetas en horizontal mientras quepan; si no, giradas (B-032)."""
+    return 0 if sum(len(label) + 2 for label in labels) <= _LABEL_CHARS else -40
+
+
 def role_frame(summary: dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame(
-        [{"Rol": g["key"], "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
-         for g in summary["by_role"]],
-        columns=["Rol", "Coste (€)", "Llamadas"],
+        [{"Serie": g["key"], "Rol": g["label"], "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
+         for g in summary.get("by_role_deployment", [])],
+        columns=["Serie", "Rol", "Coste (€)", "Llamadas"],
     )  # fmt: skip
+
+
+def role_chart(summary: dict[str, Any]) -> alt.Chart:
+    """Coste por rol y despliegue; etiqueta en dos líneas: rol y, debajo, «(despliegue)»."""
+    frame = role_frame(summary)
+    colors = series_colors(dict(zip(frame["Serie"], frame["Rol"], strict=True)))
+    two_lines = "[split(datum.label, ' (')[0], '(' + split(datum.label, ' (')[1]]"
+    chart = (
+        alt.Chart(frame)
+        .mark_bar()
+        .encode(
+            x=alt.X("Serie:N", title=None, sort=list(colors),
+                    axis=alt.Axis(labelExpr=two_lines, labelAngle=-75, labelAlign="right",
+                                  labelLimit=0)),
+            y=alt.Y("Coste (€):Q", scale=alt.Scale(domainMin=0)),
+            color=_color(colors),
+            tooltip=["Serie", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
+        )
+    )  # fmt: skip
+    return _finish(chart, "Coste por rol (despliegue)", HALF_WIDTH, height=300)
+
+
+def day_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
+    """Coste por día y serie «ROL (despliegue)» (barras apiladas) a partir de los registros."""
+    totals: dict[tuple[str, str, str], float] = {}
+    for record in records:
+        series = f"{record['role']} ({record['deployment']})"
+        key = (record["timestamp"][:10], series, record["role"])
+        totals[key] = totals.get(key, 0.0) + (record["cost_eur"] or 0.0)
+    return pd.DataFrame(
+        [{"Día": day, "Serie": series, "Rol": role, "Coste (€)": round(cost, 6)}
+         for (day, series, role), cost in sorted(totals.items())],
+        columns=["Día", "Serie", "Rol", "Coste (€)"],
+    )  # fmt: skip
+
+
+def day_chart(records: list[dict[str, Any]]) -> alt.Chart:
+    frame = day_frame(records)
+    colors = series_colors(dict(zip(frame["Serie"], frame["Rol"], strict=True)))
+    days = sorted(set(frame["Día"]))
+    chart = (
+        alt.Chart(frame)
+        .mark_bar()
+        .encode(
+            x=alt.X("Día:O", title=None, axis=alt.Axis(labelAngle=_angle(days))),
+            y=alt.Y("sum(Coste (€)):Q", title="Coste (€)", scale=alt.Scale(domainMin=0)),
+            color=_color(colors),
+            tooltip=["Día", "Serie", alt.Tooltip("Coste (€):Q", format=".4f")],
+        )
+    )  # fmt: skip
+    return _finish(chart, "Coste por día", HALF_WIDTH, height=300)
 
 
 def project_frame(summary: dict[str, Any]) -> pd.DataFrame:
@@ -89,23 +207,22 @@ def project_frame(summary: dict[str, Any]) -> pd.DataFrame:
     )  # fmt: skip
 
 
-def y_range(frame: pd.DataFrame, column: str = "Coste (€)") -> list[float]:
-    """Eje Y desde 0: con un único valor, el gráfico no dibujaría la barra."""
-    top = float(frame[column].max()) if not frame.empty else 0.0
-    return [0.0, round(top * 1.15, 6) or 0.01]
-
-
-def day_role_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
-    """Coste por día y rol (barras apiladas) a partir de los registros."""
-    totals: dict[tuple[str, str], float] = {}
-    for record in records:
-        key = (record["timestamp"][:10], record["role"])
-        totals[key] = totals.get(key, 0.0) + (record["cost_eur"] or 0.0)
-    return pd.DataFrame(
-        [{"Día": day, "Rol": role, "Coste (€)": round(cost, 6)}
-         for (day, role), cost in sorted(totals.items())],
-        columns=["Día", "Rol", "Coste (€)"],
+def project_chart(summary: dict[str, Any]) -> alt.Chart:
+    frame = project_frame(summary)
+    chart = (
+        alt.Chart(frame)
+        .mark_bar(color="#71717a")
+        .encode(
+            x=alt.X("Proyecto:N", title=None,
+                    axis=alt.Axis(labelAngle=_angle(list(frame["Proyecto"])), labelLimit=0)),
+            y=alt.Y("Coste (€):Q", scale=alt.Scale(domainMin=0)),
+            tooltip=["Proyecto", alt.Tooltip("Coste (€):Q", format=".4f")],
+        )
     )  # fmt: skip
+    return _finish(chart, "Coste por proyecto", FULL_WIDTH)
+
+
+# --- Registro de llamadas (B-033) -----------------------------------------------------------------
 
 
 def filter_records(
@@ -119,23 +236,43 @@ def filter_records(
     ]
 
 
+def _when(record: dict[str, Any]) -> str:
+    return record["timestamp"][:19].replace("T", " ")
+
+
+def _cost(record: dict[str, Any]) -> float | None:
+    return None if record["cost_eur"] is None else round(record["cost_eur"], 4)
+
+
+# Anchos de la tabla (B-033): ajustados al contenido para que no haga falta desplazarse.
+_COLUMN_WIDTHS = {
+    "Fecha (UTC)": 11, "Proyecto": 14, "Rol": 18, "Despliegue": 15, "Estado": 5,
+    "Coste (€)": 6, "Latencia (s)": 6, "Tokens entrada": 6, "Tokens salida": 6,
+    "MPx generados": 7, "MPx referencia": 7,
+}  # fmt: skip
+
+
+def column_widths(with_project: bool) -> list[str]:
+    widths = {k: v for k, v in _COLUMN_WIDTHS.items() if with_project or k != "Proyecto"}
+    total = sum(widths.values())
+    return [f"{100 * v / total:.1f}%" for v in widths.values()]
+
+
 def records_frame(records: list[dict[str, Any]], with_project: bool = True) -> pd.DataFrame:
     """Tabla de llamadas; la columna «Proyecto» solo tiene sentido con todos los proyectos."""
     rows = [
         [
-            r["timestamp"][:19].replace("T", " "),
+            _when(r),
             r.get("project_name") or "",
             r["role"],
-            r["operation"],
-            STATUS_LABELS.get(r["status"], r["status"])
-            + (f" ({r['error_type']})" if r.get("error_type") else ""),
-            None if r["cost_eur"] is None else round(r["cost_eur"], 4),
+            r["deployment"],
+            "✓" if r["status"] == "ok" else "error",  # el error concreto, en el detalle
+            _cost(r),
             round(r["latency_s"], 1),
             r["input_tokens"],
             r["output_tokens"],
-            round(r["megapixels_out"], 2),
-            "sí" if r["simulated"] else "no",
-            r.get("request_id") or "",
+            round(r.get("megapixels_out", 0.0), 2),
+            round(r.get("megapixels_ref", 0.0), 2),
         ]
         for r in records
     ]
@@ -143,47 +280,103 @@ def records_frame(records: list[dict[str, Any]], with_project: bool = True) -> p
     return frame if with_project else frame.drop(columns="Proyecto")
 
 
+def _breakdown(record: dict[str, Any]) -> str:
+    parts = record.get("cost_breakdown") or {}
+    return ", ".join(f"{key} {value:.6f}" for key, value in parts.items())
+
+
+def record_detail_md(record: dict[str, Any] | None) -> str:
+    """«Ver más» de una fila del registro: todo lo que no cabe en la tabla."""
+    if record is None:
+        return "_Selecciona una fila del registro para ver el detalle de la llamada._"
+    breakdown = _breakdown(record) or "—"
+    lines = [
+        f"#### {html.escape(record['role'])} · {html.escape(record['deployment'])} · "
+        f"{_when(record)} UTC",
+        f"- **Proyecto:** {html.escape(record.get('project_name') or '—')}",
+        f"- **Operación:** `{record['operation']}` · **estado:** "
+        f"{STATUS_LABELS.get(record['status'], record['status'])}"
+        + (f" (`{record['error_type']}`)" if record.get("error_type") else ""),
+        f"- **Coste:** {money(record['cost_eur'])} · tarifa `{record.get('pricing_tier') or '—'}`"
+        f" · desglose: {html.escape(breakdown)}",
+        f"- **Tokens:** entrada {record['input_tokens']} (en caché "
+        f"{record.get('cached_input_tokens', 0)}, escritos en caché "
+        f"{record.get('cache_write_tokens', 0)}; texto {record.get('input_text_tokens', 0)}, "
+        f"imagen {record.get('input_image_tokens', 0)}) · salida {record['output_tokens']} "
+        f"(razonamiento {record.get('reasoning_tokens', 0)})",
+        f"- **Imágenes:** {record.get('images_out', 0)} · MPx generados "
+        f"{record.get('megapixels_out', 0.0):.4f} · MPx de referencia "
+        f"{record.get('megapixels_ref', 0.0):.4f}",
+        f"- **Latencia:** {record['latency_s']:.2f} s · **petición:** "
+        f"`{record.get('request_id') or '—'}` · **id:** `{record['id']}`",
+    ]
+    return "\n".join(lines)
+
+
+def records_csv(records: list[dict[str, Any]]) -> str:
+    """CSV separado por `;` (lo abre bien una hoja de cálculo en español), con todo el detalle."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(CSV_COLUMNS)
+    for r in records:
+        writer.writerow([
+            _when(r), r.get("project_name") or "", r["role"], r["deployment"], r["operation"],
+            STATUS_LABELS.get(r["status"], r["status"]), r.get("error_type") or "", _cost(r),
+            json.dumps(r.get("cost_breakdown") or {}, ensure_ascii=False),
+            r.get("pricing_tier") or "", round(r["latency_s"], 3), r["input_tokens"],
+            r.get("cached_input_tokens", 0), r.get("cache_write_tokens", 0),
+            r.get("input_text_tokens", 0), r.get("input_image_tokens", 0), r["output_tokens"],
+            r.get("reasoning_tokens", 0), r.get("images_out", 0),
+            round(r.get("megapixels_out", 0.0), 4), round(r.get("megapixels_ref", 0.0), 4),
+            r.get("request_id") or "", r["id"],
+        ])  # fmt: skip
+    return buffer.getvalue()
+
+
 def project_calls_md(records: list[dict[str, Any]]) -> str:
     """Llamadas del proyecto en su resumen (B-027): tabla breve que cabe en media pantalla."""
     if not records:
-        return "_Sin llamadas de IA._"
+        return "_Sin llamadas reales de IA._"
     rows = []
     for r in records:
         stamp = r["timestamp"]  # ISO: 2026-10-24T22:48:19Z → 24/10/26 22:48
         when = f"{stamp[8:10]}/{stamp[5:7]}/{stamp[2:4]} {stamp[11:16]}"
-        status = ("✓" if r["status"] == "ok" else "error") + (" (sim.)" if r["simulated"] else "")
+        status = "✓" if r["status"] == "ok" else "error"
         cost = "—" if r["cost_eur"] is None else f"{r['cost_eur']:.4f}"
         rows.append(f"| {when} | {r['role']} | {status} | {cost} |")
     return "\n".join(["| Fecha (UTC) | Rol | Estado | Coste (€) |", "|---|---|---|---:|", *rows])
 
 
-def records_csv(records: list[dict[str, Any]]) -> str:
-    """CSV separado por `;` (lo abre bien una hoja de cálculo en español)."""
-    buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
-    writer.writerow(RECORD_COLUMNS)
-    writer.writerows(records_frame(records).itertuples(index=False))
-    return buffer.getvalue()
+# --- Precios (B-034) ------------------------------------------------------------------------------
+
+PRICING_COLUMNS = ["Despliegue", "Tipo", "Tarifa 1", "Tarifa 2", "Tarifa 3", "Unidades"]
+
+
+def _rate(name: str, value: float) -> str:
+    return f"{name} {value:g}".replace(".", ",")
 
 
 def pricing_frame(pricing: dict[str, Any] | None) -> pd.DataFrame:
-    """Una fila por despliegue con sus tarifas (EUR por millón de tokens o por MP)."""
+    """Una fila por despliegue: sus tres tarifas en columnas y las unidades aparte."""
     rows = []
     tier = (pricing or {}).get("deployment_type", "global")
     for name, spec in ((pricing or {}).get("deployments") or {}).items():
         kind = spec.get("type")
         if kind == "tokens":
             short = spec["rates"][tier]["short"]
-            rates = (f"entrada {short['input']} · caché {short['cached_input']} · "
-                     f"salida {short['output']} (€/M tokens)")  # fmt: skip
+            rates = [("entrada", short["input"]), ("caché", short["cached_input"]),
+                     ("salida", short["output"])]  # fmt: skip
+            units = "€/M tokens"
         elif kind == "image_tokens":
-            rates = (f"texto {spec['input_text']} · imagen {spec['input_image']} · "
-                     f"salida {spec['output_image']} (€/M tokens)")  # fmt: skip
+            rates = [("texto", spec["input_text"]), ("imagen", spec["input_image"]),
+                     ("salida", spec["output_image"])]  # fmt: skip
+            units = "€/M tokens"
         else:
-            rates = (f"1.er MP {spec['initial_mp']} · MP adicional {spec['additional_mp']} · "
-                     f"MP de referencia {spec['reference_mp']} (€)")  # fmt: skip
-        rows.append({"Despliegue": name, "Tipo": kind, "Tarifas": rates})
-    return pd.DataFrame(rows, columns=["Despliegue", "Tipo", "Tarifas"])
+            rates = [("1.er MPx", spec["initial_mp"]), ("MPx adicional", spec["additional_mp"]),
+                     ("MPx de referencia", spec["reference_mp"])]  # fmt: skip
+            units = "€/MPx"
+        rows.append([name, kind, *(_rate(label, value) for label, value in rates), units])
+    return pd.DataFrame(rows, columns=PRICING_COLUMNS)
 
 
 def chain_cost_md(cost: dict[str, Any] | None) -> str:

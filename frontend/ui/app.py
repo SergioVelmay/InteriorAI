@@ -35,7 +35,7 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
                 assets = build_assets_tab(client, data_dir, active)
             with gr.Tab("Estudio") as studio_tab:
                 studio = build_studio_tab(client, data_dir, active)
-            with gr.Tab("Costes") as costs_tab:
+            with gr.Tab("Costes IA") as costs_tab:
                 costs = build_costs_tab(client, active)
 
         demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)

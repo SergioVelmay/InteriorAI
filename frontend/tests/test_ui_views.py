@@ -88,7 +88,7 @@ def test_summary_counts_and_costs() -> None:
         renders=[render(final.id, RenderStage.FINAL, RenderStatus.SELECTED)],
     )
     costs = {
-        "totals": {"cost_eur": 0.27, "calls": 9}, "includes_simulated": True,
+        "totals": {"cost_eur": 0.27, "calls": 9},
         "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.02, "calls": 4},
                     {"key": "PHOTOREALISTIC_RENDERER", "cost_eur": 0.25, "calls": 5}],
         "records": [{}] * 9,
@@ -97,7 +97,7 @@ def test_summary_counts_and_costs() -> None:
     assert "Imágenes de referencia: **2**" in md
     assert "renders finales: **1**" in md
     assert "Render final elegido: **sí**" in md
-    assert "**0.2700 €** en 9 llamadas (incluye simulaciones)" in md
+    assert "Gasto real estimado en IA: **0.2700 €** en 9 llamadas" in md
     # Desglose por rol, del más caro al más barato (B-027).
     assert md.index("PHOTOREALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT: 0.0200 €")
     assert calls_label(costs) == "Llamadas de IA (9)"
