@@ -40,11 +40,11 @@ Dependencia nueva del frontend: `altair` (Vega-Lite, la misma base que los gráf
 | Playwright en local (mock, sobre una copia de `data/`) | ✅ 5/5 |
 | Revisión visual con los datos reales copiados (33 llamadas) | ✅ Tras varias iteraciones: gráficos con leyenda completa, tabla sin desplazamiento ni palabras partidas, detalle de una fila |
 | Imagen Docker del frontend con Altair | ✅ se construye |
-| CI de la PR | Pendiente |
+| CI de la PR #28 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (al segundo intento: faltaba `by_role_deployment` en la comprobación de Postman) |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-20`.
+⏳ En revisión — rama `feat/paso-20`, PR #28.
 
 ## 6. Pendiente / futuro
 
