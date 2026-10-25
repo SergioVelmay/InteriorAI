@@ -5,69 +5,72 @@
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 
 Estudio de interiorismo asistido por IA con **supervisión humana en cada etapa**
-(Human-in-the-Loop). A partir de una captura de SketchUp (o un plano) y referencias de muebles e
-inspiración, genera un brief de diseño, bocetos, una composición y un render fotorrealista de
-cada habitación. **Nada avanza sin tu aprobación** y cada acción con coste lo muestra antes.
+(Human-in-the-Loop). A partir de tus referencias (vistas de la estancia, capturas de SketchUp,
+planos, muebles e inspiración) genera bocetos, una composición fiel y una fotografía realista de
+cada habitación. **Nada avanza sin tu elección** y cada acción con coste lo muestra antes.
 
-Construido con FastAPI, Gradio y Azure AI Foundry. Versión **1.0.0** ([CHANGELOG](CHANGELOG.md)).
+Construido con FastAPI, Gradio y Azure AI Foundry. Versión **2.0.0** ([CHANGELOG](CHANGELOG.md)).
 
 ## Cómo funciona
 
 ```mermaid
 flowchart LR
-    A[Captura de SketchUp<br/>o plano] --> B
-    R[Referencias<br/>Ikea · Pinterest] -->|fichas validadas| B
-    B[Brief de diseño<br/>PROMPT_ENGINEER] -->|apruebas| C[Bocetos<br/>FAST_DRAFT]
-    C -->|eliges uno| D[Composición<br/>STRUCTURAL_COMPOSER]
-    D -->|eliges una| E[Render final<br/>PHOTOREALISTIC_RENDERER]
-    E -.->|opcional| F[Auditoría geométrica<br/>GEOMETRIC_AUDITOR]
-    D -.->|retocar zona| D
-    E -.->|retocar zona| E
+    R[Referencias<br/>receta y ficha<br/>REFERENCE_ANALYST] -->|lo marcado| B[Bocetos<br/>FAST_DRAFT]
+    B -->|eliges uno| A{{Auditoría opcional<br/>GEOMETRIC_AUDITOR}}
+    B -->|eliges uno| C[Composición<br/>STRUCTURAL_COMPOSER]
+    A -.->|correcciones| C
+    C -.->|retoque con máscara| C
+    C -->|eliges una| F[Render final<br/>PHOTOREALISTIC_RENDERER]
+    F -.->|otra versión o cambios globales| F
 ```
 
-1. **Assets:** subes la captura de SketchUp (o un plano en imagen) y tus referencias; la IA
-   propone una ficha de cada referencia (medidas, materiales, colores) y tú la corriges y validas.
-2. **Brief:** la IA redacta el diseño (restricciones, mobiliario con medidas, paleta, materiales,
-   luz y los prompts de imagen). Lo editas, lo apruebas o lo rechazas con comentarios.
-3. **Bocetos → composición → render final:** cada etapa parte de la imagen que **tú** eliges en
-   la anterior. Puedes descartar, rechazar con comentarios (y regenerar) o **retocar una zona**
-   con el pincel: fuera de lo pintado, la imagen queda idéntica.
-4. **Auditoría (opcional):** compara el render con la captura (proporciones, geometría,
-   mobiliario) y propone correcciones que puedes aplicar al regenerar.
-5. **Costes:** cada llamada queda registrada; la pestaña Costes muestra el gasto por rol, día y
-   proyecto, y el visor indica cuánto ha costado llegar a cada imagen.
+1. **Referencias:** subes cada imagen con sus notas («quédate con el sofá», «con estas
+   medidas»…) y la IA la analiza al momento: una **receta** con lo útil de la imagen en 12 grupos
+   (objetos, colores, materiales, perspectiva, geometría, luz…), con medidas y su origen. En la
+   **ficha** marcas lo que quieres usar; solo cuenta lo marcado.
+2. **Bocetos:** exploraciones rápidas a partir de las referencias activas (la que marca la
+   perspectiva es la imagen base). Eliges uno.
+3. **Composición:** materializa el boceto con fidelidad, con la ayuda de una **auditoría**
+   opcional frente a las referencias de perspectiva y geometría (y tus observaciones) y de
+   **retoques con máscara**: pintas una zona y describes el cambio. Eliges una.
+4. **Render final:** la fotografía realista, con cambios globales en texto libre (noche,
+   iluminación, ambiente, personas), proporción y resolución hasta 4 MP, y «otra versión» con el
+   mismo prompt.
+5. **Prompts automáticos:** en cada generación, el PROMPT_ENGINEER escribe el prompt con las
+   entradas reales y te explica lo que ha entendido y sus dudas.
+6. **Costes IA:** cada llamada queda registrada con su coste; la pestaña muestra el gasto por rol,
+   día y proyecto, y cada imagen indica cuánto ha costado llegar a ella.
 
 ### Roles de IA
 
 El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegue se configura en
-`.env` (`DEPLOYMENT_ROLE_*`).
+`.env` (`DEPLOYMENT_ROLE_*`), con su esfuerzo de razonamiento (`<ROL>_REASONING_EFFORT`).
 
 | Rol | Tarea |
 |-----|-------|
-| `REFERENCE_ANALYST` | Fichas de las referencias (medidas, materiales, colores) |
-| `PROMPT_ENGINEER` | Brief de diseño y prompts de imagen |
-| `FAST_DRAFT` | Bocetos rápidos sobre la captura |
-| `STRUCTURAL_COMPOSER` | Composición fiel a la geometría; retoques con máscara |
-| `PHOTOREALISTIC_RENDERER` | Render final fotorrealista con las referencias |
-| `GEOMETRIC_AUDITOR` | Auditoría del render frente a la captura |
+| `REFERENCE_ANALYST` | Receta de cada referencia (una vez por imagen) |
+| `PROMPT_ENGINEER` | Prompt de cada generación, con lo que ha entendido y sus dudas |
+| `FAST_DRAFT` | Bocetos en lote a partir de las referencias activas |
+| `STRUCTURAL_COMPOSER` | Composición fiel y retoques con máscara (el único con máscara) |
+| `PHOTOREALISTIC_RENDERER` | Fotografía realista y cambios globales, sin máscara |
+| `GEOMETRIC_AUDITOR` | Auditoría del boceto frente a las referencias del espacio |
 
 ### Costes orientativos
 
 Precios de lista en `config/pricing.yaml` (estimados; la cifra real está en Azure Cost
-Management). Observados en las pruebas reales:
+Management). Medidos en las pruebas reales de la versión 2.0.0:
 
 | Acción | Coste aproximado |
 |--------|------------------|
-| Brief de diseño | 0-0,05 € (en octubre de 2026 su modelo se facturó a 0 €) |
-| Boceto (por imagen) | 0,015 € |
-| Composición | 0,03 € |
-| Render final 1920 px | 0,07-0,08 € |
-| Retoque de una zona del render final | 0,07 € |
-| Auditoría geométrica | 0,15 € |
+| Receta de una referencia | 0,03-0,04 € |
+| Prompt automático de una generación | 0,001-0,002 € |
+| 4 bocetos en calidad media (3 imágenes de entrada) | 0,14-0,18 € |
+| Composición o retoque (4 imágenes de entrada) | 0,05 € |
+| Render final a 4 MP | 0,08 € |
+| Auditoría del boceto | 0,14 € (razonamiento `medium`) |
 
-En la factura real de octubre, dos proyectos completos (28 llamadas, con iteraciones, retoques y
-auditorías) costaron **1,47 €**; la estimación de la app quedó un 3 % por encima. En
-modo `azure`, las acciones de más de 0,05 € piden un segundo clic de confirmación.
+En los modelos de bocetos pesan más las imágenes de entrada que las generadas. En modo `azure`,
+las acciones de más de 0,20 € piden un segundo clic de confirmación junto al botón.
 
 ## Arquitectura
 
@@ -85,8 +88,8 @@ flowchart LR
   credenciales.
 - **Frontend** (Gradio, tema oscuro): sin credenciales; lee las imágenes del volumen en solo
   lectura y escribe a través de la API.
-- **Datos:** un proyecto por carpeta (`metadatos.json`, assets, histórico de renders y
-  telemetría). El borrado es suave: pasa a `data/.papelera/`.
+- **Datos:** un proyecto por carpeta (`metadatos.json`, referencias, histórico de renders y
+  telemetría en `costes_telemetria.jsonl`). El borrado es suave: pasa a `data/.papelera/`.
 
 Más detalle técnico en [AGENTS.md](AGENTS.md) y [docs/agent/](docs/agent/); la historia del
 proyecto, paso a paso, en [docs/pasos/](docs/pasos/README.md).
@@ -110,6 +113,10 @@ docker compose up --build -d
 Para usar Azure, rellena en `.env` el endpoint, la clave, los despliegues de cada rol y pon
 `AI_PROVIDER_MODE=azure`; después, `docker compose up -d backend`. En Linux, si tu usuario no es
 el 1000, ajusta `APP_UID`/`APP_GID` (`id -u`, `id -g`).
+
+**Desde la 1.0.0:** los datos se migran solos al esquema v2 al arrancar (cada proyecto conserva
+una copia en `metadatos.v1.json`). Las imágenes y los briefs de la v1 siguen visibles como
+historia; las capturas y los planos pasan a ser referencias, que conviene volver a analizar.
 
 Los contenedores se ejecutan sin privilegios, con el sistema de archivos en solo lectura, sin
 capacidades y con límites de memoria y CPU; los puertos solo escuchan en `127.0.0.1`.

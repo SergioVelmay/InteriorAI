@@ -58,7 +58,8 @@ Coste real del paso: ≈ 0,38 € (5 renders de 4 MP).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-24`, PR #32.
+✅ Cerrado — rama `feat/paso-24`, PR #32 revisada y mergeada por el usuario, que aprobó
+`prompt_render_final.md`. Docker reconstruido el 2026-10-25.
 
 ## 6. Pendiente / futuro
 

@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado: **backend completo**: proyectos, assets, costes, pipelines de texto e imagen, auditoría y HITL (Pasos 5 y 7-10).
+> Estado (2.0.0): **backend completo**: proyectos, referencias con receta y ficha, costes, prompt automático, bocetos, composición (auditoría y retoque) y render final (Pasos 5-10 y 17-24). Esquema v2 con migración automática.
 
 ## Estructura y arranque
 
