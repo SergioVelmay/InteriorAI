@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,14 @@ NO_REFERENCES = (
     "para poder generar bocetos."
 )
 STAGES = (RenderStage.DRAFT, RenderStage.COMPOSITION, RenderStage.FINAL)
+# «Generar con la composición actual» solo ejecuta JS: pulsa, en diferido, el botón oculto que
+# toca: el puente del editor (con «Usar el retoque», envía la máscara) o el de generar sin
+# retoque (un solo evento cada vez).
+RETOUCH_BRIDGE_JS = """() => {
+    const retouch = document.querySelector('#iai-use-retouch input')?.checked;
+    const target = retouch ? '#iai-retouch-bridge' : '#iai-gen-current-plain';
+    setTimeout(() => document.querySelector(target)?.click(), 0);
+}"""
 # Acciones con coste: su botón, la etapa cuya imagen se muestra después y su descripción.
 ACTION_STAGES = {
     "boceto": RenderStage.DRAFT,
@@ -69,6 +78,27 @@ ACTION_STAGES = {
     "composicion_actual": RenderStage.COMPOSITION,
     "render_final": RenderStage.FINAL,
 }
+
+
+def layers_only(editor: gr.ImageEditor, payload: Any) -> dict[str, Any] | None:
+    """`preprocess` del editor del retoque: solo las capas pintadas (la máscara).
+
+    El fondo y la imagen compuesta no se usan y Gradio puede estar todavía escribiéndolos en su
+    caché cuando llega el evento (archivos con el mismo contenido, como el fondo y la compuesta
+    sin trazos, van al mismo directorio): leerlos fallaba a veces con `UnidentifiedImageError`.
+    Se sustituye en la instancia: una subclase de componente genera un `.pyi` junto al código.
+    """
+    if payload is None:
+        return None
+    layers = payload.layers
+    if payload.id is not None:  # capas guardadas aparte por Gradio
+        cached = editor.blob_storage.pop(payload.id, None)
+        layers = cached.layers if cached else []
+    return {
+        "background": None,
+        "layers": [editor.convert_and_format_image(layer) for layer in layers or [] if layer],
+        "composite": None,
+    }
 
 
 @dataclass
@@ -178,7 +208,6 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         mode = gr.State(None)
         selected_draft = gr.State(None)  # id del boceto seleccionado
         selected_composition = gr.State(None)  # composición seleccionada (la que se retoca)
-        retouch_mask = gr.State(None)  # PNG de lo pintado en el editor (o None)
         editor_nonce = gr.State(0)
         notices.append(gr.Markdown(NO_PROJECT, visible=False))
         refs_md = gr.Markdown(elem_id="iai-active-references")
@@ -247,8 +276,17 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                     interactive=True, key=f"iai-editor-{render_id}-{nonce}",
                     elem_id="iai-inpaint-editor",
                 )  # fmt: skip
-                # `.input`: cada trazo del usuario (`.change` no se emite al pintar).
-                editor.input(editor_mask, inputs=editor, outputs=retouch_mask)
+                # El editor solo envía su valor al pulsar: este botón oculto lo acciona
+                # «Generar con la composición actual» cuando «Usar el retoque» está marcado
+                # (sincronizarlo en cada trazo subía las capas sin parar y bloqueaba la cola).
+                editor.preprocess = partial(layers_only, editor)  # type: ignore[method-assign]
+                bridge = gr.Button("retoque", elem_id="iai-retouch-bridge",
+                                   elem_classes="iai-hidden")  # fmt: skip
+                bridge.click(
+                    on_retouch, outputs=outputs,
+                    inputs=[*common, selected_composition, editor, retouch_instruction,
+                            comp_quality, comp_extra, use_audit, audit_notes],
+                )  # fmt: skip
 
         retouch_instruction = gr.Textbox(
             label="Cambio en la zona pintada", lines=2,
@@ -284,6 +322,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 start_composition = gr.HTML(elem_id="iai-start-composition")
                 actions["composicion_actual"] = _action(
                     "Generar con la composición actual", "compositions-current"
+                )
+                plain_current = gr.Button(  # oculto: lo pulsa RETOUCH_BRIDGE_JS
+                    "generar", elem_id="iai-gen-current-plain", elem_classes="iai-hidden"
                 )
         comp_gallery = _thumbnails("compositions")
         comp_view = _viewer("compositions", details_open=None)
@@ -555,7 +596,12 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             }
         return await execute(action, active_id, *shown)
 
-    def wire(key: str, build: Callable[..., dict[str, Any]], *inputs: Any) -> None:
+    def wire(
+        key: str,
+        build: Callable[..., dict[str, Any]],
+        *inputs: Any,
+        trigger: gr.Button | None = None,
+    ) -> None:
         async def handler(active_id, current_mode, *values):
             shown = values[: len(STAGES)]
             action = build(*values[len(STAGES) :])
@@ -564,7 +610,32 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 return {mode: gr.skip()}
             return await request({"kind": key, **action}, active_id, current_mode, *shown)
 
-        actions[key].button.click(handler, inputs=[*common, *inputs], outputs=outputs)
+        (trigger or actions[key].button).click(handler, inputs=[*common, *inputs], outputs=outputs)
+
+    async def on_retouch(active_id, current_mode, *values):
+        """«Generar con la composición actual» con «Usar el retoque» (botón puente)."""
+        shown = values[: len(STAGES)]
+        composition_id, editor_value, instruction, quality, extra, audit_on, notes = values[
+            len(STAGES) :
+        ]
+        mask = editor_mask(editor_value)
+        error = (
+            "Selecciona una composición para retocarla" if not composition_id
+            else "Pinta en la imagen la zona que quieres cambiar" if mask is None
+            else "Describe el cambio que quieres en la zona pintada"
+            if not (instruction or "").strip() else None
+        )  # fmt: skip
+        if error:
+            gr.Warning(error)
+            return {mode: gr.skip()}
+        body = composition_body(quality, None, extra, audit_on, notes)
+        body.pop("size")  # el retoque conserva el tamaño de la composición
+        action = {
+            "kind": "composicion_actual", "quality": quality, "body": body,
+            "retouch": {"render_id": composition_id, "mask": mask,
+                        "instruction": instruction.strip()},
+        }  # fmt: skip
+        return await request(action, active_id, current_mode, *shown)
 
     # --- Acciones sin coste ----------------------------------------------------------------------
 
@@ -661,33 +732,18 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         audit_notes,
     )
 
-    def from_composition(composition_id, quality, size, extra, audit_on, notes, retouch_on, mask,
-                         instruction) -> dict[str, Any]:  # fmt: skip
+    def from_composition(composition_id, quality, size, extra, audit_on, notes):
         if not composition_id:
             return {"error": "Selecciona una composición para generar a partir de ella"}
         body = composition_body(quality, size, extra, audit_on, notes)
-        if not retouch_on:
-            return {"quality": quality, "body": {**body, "source": "composicion"}}
-        if mask is None:
-            return {"error": "Pinta en la imagen la zona que quieres cambiar"}
-        if not (instruction or "").strip():
-            return {"error": "Describe el cambio que quieres en la zona pintada"}
-        body.pop("size")  # el retoque conserva el tamaño de la composición
-        return {
-            "quality": quality,
-            "body": body,
-            "retouch": {
-                "render_id": composition_id,
-                "mask": mask,
-                "instruction": instruction.strip(),
-            },
-        }
+        return {"quality": quality, "body": {**body, "source": "composicion"}}
 
     wire(
         "composicion_actual", from_composition,
         selected_composition, comp_quality, comp_size, comp_extra, use_audit, audit_notes,
-        use_retouch, retouch_mask, retouch_instruction,
+        trigger=plain_current,
     )  # fmt: skip
+    actions["composicion_actual"].button.click(None, js=RETOUCH_BRIDGE_JS)
     wire(
         "render_final",
         lambda composition_id, refs_v, extra: (
@@ -721,11 +777,11 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         panel.select_btn.click(select_handler(stage), inputs=common, outputs=outputs)
         panel.gallery.select(gallery_handler(stage), inputs=[*common, panel.ids], outputs=outputs)
 
-    def remount(nonce: int) -> tuple[int, None]:
-        return nonce + 1, None  # editor nuevo, sin trazos
+    def remount(nonce: int) -> int:
+        return nonce + 1  # editor nuevo, sin trazos
 
     for trigger in (composition_tab.select, selected_composition.change):
-        trigger(remount, inputs=editor_nonce, outputs=[editor_nonce, retouch_mask])
+        trigger(remount, inputs=editor_nonce, outputs=editor_nonce)
 
     async def refresh_all(active_id: str | None) -> dict:
         return await view(active_id, None, None, None)

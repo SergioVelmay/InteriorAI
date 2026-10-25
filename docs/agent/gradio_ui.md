@@ -18,7 +18,10 @@
 - Nada que no sea `gr.Tab` como hijo directo de un `gr.Tabs` (ni siquiera `gr.State`): Gradio 6
   duplica en la barra la pestaña seleccionada. Bocetos, Composición y Render Final se crean con
   `build_studio_tabs` dentro del `gr.Tabs` principal; su estado común vive en la primera.
-- `ImageEditor`: la máscara se guarda con `.input` (`.change` no se emite al pintar).
+- `ImageEditor` del retoque: su valor se envía solo al pulsar (botón puente oculto dentro del
+  `gr.render`, accionado por JS en diferido; sincronizarlo en cada trazo bloqueaba la cola) y su
+  `preprocess` se sustituye en la instancia por `layers_only` (el fondo y la compuesta podían
+  estar a medio escribir en la caché de Gradio). Una subclase del componente generaría un `.pyi`.
 - Lectura de archivos en manejadores asíncronos con `anyio.Path` (no bloquear el bucle).
 - Proyecto activo: `gr.BrowserState(storage_key="interiorai.active_project")`.
 - `elem_id` estables con prefijo `iai-` (`iai-new-name`, `iai-gen-brief`, `iai-drafts`,

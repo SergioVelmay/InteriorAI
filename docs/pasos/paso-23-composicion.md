@@ -32,18 +32,18 @@ primer nivel.
 | Prompts | `prompt_composicion.md` definitivo (partida, apoyos, correcciones de auditoría y modo retoque) y `auditor_espacio.md` nuevo (cita las referencias por su nombre en las correcciones) |
 | API | `CompositionRequest`: `source`, `use_audit`, `audit_notes`; `POST /audit` con `{notes}`; `/inpaint` con `extra_instructions`, `use_audit` y `audit_notes` |
 | Interfaz | `build_studio_tabs` crea las tres pestañas en la barra principal. Composición, de arriba abajo: ① auditoría (miniaturas comparadas, observaciones, «Auditar con IA» e informe); ② retoque (editor sobre la composición seleccionada e instrucción); ③ crear (calidad, formato, «Usar la auditoría», «Usar el retoque», indicaciones, apoyos que se envían y dos botones con la miniatura de su imagen de partida: «Generar con el boceto seleccionado» y «Generar con la composición actual»); galería e imagen a ancho completo. Render Final sin auditoría. Composición y Render Final se desbloquean al cambiar de proyecto, sin tener que abrir Bocetos |
-| Editor (B-039) | Rojo fijo sin el control de paleta y el icono de tamaño como dos circunferencias concéntricas (CSS sobre controles internos de Gradio; lo comprueba el E2E). La máscara se guarda con el evento `input` del editor (`change` no se emite al pintar) |
+| Editor (B-039) | Rojo fijo sin el control de paleta y el icono de tamaño como dos circunferencias concéntricas (CSS sobre controles internos de Gradio; lo comprueba el E2E). El editor solo envía su valor al generar: «Generar con la composición actual» ejecuta JS que pulsa, en diferido, un botón oculto (el puente del editor si «Usar el retoque» está marcado, o el de generar sin retoque). Su `preprocess` lee solo las capas pintadas (`layers_only`) |
 | Referencias | Casillas con el nombre; el detalle va al `title` de cada casilla (contenedor oculto `#iai-sheet-tips` y un `MutationObserver` en el JS de la aplicación). Aviso si hay referencias activas que no caben |
-| Corrección | Los `gr.State` comunes se crean dentro de una pestaña: como hijos directos de `gr.Tabs`, Gradio duplicaba en la barra la pestaña seleccionada |
+| Correcciones (Gradio 6) | Los `gr.State` comunes se crean dentro de una pestaña: como hijos directos de `gr.Tabs`, Gradio duplicaba en la barra la pestaña seleccionada. Sincronizar el editor en cada trazo (`.input`) subía sus capas sin parar y bloqueó la CI. Además, leer el fondo y la imagen compuesta fallaba a veces (`UnidentifiedImageError`): Gradio aún los escribía en su caché. Por eso se envían solo al pulsar y solo se procesan las capas |
 
 ## 4. Validación
 
 | Prueba | Resultado |
 |--------|-----------|
-| `uv run pytest` | ✅ 366 passed |
+| `uv run pytest` | ✅ 367 passed |
 | `uv run ruff check .` / `ruff format --check` | ✅ |
 | Postman en local (mock) | ✅ 50 peticiones, 91 comprobaciones |
-| Playwright en local (mock) | ✅ 5/5 (pestañas de primer nivel, auditoría del boceto, composición con la auditoría y con la composición actual, retoque, tooltips de la ficha, editor sin paleta) |
+| Playwright en local (mock) | ✅ 5/5, repetido en Chromium y Edge (pestañas de primer nivel, auditoría del boceto, composición con la auditoría y con la composición actual, retoque, tooltips de la ficha, editor sin paleta) |
 | Auditoría real del boceto (astra, `medium`, copia del Salón) | ✅ 27 s, 0,136 €: comparado con las dos referencias del espacio, 91/100; comprobó las observaciones (tres reposacabezas, chaise a la derecha) y propuso corregir el encuadre |
 | Composición real con la auditoría (sunburst, 4 imágenes de entrada) | ✅ 30 s, 0,047 € (prompt incluido): conserva el boceto y aplica la corrección de encuadre |
 | Retoque real (planta en una zona del 18 x 62 %) | ✅ 30 s, 0,047 €: la planta queda dentro de la zona y el resto, intacto; imagen completa del modelo |

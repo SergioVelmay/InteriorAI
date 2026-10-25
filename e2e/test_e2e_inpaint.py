@@ -45,7 +45,6 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     ui.toast("Pinta en la imagen la zona")  # sin trazos no hay llamada
 
     ui.paint()
-    page.wait_for_timeout(1500)  # el editor guarda la máscara (evento input)
     page.locator("#iai-gen-compositions-current").click()
     ui.toast("Describe el cambio")
     page.locator("#iai-inpaint-instruction textarea").fill("Una planta en la esquina")

@@ -52,7 +52,7 @@ from ui.studio_views import (
     support_thumbs,
     thumbs_html,
 )
-from ui.tabs.studio import build_studio_tabs
+from ui.tabs.studio import build_studio_tabs, layers_only
 
 ROLES = {
     RenderStage.DRAFT: Role.FAST_DRAFT,
@@ -360,6 +360,25 @@ async def test_show_render_opens_an_image_of_any_stage(tmp_path: Path) -> None:
 
 
 # --- Retoque --------------------------------------------------------------------------------
+
+
+def test_mask_editor_only_reads_the_painted_layers(tmp_path: Path) -> None:
+    """El fondo y la compuesta pueden estar a medio escribir en la caché de Gradio: no se leen."""
+    from gradio.components.image_editor import EditorData
+    from gradio.data_classes import FileData
+
+    layer = tmp_path / "layer.png"
+    Image.new("RGBA", (30, 20), (239, 68, 68, 153)).save(layer)
+    broken = tmp_path / "background.png"
+    broken.write_bytes(b"PNG a medias")  # no es una imagen completa
+    editor = gr.ImageEditor(type="pil", format="png")
+    value = layers_only(editor, EditorData(
+        background=FileData(path=str(broken)), layers=[FileData(path=str(layer))],
+        composite=FileData(path=str(broken)),
+    ))  # fmt: skip
+    assert value["background"] is None and value["composite"] is None
+    assert editor_mask(value) is not None
+    assert layers_only(editor, None) is None
 
 
 def test_editor_mask_merges_painted_layers() -> None:

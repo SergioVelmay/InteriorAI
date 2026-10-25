@@ -109,6 +109,7 @@ CSS = f"""
     background: radial-gradient(circle, transparent 0 1.5px, currentColor 1.5px 3px,
                                 transparent 3px);
 }}
+.iai-hidden {{ display: none !important; }}
 /* Ficha de la referencia: solo nombres; el detalle, en el tooltip (Paso 23). */
 #iai-sheet-tips {{ display: none !important; }}
 [id^="iai-sheet-"] label[title]:not([title=""]) {{ cursor: help; }}
