@@ -48,6 +48,7 @@ Resoluciones (`shared/sizes.py`):
 | Render real desde la composición (FLUX, 2448×1632) | ✅ 26 s, 0,076 €. Primer intento: geometría fiel, pero la pana salió como bouclé y añadió una mesa en la terraza. Tras endurecer el prompt, pana fiel y nada añadido |
 | «De noche» desde el render final actual | ✅ 29 s, 0,076 €. Exterior nocturno y luz interior cálida sin inventar lámparas (lo anota en las dudas). Con la regla de «no regenerar materiales», la pana se conserva |
 | «Otra versión» | ✅ Mismo prompt, partida y tamaño (`variant_of_id`), sin llamada al PROMPT_ENGINEER. La variación entre versiones afecta también al tejido: sirve para elegir |
+| CI de la PR #32 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Hallazgo: sin las referencias, la fidelidad del tejido depende por completo del prompt. Describir
 de nuevo un material ya visible hace que el modelo lo regenere, a veces mal. Pedir que se
@@ -57,7 +58,7 @@ Coste real del paso: ≈ 0,38 € (5 renders de 4 MP).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-24`.
+⏳ En revisión — rama `feat/paso-24`, PR #32.
 
 ## 6. Pendiente / futuro
 
