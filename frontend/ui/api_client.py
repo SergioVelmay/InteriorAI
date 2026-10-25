@@ -249,21 +249,34 @@ class BackendClient:
         )
         return RenderRecord.model_validate(response.json())
 
-    async def audit_render(self, project_id: UUID | str, render_id: UUID | str) -> dict[str, Any]:
-        """GEOMETRIC_AUDITOR (el rol más caro)."""
+    async def audit_render(
+        self, project_id: UUID | str, render_id: UUID | str, notes: str = ""
+    ) -> dict[str, Any]:
+        """GEOMETRIC_AUDITOR (el rol más caro), con las observaciones del usuario."""
         response = await self._request(
             "POST", f"{self._project(project_id)}/renders/{render_id}/audit",
-            timeout=AI_AUDIT_TIMEOUT_S,
+            json={"notes": notes}, timeout=AI_AUDIT_TIMEOUT_S,
         )  # fmt: skip
         return response.json()
 
     async def inpaint_render(
-        self, project_id: UUID | str, render_id: UUID | str, mask_png: bytes, instruction: str
+        self,
+        project_id: UUID | str,
+        render_id: UUID | str,
+        mask_png: bytes,
+        instruction: str,
+        **options: Any,
     ) -> dict[str, Any]:
-        """Retoque de la zona pintada (coste en modo azure). Devuelve `{renders, cost_eur, …}`."""
+        """Retoque de la zona pintada (coste en modo azure). Devuelve `{renders, cost_eur, …}`.
+
+        `options`: `quality`, `extra_instructions`, `use_audit` y `audit_notes` (Paso 23).
+        """
+        data = {"instruction": instruction}
+        data |= {k: str(v).lower() if isinstance(v, bool) else str(v)
+                 for k, v in options.items() if v is not None}  # fmt: skip
         response = await self._request(
             "POST", f"{self._project(project_id)}/renders/{render_id}/inpaint",
             files={"mask": ("mascara.png", mask_png, "image/png")},
-            data={"instruction": instruction}, timeout=AI_TIMEOUT_S,
+            data=data, timeout=AI_TIMEOUT_S,
         )  # fmt: skip
         return response.json()

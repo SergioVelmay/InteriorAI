@@ -30,10 +30,14 @@ from shared.roles import Role
 from ui.api_client import AI_AUDIT_TIMEOUT_S, AI_TIMEOUT_S, BackendClient
 from ui.studio_views import (
     audit_markdown,
+    audit_thumbs,
+    composition_cost,
+    composition_inputs,
     cost_hint,
     default_textures,
     draft_cost,
     draft_inputs,
+    draft_thumbs,
     editor_mask,
     euros,
     inpaint_hint,
@@ -45,8 +49,10 @@ from ui.studio_views import (
     render_title_md,
     renders_of,
     selected_render,
+    support_thumbs,
+    thumbs_html,
 )
-from ui.tabs.studio import build_studio_tab
+from ui.tabs.studio import build_studio_tabs
 
 ROLES = {
     RenderStage.DRAFT: Role.FAST_DRAFT,
@@ -67,7 +73,11 @@ def render(
     )  # fmt: skip
 
 
+REFERENCES: list[str] = []  # orden de creación de las referencias de prueba
+
+
 def reference(name: str, groups: list[str]) -> Asset:
+    REFERENCES.append(name)
     element = {
         "label": "x",
         "detail": "",
@@ -83,6 +93,7 @@ def reference(name: str, groups: list[str]) -> Asset:
     return Asset(
         id=asset_id, kind=AssetKind.REFERENCIA, stored_name=f"{asset_id}.png",
         original_name=name, mime_type="image/png", size_bytes=1, sha256=SHA, sheet=sheet,
+        created_at=utc_now() + timedelta(seconds=len(REFERENCES)),
     )  # fmt: skip
 
 
@@ -113,8 +124,8 @@ def test_costs_and_confirmation_threshold() -> None:
     assert cost_hint(0.095, "mock") == "Simulación: sin coste"
     assert cost_hint(0.095, "azure") == "Azure: ≈ 0.095 €"
     assert not needs_confirmation("mock", 10)
-    assert not needs_confirmation("azure", 0.15)  # umbral de 0,15 € (B-043), no incluido
-    assert needs_confirmation("azure", 0.16)
+    assert not needs_confirmation("azure", 0.20)  # umbral de 0,20 € (B-043), no incluido
+    assert needs_confirmation("azure", 0.21)
 
 
 def test_draft_cost_follows_inputs_quality_and_variants() -> None:
@@ -123,7 +134,9 @@ def test_draft_cost_follows_inputs_quality_and_variants() -> None:
     assert draft_cost(5, "medium", 3) == pytest.approx(0.173)
     assert draft_cost(4, "medium", 1) < 0.15 < draft_cost(4, "medium", 3)  # las entradas pesan
     assert draft_cost(4, "low", 3) < draft_cost(4, "high", 3)
-    assert draft_cost(1, "medium", 20) == draft_cost(1, "medium", 7)  # máximo de entradas
+    assert draft_cost(1, "medium", 20) == draft_cost(1, "medium", 13)  # base + 12 apoyos
+    # Composición: medido en el Paso 23 con 4 imágenes en calidad media = 0,047 €.
+    assert composition_cost("medium", 4) == pytest.approx(0.051)
 
 
 def test_references_and_selection_helpers() -> None:
@@ -132,6 +145,7 @@ def test_references_and_selection_helpers() -> None:
     off = reference("descartada.png", [])
     p = project(assets=[view, sofa, off])
     assert draft_inputs(p) == 2  # solo las activas
+    assert composition_inputs(p) == 3  # la de partida y las dos activas como apoyo
     assert reference_summary(sofa) == "sofa.png · objetos y mobiliario (1), colores y paleta (1)"
     assert default_textures(p) == [str(sofa.id)]  # la vista no es una textura
 
@@ -167,7 +181,43 @@ def test_v1_images_show_their_brief_and_audit() -> None:
     assert "brief v2" in render_detail_md(project(renders=[old]), old)
     text = audit_markdown(old.audits[-1])
     assert "82/100" in text and "Sofá algo corto" in text
-    assert "imagen base" in audit_markdown(None)
+    assert "perspectiva o geometría" in audit_markdown(None)
+
+
+def test_supports_beyond_the_limit_are_shown_in_red(tmp_path: Path) -> None:
+    """Paso 23: base + 12 apoyos (los del espacio primero); los que no caben, en rojo."""
+    view = reference("vista.png", ["perspectiva"])
+    others = [reference(f"ref{i}.png", ["objetos"]) for i in range(12)]
+    plan = reference("plano.png", ["geometria"])
+    p = project(assets=[view, *others, plan])
+    thumbs = draft_thumbs(p, tmp_path)
+    assert [t.tone for t in thumbs] == ["start"] + [""] * 12 + ["excluded"]
+    assert thumbs[1].caption.startswith("plano.png")  # geometría, antes que los demás
+    assert thumbs[-1].caption == "Fuera: máx. 12 apoyos · ref11.png"
+    assert draft_inputs(p) == 13
+    supports = support_thumbs(p, tmp_path)  # composición: la vista también es un apoyo
+    assert [t.caption.split(" ·")[0] for t in supports[:2]] == ["vista.png", "plano.png"]
+    assert [t.tone for t in supports].count("excluded") == 2
+    html_text = thumbs_html(thumbs)
+    assert html_text.count('class="iai-thumb excluded"') == 1
+    assert "/gradio_api/file=" in html_text and "&lt;" not in html_text
+    assert thumbs_html([], "Nada") == '<p class="iai-muted">Nada</p>'
+
+
+def test_audit_compares_every_space_reference(tmp_path: Path) -> None:
+    view = reference("vista.png", ["perspectiva"])
+    plan = reference("plano.png", ["geometria"])
+    sofa = reference("sofa.png", ["objetos"])
+    draft = render(RenderStage.DRAFT, RenderStatus.SELECTED)
+    draft_asset = Asset(
+        id=draft.id, kind=AssetKind.RENDER, stored_name=f"{draft.id}.png",
+        original_name="boceto.png", mime_type="image/png", size_bytes=1, sha256=SHA,
+    )  # fmt: skip
+    p = project(assets=[view, plan, sofa, draft_asset], renders=[draft])
+    captions = [t.caption for t in audit_thumbs(p, draft, tmp_path)]
+    assert captions == ["Espacio · vista.png", "Espacio · plano.png", "Boceto auditado"]
+    report = audit().model_copy(update={"reference_asset_ids": [view.id, plan.id]})
+    assert "comparado con: vista.png, plano.png" in audit_markdown(report, p)
 
 
 # --- Cliente --------------------------------------------------------------------------------
@@ -191,7 +241,7 @@ async def test_studio_client_requests() -> None:
     for stage in RenderStage:
         await client.generate_renders(pid, stage, {"n": 1})
     await client.select_render(pid, rid)
-    await client.audit_render(pid, rid)
+    await client.audit_render(pid, rid, "La ventana")
 
     assert [(r.method, r.url.path.removeprefix(f"/api/v1/projects/{pid}")) for r in seen] == [
         ("GET", "/renders"),
@@ -203,6 +253,7 @@ async def test_studio_client_requests() -> None:
     ]
     assert seen[0].url.params["stage"] == "render_final"
     assert json.loads(seen[1].content) == {"n": 1}
+    assert json.loads(seen[5].content) == {"notes": "La ventana"}
     # Las llamadas de IA usan timeouts largos; la auditoría, el suyo propio.
     assert seen[1].extensions["timeout"]["read"] == AI_TIMEOUT_S
     assert seen[5].extensions["timeout"]["read"] == AI_AUDIT_TIMEOUT_S
@@ -217,10 +268,15 @@ async def test_inpaint_client_request() -> None:
 
     client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
     pid, rid = uuid4(), uuid4()
-    await client.inpaint_render(pid, rid, b"\x89PNG mask", "Cojines en mostaza")
+    await client.inpaint_render(
+        pid, rid, b"\x89PNG mask", "Cojines en mostaza", quality="medium", use_audit=True,
+        audit_notes="", extra_instructions="Luz cálida",
+    )  # fmt: skip
     [request] = seen
     assert request.url.path == f"/api/v1/projects/{pid}/renders/{rid}/inpaint"
     assert b'name="mask"; filename="mascara.png"' in request.content
+    assert b'name="use_audit"\r\n\r\ntrue' in request.content
+    assert b"Luz c\xc3\xa1lida" in request.content
     assert request.extensions["timeout"]["read"] == AI_TIMEOUT_S
 
 
@@ -246,7 +302,8 @@ def studio_tab(p: ProjectMetadata, tmp_path: Path, mode: str = "mock"):
     client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
     with gr.Blocks():
         active = gr.BrowserState(None)
-        tab = build_studio_tab(client, tmp_path, active)
+        with gr.Tabs():
+            tab = build_studio_tabs(client, tmp_path, active)
     return tab
 
 
@@ -278,8 +335,8 @@ async def test_drafts_need_active_references(tmp_path: Path) -> None:
 
 async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) -> None:
     """B-043: Composición con un boceto seleccionado; Render Final con una composición."""
-    draft = render(RenderStage.DRAFT, RenderStatus.SELECTED)
-    final = render(RenderStage.FINAL, RenderStatus.SELECTED, audits=[audit()])
+    draft = render(RenderStage.DRAFT, RenderStatus.SELECTED, audits=[audit()])
+    final = render(RenderStage.FINAL, RenderStatus.SELECTED)
     p = project(assets=[reference("vista.png", ["perspectiva"])], renders=[draft, final])
     result = await studio_tab(p, tmp_path, mode="azure").refresh_all(str(p.id))
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
@@ -289,7 +346,10 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     assert [len(g["value"]) for g in galleries] == [1, 0, 1]
     assert by_id(result, "iai-select-drafts")["value"] == "Seleccionada ●"
     assert "**Coste acumulado de la cadena:** 0.2969 €" in by_id(result, "iai-more-drafts")
-    assert "82/100" in texts(result)  # auditoría del render final mostrado
+    assert "82/100" in by_id(result, "iai-audit-report")  # auditoría del boceto seleccionado
+    assert by_id(result, "iai-gen-compositions")["interactive"] is True
+    assert by_id(result, "iai-gen-compositions-current")["interactive"] is False  # sin composición
+    assert "Selecciona una composición" in by_id(result, "iai-start-composition")
 
 
 async def test_show_render_opens_an_image_of_any_stage(tmp_path: Path) -> None:

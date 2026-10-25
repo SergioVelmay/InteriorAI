@@ -47,7 +47,18 @@ class DraftRequest(_RenderRequest):
 
 
 class CompositionRequest(_RenderRequest):
-    draft_id: UUID | None = Field(default=None, description="Boceto seleccionado (opcional)")
+    """Composición (B-045, B-046, B-055): a partir del boceto seleccionado o de la composición
+    actual (la seleccionada), con las referencias activas como apoyo y, si se pide, las
+    correcciones de la auditoría del boceto. El prompt lo escribe el PROMPT_ENGINEER."""
+
+    draft_id: UUID | None = Field(default=None, description="Por defecto, el boceto seleccionado")
+    source: Literal["boceto", "composicion"] = Field(
+        default="boceto", description="Imagen de partida: boceto o composición seleccionados"
+    )
+    use_audit: bool = Field(default=False, description="Usar la auditoría del boceto")
+    audit_notes: str = Field(
+        default="", max_length=2_000, description="Auditoría manual: notas del usuario"
+    )
     n: int = Field(default=1, ge=1, le=4)
     quality: Literal["low", "medium", "high", "auto"] = "medium"
 
@@ -65,6 +76,14 @@ class RenderRunResponse(BaseModel):
     renders: list[RenderRecord]
     cost_eur: float
     request_id: str | None
+
+
+class AuditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    notes: str = Field(
+        default="", max_length=2_000, description="Observaciones que el auditor debe comprobar"
+    )
 
 
 class AuditResponse(BaseModel):
@@ -115,11 +134,13 @@ async def create_composition(
     foundry: FoundryDep,
     body: Annotated[CompositionRequest, Body()] = CompositionRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 2 (STRUCTURAL_COMPOSER): composición sobre la captura (+ boceto seleccionado)."""
+    """Etapa 2 (STRUCTURAL_COMPOSER): composición a partir del boceto seleccionado o de la
+    composición actual, con las referencias activas como apoyo (hasta 12)."""
     with telemetry_scope(project_id):
         renders = await generate_composition(
-            repo, foundry, project_id, _options(body, quality=body.quality), body.draft_id
-        )
+            repo, foundry, project_id, _options(body, quality=body.quality), body.draft_id,
+            body.source, body.use_audit, body.audit_notes,
+        )  # fmt: skip
     return await _response(repo, project_id, renders)
 
 
@@ -164,14 +185,16 @@ async def audit(
     repo: RepositoryDep,
     foundry: FoundryDep,
     settings: SettingsDep,
+    body: Annotated[AuditRequest, Body()] = AuditRequest(),  # noqa: B008
 ) -> AuditResponse:
-    """GEOMETRIC_AUDITOR a demanda (rol más caro): compara con la captura y guarda el informe.
+    """GEOMETRIC_AUDITOR a demanda (rol más caro): compara la imagen (normalmente el boceto
+    seleccionado) con las referencias activas de perspectiva o geometría y guarda el informe.
 
     No bloquea la selección: se puede seleccionar un render sin auditar.
     """
     with telemetry_scope(project_id):
         render, report = await audit_render(
-            repo, foundry, project_id, render_id, settings.auditor.reasoning_effort
+            repo, foundry, project_id, render_id, settings.auditor.reasoning_effort, body.notes
         )
     return AuditResponse(
         render=render,
@@ -196,19 +219,25 @@ async def inpaint(
     foundry: FoundryDep,
     settings: SettingsDep,
     quality: Annotated[Literal["low", "medium", "high", "auto"] | None, Form()] = None,
+    extra_instructions: Annotated[str, Form(max_length=2_000)] = "",
+    use_audit: Annotated[bool, Form()] = False,
+    audit_notes: Annotated[str, Form(max_length=2_000)] = "",
 ) -> RenderRunResponse:
-    """Retoque de una zona de una composición (multipart).
+    """Retoque de una zona de una composición (multipart): «Generar con la composición actual»
+    con «Usar el retoque».
 
     Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se edita con la
     instrucción mediante la máscara nativa del modelo, que devuelve la imagen completa (B-038).
-    Crea una imagen nueva de la misma etapa, sin seleccionar; la original no cambia.
+    El prompt lo escribe el PROMPT_ENGINEER con la zona, las indicaciones y, si se pide, la
+    auditoría del boceto. Crea una imagen nueva de la misma etapa, sin seleccionar.
     """
     content = await read_upload(mask, settings.storage.max_upload_bytes)
     await inspect_upload(content, AssetKind.RENDER)  # imagen real y sin daños
     with telemetry_scope(project_id):
         record = await inpaint_render(
-            repo, foundry, project_id, render_id, content, instruction, quality=quality
-        )
+            repo, foundry, project_id, render_id, content, instruction, quality=quality,
+            indications=extra_instructions, use_audit=use_audit, audit_notes=audit_notes,
+        )  # fmt: skip
     return await _response(repo, project_id, [record])
 
 

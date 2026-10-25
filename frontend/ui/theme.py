@@ -8,8 +8,24 @@ BORDER = "#27272a"
 INPUT = "#18181b"
 TEXT = "#fafafa"
 
-# Gradio activa el modo oscuro con la clase `dark` en <body>; se fuerza al cargar.
-FORCE_DARK_JS = "() => { document.body.classList.add('dark'); }"
+# Gradio activa el modo oscuro con la clase `dark` en <body>; se fuerza al cargar. Además, los
+# tooltips de la ficha (Paso 23): las casillas muestran solo el nombre y el detalle se pone como
+# `title` de cada una, leído del contenedor oculto `#iai-sheet-tips` cada vez que cambia la página.
+FORCE_DARK_JS = """() => {
+    document.body.classList.add('dark');
+    const apply = () => {
+        const holder = document.querySelector('#iai-sheet-tips [data-tips]');
+        const tips = holder ? JSON.parse(holder.dataset.tips || '{}') : {};
+        document.querySelectorAll('[id^="iai-sheet-"] label').forEach((label) => {
+            const group = label.closest('[id^="iai-sheet-"]').id.replace('iai-sheet-', '');
+            const siblings = label.parentElement.querySelectorAll(':scope > label');
+            const index = [...siblings].indexOf(label);
+            const tip = (tips[group] || [])[index] || '';
+            if (label.title !== tip) label.title = tip;
+        });
+    };
+    new MutationObserver(apply).observe(document.body, {childList: true, subtree: true});
+}"""
 
 CSS = f"""
 .gradio-container {{ max-width: 1440px !important; margin: 0 auto; }}
@@ -80,6 +96,44 @@ CSS = f"""
     font-size: 0.85rem !important; text-align: left !important;
 }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
+/* Editor de máscaras (B-039): rojo fijo sin control de paleta y el tamaño del pincel como dos
+   circunferencias concéntricas (controles internos del ImageEditor: lo comprueba el E2E). */
+#iai-inpaint-editor button[aria-label="Color"] {{ display: none !important; }}
+#iai-inpaint-editor button[aria-label="Brush Size"] svg {{ display: none !important; }}
+#iai-inpaint-editor button[aria-label="Brush Size"] > div {{
+    display: flex; align-items: center; justify-content: center;
+}}
+#iai-inpaint-editor button[aria-label="Brush Size"] > div::after {{
+    content: ""; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid currentColor; box-sizing: border-box;
+    background: radial-gradient(circle, transparent 0 1.5px, currentColor 1.5px 3px,
+                                transparent 3px);
+}}
+/* Ficha de la referencia: solo nombres; el detalle, en el tooltip (Paso 23). */
+#iai-sheet-tips {{ display: none !important; }}
+[id^="iai-sheet-"] label[title]:not([title=""]) {{ cursor: help; }}
+/* Miniaturas de lo que recibe cada generación (Paso 23): las que no caben, con el pie en rojo. */
+.iai-thumbs {{ display: flex; flex-wrap: wrap; gap: 0.5rem; }}
+.iai-thumb {{
+    position: relative; width: 168px; aspect-ratio: 3 / 2; margin: 0; overflow: hidden;
+    border: 1px solid {BORDER}; border-radius: 8px; background: {SURFACE};
+}}
+.iai-thumb img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+.iai-thumb figcaption {{
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 0.25rem 0.45rem;
+    background: rgba(10, 10, 10, 0.78); color: {TEXT}; font-size: 0.72rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}}
+.iai-thumb.start {{ border-color: #a1a1aa; }}
+.iai-thumb.excluded img {{ opacity: 0.5; }}
+.iai-thumb.excluded figcaption {{ color: #f87171; font-weight: 600; }}
+/* Imagen grande: el ancho de su columna y la altura según su proporción (sin caja fija). */
+.iai-viewer, .iai-viewer .image-container, .iai-viewer .image-frame,
+.iai-viewer button {{ height: auto !important; max-height: none !important; }}
+.iai-viewer img {{
+    width: 100% !important; height: auto !important; max-height: none !important;
+    object-fit: contain !important;
+}}
 /* Barras de desplazamiento oscuras (la clara por defecto desentonaba). */
 * {{ scrollbar-color: #3f3f46 {BACKGROUND}; scrollbar-width: thin; }}
 ::-webkit-scrollbar {{ width: 10px; height: 10px; }}

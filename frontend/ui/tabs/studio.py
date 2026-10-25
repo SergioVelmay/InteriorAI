@@ -1,8 +1,11 @@
-"""Pestaña Estudio: tres pestañas, una por etapa (B-035), que se desbloquean en orden (B-043).
+"""Pestañas Bocetos, Composición y Render Final: una por etapa (B-035), de primer nivel desde el
+Paso 23, que se desbloquean en orden (B-043).
 
 ① Bocetos (Paso 22): las referencias activas → generar (prompt automático, sin brief) → elegir
-uno. ② Composición y ③ Render Final: los controles de la v1, provisionales hasta los Pasos 23 y
-24. En cada pestaña, la imagen seleccionada en grande con lo que entendió la IA, el prompt y lo
+uno. ② Composición (Paso 23): auditoría opcional del boceto (B-046), retoque de la composición
+seleccionada (B-038/039) y crear la composición a partir del boceto seleccionado o de la
+composición actual (B-045, B-055). ③ Render Final: controles provisionales hasta el Paso 24.
+En cada pestaña, la imagen seleccionada en grande con lo que entendió la IA, el prompt y lo
 enviado al modelo (B-047); la confirmación de coste, junto al botón que la pide (B-049).
 """
 
@@ -17,34 +20,39 @@ import gradio as gr
 from PIL import Image
 
 from shared.models import ProjectMetadata, RenderStage, RenderStatus
+from shared.supports import MAX_SUPPORTS
 from ui.api_client import ApiError, BackendClient
 from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.studio_views import (
     COST_AUDIT,
-    COST_INPAINT,
     COST_PER_IMAGE,
     COST_PROMPT,
     DRAFT_SIZES,
     QUALITIES,
     active_references,
     audit_markdown,
+    audit_thumbs,
+    composition_cost,
+    composition_inputs,
     cost_hint,
     default_textures,
     draft_cost,
     draft_inputs,
+    draft_thumbs,
     editor_mask,
     euros,
-    inpaint_hint,
     needs_confirmation,
     reference_choices,
-    reference_summary,
     render_caption,
     render_detail_md,
     render_inputs,
+    render_thumb,
     render_title_md,
     renders_of,
     selected_render,
+    support_thumbs,
+    thumbs_html,
 )
 
 NO_PROJECT = "Ningún proyecto activo: elige o crea uno en la pestaña **Proyectos**."
@@ -53,27 +61,47 @@ NO_REFERENCES = (
     "para poder generar bocetos."
 )
 STAGES = (RenderStage.DRAFT, RenderStage.COMPOSITION, RenderStage.FINAL)
+# Acciones con coste: su botón, la etapa cuya imagen se muestra después y su descripción.
+ACTION_STAGES = {
+    "boceto": RenderStage.DRAFT,
+    "auditoria": RenderStage.DRAFT,
+    "composicion": RenderStage.COMPOSITION,
+    "composicion_actual": RenderStage.COMPOSITION,
+    "render_final": RenderStage.FINAL,
+}
 
 
 @dataclass
-class StudioTab:
+class StudioTabs:
+    tabs: list[gr.Tab]
     refresh_all: Callable[[str | None], Awaitable[dict]]
     all_outputs: list[gr.components.Component]
+    unlock: Callable[[str | None], Awaitable[dict]]  # solo el bloqueo de las pestañas
+    unlock_outputs: list[gr.components.Component]
     show_render: Callable[[str | None, str | None], Awaitable[dict]]  # abre una imagen
 
 
 @dataclass
-class Panel:
-    """Lo común de las tres pestañas: generar (con su confirmación), miniaturas y vista."""
+class Action:
+    """Un botón con coste y su confirmación justo debajo (B-049)."""
 
-    stage: RenderStage
-    generate: gr.Button
+    button: gr.Button
     cost: gr.Markdown
     confirm_box: gr.Column
     confirm_md: gr.Markdown
     confirm_btn: gr.Button
     cancel_btn: gr.Button
     pending: gr.State
+
+    def components(self) -> list[gr.components.Component]:
+        return [self.button, self.cost, self.confirm_box, self.confirm_md, self.pending]
+
+
+@dataclass
+class Panel:
+    """Lo común de las tres pestañas: miniaturas de la etapa y la imagen mostrada."""
+
+    stage: RenderStage
     gallery: gr.Gallery
     ids: gr.State
     viewer: gr.Image
@@ -84,24 +112,20 @@ class Panel:
     shown: gr.State
 
     def components(self) -> list[gr.components.Component]:
-        return [self.generate, self.cost, self.confirm_box, self.confirm_md, self.pending,
-                self.gallery, self.ids, self.viewer, self.title, self.select_btn, self.more_md,
+        return [self.gallery, self.ids, self.viewer, self.title, self.select_btn, self.more_md,
                 self.inputs, self.shown]  # fmt: skip
 
 
-def _generate_area(label: str, slug: str) -> dict[str, Any]:
+def _action(label: str, slug: str, variant: str = "primary") -> Action:
     with gr.Row(equal_height=True):
-        generate = gr.Button(label, variant="primary", elem_id=f"iai-gen-{slug}")
+        button = gr.Button(label, variant=variant, elem_id=f"iai-gen-{slug}")  # type: ignore[arg-type]
         cost = gr.Markdown(elem_classes="iai-muted")
-    # Confirmación justo debajo del botón que la pide (B-049).
     with gr.Column(visible=False, elem_id=f"iai-confirm-{slug}") as confirm_box:
         confirm_md = gr.Markdown()
         with gr.Row():
             confirm_btn = gr.Button("Confirmar (con coste)", elem_classes="iai-danger")
             cancel_btn = gr.Button("Cancelar", variant="secondary")
-    return {"generate": generate, "cost": cost, "confirm_box": confirm_box,
-            "confirm_md": confirm_md, "confirm_btn": confirm_btn, "cancel_btn": cancel_btn,
-            "pending": gr.State(None)}  # fmt: skip
+    return Action(button, cost, confirm_box, confirm_md, confirm_btn, cancel_btn, gr.State(None))
 
 
 def _thumbnails(slug: str) -> dict[str, Any]:
@@ -112,148 +136,171 @@ def _thumbnails(slug: str) -> dict[str, Any]:
     return {"gallery": gallery, "ids": gr.State([])}
 
 
-def _viewer(slug: str) -> dict[str, Any]:
+def _viewer(slug: str, *, details_open: bool | None) -> dict[str, Any]:
+    """La imagen grande en su proporción, su línea, «Seleccionar» y la trazabilidad: en un
+    desplegable (Bocetos, `details_open=False`) o a la vista, debajo (`None`)."""
     viewer = gr.Image(
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
-        elem_id=f"iai-viewer-{slug}",
+        elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
     title = gr.Markdown()
     select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
-    with gr.Accordion("Ver más: lo que entendió la IA, el prompt y lo enviado", open=False):
+
+    def trace() -> tuple[gr.Markdown, gr.Gallery]:
         more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
         inputs = gr.Gallery(
-            label="Enviado al modelo", columns=4, height="auto", object_fit="contain",
+            label="Enviado al modelo", columns=6, height="auto", object_fit="contain",
             allow_preview=False, buttons=[], elem_classes=["iai-gallery", "iai-small"],
             elem_id=f"iai-inputs-{slug}",
         )  # fmt: skip
+        return more_md, inputs
+
+    if details_open is None:
+        more_md, inputs = trace()
+    else:
+        with gr.Accordion("Ver más: lo que entendió la IA, el prompt y lo enviado", open=False):
+            more_md, inputs = trace()
     return {"viewer": viewer, "title": title, "select_btn": select_btn, "more_md": more_md,
-            "inputs": inputs}  # fmt: skip
+            "inputs": inputs, "shown": gr.State(None)}  # fmt: skip
 
 
-def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTab:
-    mode = gr.State(None)
-    selected_draft = gr.State(None)  # id del boceto seleccionado (entrada de la composición)
-    selected_composition = gr.State(None)  # id de la composición seleccionada
-    notice = gr.Markdown(NO_PROJECT, visible=False)
+def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTabs:
+    """Crea las tres pestañas dentro del `gr.Tabs` de la aplicación."""
+    notices: list[gr.Markdown] = []
     panels: dict[RenderStage, Panel] = {}
-    shown_images: dict[str, Any] = {}  # imagen de cada composición mostrada (para el editor)
+    actions: dict[str, Action] = {}
+    retouch_images: dict[str, Any] = {}  # imagen de cada composición seleccionada (el editor)
 
-    with gr.Tabs(selected="bocetos"):
-        # ① Bocetos -------------------------------------------------------------------------
-        with gr.Tab("Bocetos", id="bocetos"):
-            refs_md = gr.Markdown(elem_id="iai-active-references")
-            refs = gr.Gallery(
-                show_label=False, columns=6, height="auto", object_fit="cover",
-                allow_preview=False, buttons=[], elem_classes="iai-gallery",
-                elem_id="iai-studio-references",
-            )  # fmt: skip
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=1):
-                    with gr.Row():
-                        draft_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
-                        draft_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
-                    draft_n = gr.Slider(1, 8, value=4, step=1, label="Variantes")
-                    draft_extra = gr.Textbox(
-                        label="Indicaciones (opcionales)", lines=2,
-                        placeholder="p. ej. «más cálido, tarde de otoño, alfombra de yute»",
-                        elem_id="iai-draft-indications",
-                    )  # fmt: skip
-                    draft_gen = _generate_area("Generar bocetos", "drafts")
-                    draft_thumbs = _thumbnails("drafts")
-                with gr.Column(scale=1):
-                    draft_view = _viewer("drafts")
-            panels[RenderStage.DRAFT] = Panel(
-                RenderStage.DRAFT, **draft_gen, **draft_thumbs, **draft_view, shown=gr.State(None)
-            )
-
-        # ② Composición (provisional hasta el Paso 23) -----------------------------------------
-        with gr.Tab("Composición", id="composicion", interactive=False) as composition_tab:
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=1):
-                    comp_source = gr.Markdown()
-                    comp_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
-                    comp_extra = gr.Textbox(label="Indicaciones (opcionales)", lines=2)
-                    comp_gen = _generate_area("Generar composición", "compositions")
-                    comp_thumbs = _thumbnails("compositions")
-                with gr.Column(scale=1):
-                    comp_view = _viewer("compositions")
-                    with gr.Row(equal_height=True):
-                        comp_audit = gr.Button(
-                            "Auditar", variant="secondary", elem_id="iai-audit-composition"
-                        )
-                        comp_audit_cost = gr.Markdown(elem_classes="iai-muted")
-                    comp_audit_md = gr.Markdown()
-            panels[RenderStage.COMPOSITION] = Panel(
-                RenderStage.COMPOSITION, **comp_gen, **comp_thumbs, **comp_view,
-                shown=gr.State(None),
-            )  # fmt: skip
-            # Contador para volver a montar el editor al hacerse visible: montado en una pestaña
-            # o un desplegable ocultos, el lienzo exporta el fondo truncado (Gradio 6).
-            editor_nonce = gr.State(0)
-            with gr.Accordion("Retocar zona de la composición", open=False) as retouch_box:
-                gr.Markdown(
-                    "Pinta la zona que quieres cambiar y describe el cambio. El modelo edita esa "
-                    "zona con la máscara y devuelve la imagen completa: el retoque es una "
-                    "composición nueva que puedes seleccionar; la original no cambia."
-                )
-                comp_shown = panels[RenderStage.COMPOSITION].shown
-
-                # Un editor nuevo por imagen: cambiar por código el valor de un ImageEditor ya
-                # montado lo deja sin la capa de trazos (Gradio 6).
-                @gr.render(
-                    inputs=[comp_shown, mode, editor_nonce], triggers=[editor_nonce.change],
-                    concurrency_limit=1,
+    # ① Bocetos ---------------------------------------------------------------------------------
+    with gr.Tab("Bocetos") as drafts_tab:
+        # Estado común, dentro de una pestaña: un hijo del `gr.Tabs` que no es pestaña duplica en
+        # la barra la pestaña que se selecciona (Gradio 6).
+        mode = gr.State(None)
+        selected_draft = gr.State(None)  # id del boceto seleccionado
+        selected_composition = gr.State(None)  # composición seleccionada (la que se retoca)
+        retouch_mask = gr.State(None)  # PNG de lo pintado en el editor (o None)
+        editor_nonce = gr.State(0)
+        notices.append(gr.Markdown(NO_PROJECT, visible=False))
+        refs_md = gr.Markdown(elem_id="iai-active-references")
+        refs = gr.HTML(elem_id="iai-studio-references")
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1):
+                with gr.Row():
+                    draft_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
+                    draft_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
+                draft_n = gr.Slider(1, 8, value=4, step=1, label="Variantes")
+                draft_extra = gr.Textbox(
+                    label="Indicaciones (opcionales)", lines=2,
+                    placeholder="p. ej. «más cálido, tarde de otoño, alfombra de yute»",
+                    elem_id="iai-draft-indications",
                 )  # fmt: skip
-                def inpaint_area(
-                    render_id: str | None, current_mode: str | None, nonce: int
-                ) -> None:
-                    image = shown_images.get(render_id or "")
-                    if image is None:
-                        gr.Markdown("_Elige una composición._")
-                        return
-                    if isinstance(image, str):
-                        # Ya cargada: con una ruta, el editor puede reenviar el fondo truncado.
-                        with Image.open(image) as opened:
-                            image = opened.convert("RGB")
-                    editor = gr.ImageEditor(
-                        value={"background": image, "layers": [], "composite": None},
-                        type="pil", format="png", sources=(), transforms=(), layers=False,
-                        brush=gr.Brush(colors=[("#ef4444", 0.6)], color_mode="fixed",
-                                       default_size=40),
-                        eraser=gr.Eraser(default_size=40), show_label=False, height=560,
-                        interactive=True, key=f"iai-editor-{render_id}-{nonce}",
-                        elem_id="iai-inpaint-editor",
-                    )  # fmt: skip
-                    instruction = gr.Textbox(
-                        label="Cambio en la zona pintada", lines=2,
-                        key=f"iai-instruction-{render_id}-{nonce}",
-                        elem_id="iai-inpaint-instruction",
-                    )  # fmt: skip
-                    with gr.Row(equal_height=True):
-                        button = gr.Button("Retocar zona", variant="primary", elem_id="iai-inpaint")
-                        gr.Markdown(inpaint_hint(RenderStage.COMPOSITION, current_mode) or "")
-                    button.click(on_inpaint, inputs=[*common, editor, instruction], outputs=outputs)
+                actions["boceto"] = _action("Generar bocetos", "drafts")
+                draft_gallery = _thumbnails("drafts")
+            with gr.Column(scale=1):
+                draft_view = _viewer("drafts", details_open=False)
+        panels[RenderStage.DRAFT] = Panel(RenderStage.DRAFT, **draft_gallery, **draft_view)
 
-        # ③ Render Final (provisional hasta el Paso 24) ------------------------------------------
-        with gr.Tab("Render Final", id="render_final", interactive=False) as final_tab:
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=1):
-                    final_source = gr.Markdown()
-                    textures = gr.CheckboxGroup(label="Referencias de textura y color", choices=[])
-                    final_extra = gr.Textbox(label="Indicaciones (opcionales)", lines=2)
-                    final_gen = _generate_area("Generar render final", "finals")
-                    final_thumbs = _thumbnails("finals")
-                with gr.Column(scale=1):
-                    final_view = _viewer("finals")
-                    with gr.Row(equal_height=True):
-                        final_audit = gr.Button(
-                            "Auditar", variant="secondary", elem_id="iai-audit-final"
-                        )
-                        final_audit_cost = gr.Markdown(elem_classes="iai-muted")
-                    final_audit_md = gr.Markdown()
-            panels[RenderStage.FINAL] = Panel(
-                RenderStage.FINAL, **final_gen, **final_thumbs, **final_view, shown=gr.State(None)
+    # ② Composición -----------------------------------------------------------------------------
+    with gr.Tab("Composición", interactive=False) as composition_tab:
+        notices.append(gr.Markdown(NO_PROJECT, visible=False))
+        gr.Markdown("### ① Auditoría del boceto seleccionado (opcional)")
+        gr.Markdown(
+            "Compara el boceto con **todas** las referencias activas que marcan perspectiva o "
+            "geometría y comprueba lo marcado en las fichas. Sus correcciones y tus "
+            "observaciones se usan al crear la composición con «Usar la auditoría».",
+            elem_classes="iai-muted",
+        )
+        audit_images = gr.HTML(elem_id="iai-audit-images")
+        audit_notes = gr.Textbox(
+            label="Auditoría manual: tus observaciones sobre el boceto (opcional)", lines=2,
+            placeholder="p. ej. «la ventana está más a la izquierda; falta la lámpara de pie»",
+            elem_id="iai-audit-notes",
+        )  # fmt: skip
+        actions["auditoria"] = _action("Auditar con IA", "audit", variant="secondary")
+        audit_md = gr.Markdown(elem_id="iai-audit-report")
+
+        gr.Markdown("### ② Retoque de la composición seleccionada")
+        retouch_md = gr.Markdown(elem_classes="iai-muted")
+
+        # Contenedor del editor: se vuelve a crear con cada composición seleccionada.
+        with gr.Column():
+            # Un editor nuevo por imagen y al hacerse visible: cambiar por código el valor de un
+            # ImageEditor montado lo deja sin la capa de trazos y, montado oculto, exporta el fondo
+            # truncado (Gradio 6).
+            @gr.render(
+                inputs=[selected_composition, editor_nonce], triggers=[editor_nonce.change],
+                concurrency_limit=1,
+            )  # fmt: skip
+            def retouch_area(render_id: str | None, nonce: int) -> None:
+                image = retouch_images.get(render_id or "")
+                if image is None:
+                    return
+                if isinstance(image, str):
+                    # Ya cargada: con una ruta, el editor puede reenviar el fondo truncado.
+                    with Image.open(image) as opened:
+                        image = opened.convert("RGB")
+                editor = gr.ImageEditor(
+                    value={"background": image, "layers": [], "composite": None},
+                    type="pil", format="png", sources=(), transforms=(), layers=False,
+                    brush=gr.Brush(colors=[("#ef4444", 0.6)], color_mode="fixed", default_size=40),
+                    eraser=gr.Eraser(default_size=40), show_label=False, height=560,
+                    interactive=True, key=f"iai-editor-{render_id}-{nonce}",
+                    elem_id="iai-inpaint-editor",
+                )  # fmt: skip
+                # `.input`: cada trazo del usuario (`.change` no se emite al pintar).
+                editor.input(editor_mask, inputs=editor, outputs=retouch_mask)
+
+        retouch_instruction = gr.Textbox(
+            label="Cambio en la zona pintada", lines=2,
+            placeholder="p. ej. «una planta alta en la esquina, maceta de barro»",
+            elem_id="iai-inpaint-instruction",
+        )  # fmt: skip
+
+        gr.Markdown("### ③ Crear composición")
+        with gr.Row():
+            comp_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
+            comp_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
+        with gr.Row():
+            use_audit = gr.Checkbox(
+                label="Usar la auditoría (la última con IA y tus observaciones)",
+                elem_id="iai-use-audit",
             )
+            use_retouch = gr.Checkbox(
+                label="Usar el retoque (solo con «Generar con la composición actual»)",
+                elem_id="iai-use-retouch",
+            )
+        comp_extra = gr.Textbox(
+            label="Indicaciones (opcionales)", lines=2, elem_id="iai-composition-indications"
+        )
+        supports_md = gr.Markdown()
+        supports = gr.HTML(elem_id="iai-composition-supports")
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1):
+                start_draft = gr.HTML(elem_id="iai-start-draft")
+                actions["composicion"] = _action(
+                    "Generar con el boceto seleccionado", "compositions"
+                )
+            with gr.Column(scale=1):
+                start_composition = gr.HTML(elem_id="iai-start-composition")
+                actions["composicion_actual"] = _action(
+                    "Generar con la composición actual", "compositions-current"
+                )
+        comp_gallery = _thumbnails("compositions")
+        comp_view = _viewer("compositions", details_open=None)
+        panels[RenderStage.COMPOSITION] = Panel(
+            RenderStage.COMPOSITION, **comp_gallery, **comp_view
+        )
+
+    # ③ Render Final (provisional hasta el Paso 24) ----------------------------------------------
+    with gr.Tab("Render Final", interactive=False) as final_tab:
+        notices.append(gr.Markdown(NO_PROJECT, visible=False))
+        final_source = gr.Markdown()
+        textures = gr.CheckboxGroup(label="Referencias de textura y color", choices=[])
+        final_extra = gr.Textbox(label="Indicaciones (opcionales)", lines=2)
+        actions["render_final"] = _action("Generar render final", "finals")
+        final_gallery = _thumbnails("finals")
+        final_view = _viewer("finals", details_open=None)
+        panels[RenderStage.FINAL] = Panel(RenderStage.FINAL, **final_gallery, **final_view)
 
     shown_states = [panels[s].shown for s in STAGES]
     common = [active, mode, *shown_states]
@@ -268,20 +315,24 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         return str(path) if path.is_file() else placeholder(asset.original_name)
 
     def empty_view() -> dict:
-        updates: dict = {notice: gr.update(visible=True), mode: None, refs: [], refs_md: "",
-                         selected_draft: None, selected_composition: None,
+        updates: dict = {mode: None, refs: "", refs_md: "", selected_draft: None,
+                         selected_composition: None, audit_images: "", audit_md: "",
+                         retouch_md: "", supports_md: "", supports: "", start_draft: "",
+                         start_composition: "", use_retouch: gr.update(value=False),
                          composition_tab: gr.update(interactive=False),
                          final_tab: gr.update(interactive=False)}  # fmt: skip
+        updates |= {notice: gr.update(visible=True) for notice in notices}
+        for action in actions.values():
+            updates |= {action.button: gr.update(interactive=False), action.cost: ""}
         for panel in panels.values():
             updates |= {panel.gallery: [], panel.ids: [], panel.viewer: None, panel.title: "",
                         panel.more_md: "", panel.inputs: [], panel.shown: None,
-                        panel.generate: gr.update(interactive=False),
                         panel.select_btn: gr.update(interactive=False)}  # fmt: skip
         return updates
 
     async def panel_updates(
-        project: ProjectMetadata, stage: RenderStage, render_id: str | None, current_mode: str
-    ) -> tuple[dict, Any]:
+        project: ProjectMetadata, stage: RenderStage, render_id: str | None
+    ) -> dict:
         panel = panels[stage]
         renders = {str(r.id): r for r in project.renders if r.stage is stage}
         items = renders_of(project, stage)
@@ -295,9 +346,6 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 chain = "\n\n" + chain_cost_md(await client.render_cost(project.id, render.id))
             except ApiError:
                 chain = ""
-        image = image_of(project, render_id) if render else None
-        if render is not None and stage is RenderStage.COMPOSITION:
-            shown_images[str(render.id)] = image
         is_selected = render is not None and render.status is RenderStatus.SELECTED
         return {
             panel.shown: render_id,
@@ -308,7 +356,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
                 ),
             ),
             panel.ids: [str(r.id) for r in items],
-            panel.viewer: image,
+            panel.viewer: image_of(project, render_id) if render else None,
             panel.title: render_title_md(render),
             panel.select_btn: gr.update(
                 interactive=render is not None and not is_selected,
@@ -316,7 +364,7 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             ),
             panel.more_md: render_detail_md(project, render) + chain,
             panel.inputs: render_inputs(project, render, data_dir),
-        }, render
+        }
 
     async def view(active_id: str | None, *shown: str | None) -> dict:
         if not active_id:
@@ -328,121 +376,137 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             gr.Warning(exc.detail)
             return empty_view()
         current_mode = health.mode
-        updates: dict = {notice: gr.update(visible=False), mode: current_mode}
+        updates: dict = {mode: current_mode}
+        updates |= {notice: gr.update(visible=False) for notice in notices}
+        for stage, render_id in zip(STAGES, shown, strict=True):
+            updates |= await panel_updates(project, stage, render_id)
 
-        # Referencias activas (cabecera de Bocetos).
+        # Bocetos: lo que recibe el modelo (los apoyos que no caben, en rojo).
         actives = active_references(project)
-        updates[refs] = [(str(asset_path(data_dir, project.id, a)), reference_summary(a))
-                         for a in actives]  # fmt: skip
+        n_drafts = draft_inputs(project)
+        updates[refs] = thumbs_html(draft_thumbs(project, data_dir))
         updates[refs_md] = (
-            f"**Referencias activas ({len(actives)})** · se usa lo marcado en cada ficha; "
-            "cuantas más selecciones, más restringido el resultado."
+            f"**Referencias activas ({len(actives)})** · se envían {n_drafts} imágenes (la base "
+            f"y hasta {MAX_SUPPORTS} apoyos, primero los de perspectiva y geometría); se usa lo "
+            "marcado en cada ficha."
             if actives
             else NO_REFERENCES
         )
 
-        shown_renders = {}
-        for stage, render_id in zip(STAGES, shown, strict=True):
-            stage_updates, shown_renders[stage] = await panel_updates(
-                project, stage, render_id, current_mode
-            )
-            updates |= stage_updates
-
+        # Composición: auditoría del boceto, retoque y lo que recibe el modelo.
         draft = selected_render(project, RenderStage.DRAFT)
         composition = selected_render(project, RenderStage.COMPOSITION)
-        comp_render, final_render = (shown_renders[RenderStage.COMPOSITION],
-                                     shown_renders[RenderStage.FINAL])  # fmt: skip
+        if composition is not None:
+            retouch_images[str(composition.id)] = image_of(project, str(composition.id))
+        n_comp = composition_inputs(project)
+        quality_note = " (1 en calidad media)"
+        comp_cost = cost_hint(composition_cost("medium", n_comp), current_mode) + quality_note
         updates |= {
             selected_draft: str(draft.id) if draft else None,
             selected_composition: str(composition.id) if composition else None,
             composition_tab: gr.update(interactive=draft is not None),
             final_tab: gr.update(interactive=composition is not None),
-            panels[RenderStage.DRAFT].generate: gr.update(interactive=bool(actives)),
-            panels[RenderStage.COMPOSITION].generate: gr.update(interactive=draft is not None),
-            panels[RenderStage.FINAL].generate: gr.update(interactive=composition is not None),
-            comp_source: (
-                f"**Boceto de partida:** el seleccionado (`{draft.id.hex[:8]}`)"
-                if draft else "Selecciona un boceto para componer."
+            audit_images: thumbs_html(audit_thumbs(project, draft, data_dir)),
+            audit_md: audit_markdown(draft.audits[-1] if draft and draft.audits else None, project),
+            retouch_md: (
+                "Pinta la zona que quieres cambiar y describe el cambio; se aplica al pulsar "
+                "«Generar con la composición actual» con «Usar el retoque» marcado. El modelo "
+                "edita esa zona con la máscara y devuelve la imagen completa."
+                if composition
+                else "_Selecciona una composición para retocarla._"
+            ),
+            use_retouch: gr.update(interactive=composition is not None)
+            if composition
+            else gr.update(interactive=False, value=False),
+            supports_md: f"**Apoyos que se envían** (hasta {MAX_SUPPORTS}, primero los de "
+            "perspectiva y geometría):",
+            supports: thumbs_html(
+                support_thumbs(project, data_dir),
+                "Sin referencias activas: solo la imagen de partida.",
+            ),
+            start_draft: thumbs_html(render_thumb(project, draft, data_dir, "Boceto seleccionado")),
+            start_composition: thumbs_html(
+                render_thumb(project, composition, data_dir, "Composición actual"),
+                "Selecciona una composición para partir de ella.",
             ),
             final_source: (
                 f"**Composición de partida:** la seleccionada (`{composition.id.hex[:8]}`)"
-                if composition else "Selecciona una composición para el render final."
+                if composition
+                else "Selecciona una composición para el render final."
             ),
             textures: gr.update(
                 choices=reference_choices(project), value=default_textures(project)
             ),
-            comp_audit_md: audit_markdown(
-                comp_render.audits[-1] if comp_render and comp_render.audits else None
-            ),
-            final_audit_md: audit_markdown(
-                final_render.audits[-1] if final_render and final_render.audits else None
-            ),
-            comp_audit: gr.update(interactive=comp_render is not None),
-            final_audit: gr.update(interactive=final_render is not None),
-            comp_audit_cost: cost_hint(COST_AUDIT, current_mode),
-            final_audit_cost: cost_hint(COST_AUDIT, current_mode),
-            panels[RenderStage.DRAFT].cost: cost_hint(
-                draft_cost(4, "medium", draft_inputs(project)), current_mode
-            ) + " (4 en calidad media)",
-            panels[RenderStage.COMPOSITION].cost: cost_hint(
-                COST_PER_IMAGE[RenderStage.COMPOSITION] + COST_PROMPT, current_mode
-            ),
-            panels[RenderStage.FINAL].cost: cost_hint(
+        }
+        enabled = {
+            "boceto": bool(actives),
+            "auditoria": draft is not None,
+            "composicion": draft is not None,
+            "composicion_actual": composition is not None,
+            "render_final": composition is not None,
+        }
+        costs = {
+            "boceto": cost_hint(draft_cost(4, "medium", n_drafts), current_mode)
+            + " (4 en calidad media)",
+            "auditoria": cost_hint(COST_AUDIT, current_mode),
+            "composicion": comp_cost,
+            "composicion_actual": comp_cost,
+            "render_final": cost_hint(
                 COST_PER_IMAGE[RenderStage.FINAL] + COST_PROMPT, current_mode
             ),
-        }  # fmt: skip
+        }
+        for key, action in actions.items():
+            updates |= {action.button: gr.update(interactive=enabled[key]), action.cost: costs[key]}
         return updates
 
     # --- Acciones de IA (confirmación junto al botón en Azure, B-049) ---------------------------
 
-    def estimate(action: dict[str, Any], project_inputs: int) -> float:
+    def estimate(action: dict[str, Any], project: ProjectMetadata | None) -> float:
         kind = action["kind"]
-        if kind == "audit":
+        if kind == "auditoria":
             return COST_AUDIT
-        if kind == "inpaint":
-            return COST_INPAINT[RenderStage.COMPOSITION]
-        if kind == RenderStage.DRAFT.value:
-            body = action["body"]
-            return draft_cost(body["n"], body["quality"], project_inputs)
-        return COST_PER_IMAGE[RenderStage(kind)] + COST_PROMPT
+        if kind == "render_final":
+            return COST_PER_IMAGE[RenderStage.FINAL] + COST_PROMPT
+        if project is None:
+            return 0.0
+        quality = action.get("quality", "medium")
+        if kind == "boceto":
+            return draft_cost(action["body"]["n"], quality, draft_inputs(project))
+        return composition_cost(quality, composition_inputs(project))
 
     def describe(action: dict[str, Any]) -> str:
         kind = action["kind"]
-        if kind == RenderStage.DRAFT.value:
+        if kind == "boceto":
             return f"generar {action['body']['n']} boceto(s)"
+        if kind == "composicion_actual" and action.get("retouch"):
+            return "retocar la zona pintada de la composición actual"
         return {
-            "audit": "auditar la imagen (GEOMETRIC_AUDITOR)",
-            "inpaint": "retocar la zona pintada",
-            RenderStage.COMPOSITION.value: "generar la composición",
-            RenderStage.FINAL.value: "generar el render final",
+            "auditoria": "auditar el boceto (GEOMETRIC_AUDITOR)",
+            "composicion": "generar la composición con el boceto seleccionado",
+            "composicion_actual": "generar con la composición actual",
+            "render_final": "generar el render final",
         }[kind]
 
-    def panel_of(action: dict[str, Any]) -> Panel:
-        kind = action["kind"]
-        if kind in {"audit", "inpaint"}:
-            return panels[RenderStage(action["stage"])]
-        return panels[RenderStage(kind)]
-
-    def hide_confirm(panel: Panel) -> dict:
-        return {panel.pending: None, panel.confirm_box: gr.update(visible=False),
-                panel.generate: gr.update(interactive=True)}  # fmt: skip
+    def hide_confirm(action: Action) -> dict:
+        return {action.pending: None, action.confirm_box: gr.update(visible=False)}
 
     async def run_action(action: dict[str, Any], active_id: str) -> tuple[str, str | None]:
         kind = action["kind"]
-        if kind == "audit":
-            body = await client.audit_render(active_id, action["render_id"])
+        if kind == "auditoria":
+            body = await client.audit_render(active_id, action["render_id"], action["notes"])
             report = body["audit"]["report"]
             return (
                 f"Auditoría: {report['verdict']} ({report['score']}/100) · "
                 f"{euros(body['cost_eur'])}",
-                action["render_id"],
+                None,
             )
-        if kind == "inpaint":
+        if retouch := action.get("retouch"):
             body = await client.inpaint_render(
-                active_id, action["render_id"], action["mask"], action["instruction"]
-            )
+                active_id, retouch["render_id"], retouch["mask"], retouch["instruction"],
+                **action["body"],
+            )  # fmt: skip
             return f"Retoque generado · {euros(body['cost_eur'])}", body["renders"][0]["id"]
-        stage = RenderStage(kind)
+        stage = ACTION_STAGES[kind]
         body = await client.generate_renders(active_id, stage, action["body"])
         first = body["renders"][0]["id"] if body["renders"] else None
         return (
@@ -451,9 +515,9 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         )
 
     async def execute(action: dict[str, Any], active_id: str | None, *shown: str | None) -> dict:
-        panel = panel_of(action)
+        area = actions[action["kind"]]
         if not active_id:
-            return {**empty_view(), **hide_confirm(panel)}
+            return {**empty_view(), **hide_confirm(area)}
         if warnings := alert_lines(await client.cost_alerts(), active_id):
             gr.Warning(" ".join(warnings))  # B-021: solo avisa, la acción continúa
         gr.Info(f"En marcha: {describe(action)}… puede tardar hasta un minuto")
@@ -461,46 +525,46 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
             message, new_render = await run_action(action, active_id)
         except ApiError as exc:
             gr.Warning(exc.detail)
-            return {**await view(active_id, *shown), **hide_confirm(panel)}
+            return {**await view(active_id, *shown), **hide_confirm(area)}
         gr.Info(message)
         updated = list(shown)
         if new_render:
-            updated[STAGES.index(panel.stage)] = new_render
-        return {**await view(active_id, *updated), **hide_confirm(panel)}
+            updated[STAGES.index(ACTION_STAGES[action["kind"]])] = new_render
+        return {**await view(active_id, *updated), **hide_confirm(area)}
 
     async def request(action: dict[str, Any], active_id: str | None, current_mode: str | None,
                       *shown: str | None) -> dict:  # fmt: skip
-        panel = panel_of(action)
-        project_inputs = 0
-        if action["kind"] == RenderStage.DRAFT.value and active_id:
+        area = actions[action["kind"]]
+        project = None
+        if active_id:
             try:
-                project_inputs = draft_inputs(await client.get_project(active_id))
+                project = await client.get_project(active_id)
             except ApiError:
-                project_inputs = 0
-        cost = estimate(action, project_inputs)
+                project = None
+        cost = estimate(action, project)
         if needs_confirmation(current_mode, cost):
             gr.Info(f"Pendiente de confirmar: ≈ {cost:.3f} €")
             return {
-                panel.pending: action,
-                panel.confirm_box: gr.update(visible=True),
-                panel.confirm_md: (
+                area.pending: action,
+                area.confirm_box: gr.update(visible=True),
+                area.confirm_md: (
                     f"⚠️ Vas a **{describe(action)}** en **Azure**: coste estimado ≈ "
                     f"**{cost:.3f} €**. ¿Confirmas?"
                 ),
-                panel.generate: gr.update(interactive=False),
+                area.button: gr.update(interactive=False),
             }
         return await execute(action, active_id, *shown)
 
-    def wire(button: gr.Button, build: Callable[..., dict[str, Any]], *inputs: Any) -> None:
+    def wire(key: str, build: Callable[..., dict[str, Any]], *inputs: Any) -> None:
         async def handler(active_id, current_mode, *values):
             shown = values[: len(STAGES)]
-            action = build(shown, *values[len(STAGES) :])
+            action = build(*values[len(STAGES) :])
             if action.get("error"):
                 gr.Warning(action["error"])
-                return {notice: gr.skip()}
-            return await request(action, active_id, current_mode, *shown)
+                return {mode: gr.skip()}
+            return await request({"kind": key, **action}, active_id, current_mode, *shown)
 
-        button.click(handler, inputs=[*common, *inputs], outputs=outputs)
+        actions[key].button.click(handler, inputs=[*common, *inputs], outputs=outputs)
 
     # --- Acciones sin coste ----------------------------------------------------------------------
 
@@ -525,42 +589,28 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
 
         return handler
 
-    def confirm_handler(panel: Panel):
+    def confirm_handler(key: str):
         async def handler(action, active_id, current_mode, *shown):
             if not action:
-                return hide_confirm(panel)
+                return hide_confirm(actions[key])
             return await execute(action, active_id, *shown)
 
         return handler
 
-    async def on_inpaint(active_id, current_mode, *values):
-        shown = values[: len(STAGES)]
-        editor_value, text = values[len(STAGES) :]
-        mask = editor_mask(editor_value)
-        if mask is None:
-            gr.Warning("Pinta en la imagen la zona que quieres cambiar")
-            return {notice: gr.skip()}
-        if not (text or "").strip():
-            gr.Warning("Describe el cambio que quieres en la zona pintada")
-            return {notice: gr.skip()}
-        action = {"kind": "inpaint", "stage": RenderStage.COMPOSITION.value, "mask": mask,
-                  "render_id": shown[STAGES.index(RenderStage.COMPOSITION)],
-                  "instruction": text.strip()}  # fmt: skip
-        return await request(action, active_id, current_mode, *shown)
-
     # --- Salidas y eventos -----------------------------------------------------------------------
 
     outputs: list[gr.components.Component] = [
-        notice, mode, refs, refs_md, selected_draft, selected_composition, composition_tab,
-        final_tab, comp_source, final_source, textures, comp_audit, final_audit, comp_audit_cost,
-        final_audit_cost, comp_audit_md, final_audit_md,
+        *notices, mode, refs, refs_md, selected_draft, selected_composition, composition_tab,
+        final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
+        start_draft, start_composition, final_source, textures,
+        *(c for action in actions.values() for c in action.components()),
         *(c for panel in panels.values() for c in panel.components()),
     ]  # fmt: skip
 
     wire(
-        panels[RenderStage.DRAFT].generate,
-        lambda shown, n, quality, size, extra: {
-            "kind": RenderStage.DRAFT.value,
+        "boceto",
+        lambda n, quality, size, extra: {
+            "quality": quality,
             "body": {
                 "n": int(n),
                 "quality": quality,
@@ -574,72 +624,132 @@ def build_studio_tab(client: BackendClient, data_dir: Path, active: gr.BrowserSt
         draft_extra,
     )
     wire(
-        panels[RenderStage.COMPOSITION].generate,
-        lambda shown, quality, extra, draft_id: (
+        "auditoria",
+        lambda draft_id, notes: (
+            {"render_id": draft_id, "notes": (notes or "").strip()}
+            if draft_id
+            else {"error": "Selecciona un boceto para auditarlo"}
+        ),
+        selected_draft,
+        audit_notes,
+    )
+
+    def composition_body(quality, size, extra, audit_on, notes) -> dict[str, Any]:
+        body = {"quality": quality, "size": size, "extra_instructions": extra or "",
+                "use_audit": bool(audit_on), "audit_notes": (notes or "").strip()}  # fmt: skip
+        return body
+
+    wire(
+        "composicion",
+        lambda draft_id, quality, size, extra, audit_on, notes: (
             {
-                "kind": RenderStage.COMPOSITION.value,
+                "quality": quality,
                 "body": {
-                    "quality": quality,
-                    "extra_instructions": extra or "",
+                    **composition_body(quality, size, extra, audit_on, notes),
                     "draft_id": draft_id,
+                    "source": "boceto",
                 },
             }
             if draft_id
             else {"error": "Selecciona un boceto para componer"}
         ),
-        comp_quality,
-        comp_extra,
         selected_draft,
+        comp_quality,
+        comp_size,
+        comp_extra,
+        use_audit,
+        audit_notes,
     )
+
+    def from_composition(composition_id, quality, size, extra, audit_on, notes, retouch_on, mask,
+                         instruction) -> dict[str, Any]:  # fmt: skip
+        if not composition_id:
+            return {"error": "Selecciona una composición para generar a partir de ella"}
+        body = composition_body(quality, size, extra, audit_on, notes)
+        if not retouch_on:
+            return {"quality": quality, "body": {**body, "source": "composicion"}}
+        if mask is None:
+            return {"error": "Pinta en la imagen la zona que quieres cambiar"}
+        if not (instruction or "").strip():
+            return {"error": "Describe el cambio que quieres en la zona pintada"}
+        body.pop("size")  # el retoque conserva el tamaño de la composición
+        return {
+            "quality": quality,
+            "body": body,
+            "retouch": {
+                "render_id": composition_id,
+                "mask": mask,
+                "instruction": instruction.strip(),
+            },
+        }
+
     wire(
-        panels[RenderStage.FINAL].generate,
-        lambda shown, refs_v, extra, composition_id: (
+        "composicion_actual", from_composition,
+        selected_composition, comp_quality, comp_size, comp_extra, use_audit, audit_notes,
+        use_retouch, retouch_mask, retouch_instruction,
+    )  # fmt: skip
+    wire(
+        "render_final",
+        lambda composition_id, refs_v, extra: (
             {
-                "kind": RenderStage.FINAL.value,
                 "body": {
                     "composition_id": composition_id,
                     "reference_ids": refs_v or [],
                     "extra_instructions": extra or "",
-                },
+                }
             }
             if composition_id
             else {"error": "Selecciona una composición"}
         ),
+        selected_composition,
         textures,
         final_extra,
-        selected_composition,
     )
-    for button, stage in ((comp_audit, RenderStage.COMPOSITION), (final_audit, RenderStage.FINAL)):
-        wire(
-            button,
-            lambda shown, stage=stage: {
-                "kind": "audit",
-                "stage": stage.value,
-                "render_id": shown[STAGES.index(stage)],
-            },
-        )
 
+    for key, action in actions.items():
+        action.confirm_btn.click(
+            confirm_handler(key), inputs=[action.pending, *common], outputs=outputs
+        )
+        action.cancel_btn.click(
+            lambda action=action: {
+                **hide_confirm(action),
+                action.button: gr.update(interactive=True),
+            },
+            outputs=[action.pending, action.confirm_box, action.button],
+        )
     for stage, panel in panels.items():
         panel.select_btn.click(select_handler(stage), inputs=common, outputs=outputs)
         panel.gallery.select(gallery_handler(stage), inputs=[*common, panel.ids], outputs=outputs)
-        panel.confirm_btn.click(
-            confirm_handler(panel), inputs=[panel.pending, *common], outputs=outputs
-        )
-        panel.cancel_btn.click(
-            lambda panel=panel: hide_confirm(panel),
-            outputs=[panel.pending, panel.confirm_box, panel.generate],
-        )
 
-    def remount(nonce: int) -> int:
-        return nonce + 1
+    def remount(nonce: int) -> tuple[int, None]:
+        return nonce + 1, None  # editor nuevo, sin trazos
 
-    for trigger in (composition_tab.select, retouch_box.expand, comp_shown.change):
-        trigger(remount, inputs=editor_nonce, outputs=editor_nonce)
+    for trigger in (composition_tab.select, selected_composition.change):
+        trigger(remount, inputs=editor_nonce, outputs=[editor_nonce, retouch_mask])
 
     async def refresh_all(active_id: str | None) -> dict:
         return await view(active_id, None, None, None)
 
+    async def unlock(active_id: str | None) -> dict:
+        """Desbloqueo de Composición y Render Final al cambiar de proyecto (sin abrir Bocetos)."""
+        draft = composition = None
+        if active_id:
+            try:
+                project = await client.get_project(active_id)
+            except ApiError:
+                project = None
+            if project is not None:
+                draft = selected_render(project, RenderStage.DRAFT)
+                composition = selected_render(project, RenderStage.COMPOSITION)
+        return {
+            composition_tab: gr.update(interactive=draft is not None),
+            final_tab: gr.update(interactive=composition is not None),
+        }
+
     async def show_render(active_id: str | None, render_id: str | None) -> dict:
         return await view(active_id, render_id, render_id, render_id)
 
-    return StudioTab(refresh_all, outputs, show_render)
+    return StudioTabs(
+        [drafts_tab, composition_tab, final_tab], refresh_all, outputs, unlock,
+        [composition_tab, final_tab], show_render,
+    )  # fmt: skip

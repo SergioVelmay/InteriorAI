@@ -343,7 +343,10 @@ class AuditReport(_Model):
 class RenderAudit(_Model):
     id: UUID = Field(default_factory=uuid4)
     report: AuditReport
-    reference_asset_id: UUID  # captura/plano con la que se comparó
+    reference_asset_id: UUID | None = None  # v1: captura/plano de origen con la que se comparó
+    # Paso 23: las referencias del espacio (perspectiva o geometría marcadas) comparadas
+    reference_asset_ids: list[UUID] = Field(default_factory=list)
+    notes: str = ""  # observaciones del usuario que el auditor debía comprobar
     deployment: str
     reasoning_effort: str
     prompt_version: str

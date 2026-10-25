@@ -52,6 +52,7 @@ RETRYABLE_STATUS = frozenset({429, 503})  # Azure no ha procesado la petición
 
 _CONTENT_FILTER_MARKERS = ("content_filter", "content_policy", "responsibleaipolicy", "moderation")
 MAX_RETRY_DELAY_S = 30.0
+RENDERER_MAX_IMAGES = 8  # input_image ... input_image_8
 
 
 # --- Utilidades --------------------------------------------------------------------------
@@ -359,6 +360,10 @@ class AzureFoundryClient(FoundryClient):
     async def _provider_images(
         self, role: Role, request: ImageRequest, references: list[Any]
     ) -> ImageResult:
+        if len(references) > RENDERER_MAX_IMAGES:
+            raise FoundryError(
+                f"El renderizador admite hasta {RENDERER_MAX_IMAGES} imágenes de entrada", role=role
+            )
         deployment = self._settings.deployment_for(role)
         payload: dict[str, Any] = {
             "model": deployment,

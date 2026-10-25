@@ -30,6 +30,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- Composición completa (Paso 23: B-038, B-039, B-045, B-046, B-055): auditoría opcional del
+  boceto seleccionado frente a todas las referencias de perspectiva y geometría, con tus
+  observaciones; retoque con máscara de la composición seleccionada (imagen completa del modelo,
+  prompt escrito por la IA); y dos formas de generar, cada una con la miniatura de su imagen de
+  partida: con el boceto seleccionado o con la composición actual, usando si quieres la
+  auditoría y el retoque. Hasta 12 imágenes de apoyo, primero las del espacio; las que no caben
+  se señalan en rojo.
+
 - Estudio en tres pestañas (Bocetos, Composición y Render Final) que se desbloquean en orden.
   Bocetos parte de las referencias activas, con 1-8 variantes, calidad y formato. Cada imagen se
   ve en grande con «Ver más»: lo que entendió la IA, sus dudas, el prompt y lo enviado al modelo.
@@ -61,6 +69,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   el brief (B-022).
 
 ### Cambiado
+
+- Bocetos, Composición y Render Final son pestañas de primer nivel (sin «Estudio»); la imagen
+  seleccionada se ve en su proporción original; la ficha de una referencia muestra solo los
+  nombres (el detalle, al pasar el ratón); umbral de confirmación de 0,20 € (Paso 23).
 
 - Telemetría en `costes_telemetria.jsonl` (una línea por llamada, sin reescribir el archivo);
   el `costes_telemetria.json` anterior se migra solo y se conserva como `.json.migrado` (B-012).

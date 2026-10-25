@@ -829,6 +829,46 @@
           }
         },
         {
+          "name": "Auditar boceto con observaciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json().audit;",
+                  "pm.test(\"boceto frente a las referencias del espacio, con las observaciones (B-046)\", () => {",
+                  "  pm.expect(a.reference_asset_ids).to.be.an(\"array\");",
+                  "  pm.expect(a.reference_asset_id).to.be.null;",
+                  "  pm.expect(a.notes).to.eql(\"La ventana está más a la izquierda\");",
+                  "  pm.expect(a.prompt_version).to.match(/^auditor_espacio@/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/audit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"La ventana está más a la izquierda\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Generar composición",
           "event": [
             {
@@ -842,6 +882,9 @@
                   "pm.test(\"deriva del boceto\", () => {",
                   "  pm.expect(r.parent_render_id).to.eql(pm.collectionVariables.get(\"draftId\"));",
                   "  pm.expect(r.quality).to.eql(\"medium\");",
+                  "  pm.expect(r.input_asset_ids[0]).to.eql(pm.collectionVariables.get(\"draftId\"));",
+                  "  pm.expect(r.prompt_version).to.match(/^prompt_composicion@/);",
+                  "  pm.expect(r.prompt_info.interpretation).to.be.a(\"string\");",
                   "});"
                 ]
               }
@@ -853,7 +896,7 @@
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/compositions",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"draft_id\": \"{{draftId}}\"\n}",
+              "raw": "{\n  \"draft_id\": \"{{draftId}}\",\n  \"use_audit\": true,\n  \"audit_notes\": \"Falta la lámpara de pie\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -907,6 +950,40 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{compositionId}}/select"
+          }
+        },
+        {
+          "name": "Generar con la composición actual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().renders[0];",
+                  "pm.test(\"parte de la composición seleccionada (B-055)\", () => {",
+                  "  pm.expect(r.parent_render_id).to.eql(pm.collectionVariables.get(\"compositionId\"));",
+                  "  pm.expect(r.input_asset_ids[0]).to.eql(pm.collectionVariables.get(\"compositionId\"));",
+                  "  pm.expect(r.size).to.eql(\"1024x1536\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/compositions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"composicion\",\n  \"size\": \"1024x1536\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {
@@ -991,25 +1068,6 @@
           }
         },
         {
-          "name": "Auditar boceto (no permitido)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{draftId}}/audit"
-          }
-        },
-        {
           "name": "Rechazar render (eliminado en la v2)",
           "event": [
             {
@@ -1048,10 +1106,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"3 renders: final, composición y boceto\", () => {",
+                  "pm.test(\"4 renders: final, dos composiciones y boceto\", () => {",
                   "  const b = pm.response.json();",
-                  "  pm.expect(b.map(r => r.stage)).to.eql([\"render_final\", \"composicion\", \"boceto\"]);",
-                  "  pm.expect(b.map(r => r.status)).to.eql([\"generado\", \"seleccionado\", \"seleccionado\"]);",
+                  "  pm.expect(b.map(r => r.stage)).to.eql([\"render_final\", \"composicion\", \"composicion\", \"boceto\"]);",
+                  "  pm.expect(b.map(r => r.status)).to.eql([\"generado\", \"generado\", \"seleccionado\", \"seleccionado\"]);",
                   "});"
                 ]
               }
@@ -1081,6 +1139,10 @@
                   "  pm.expect(r.inpaint.method).to.eql(\"mascara\");",
                   "  pm.expect(r.inpaint.coverage).to.be.within(0.05, 0.1);",
                   "});",
+                  "pm.test(\"prompt del PROMPT_ENGINEER, con la composición y los apoyos (Paso 23)\", () => {",
+                  "  pm.expect(r.prompt_version).to.match(/^prompt_composicion@/);",
+                  "  pm.expect(r.input_asset_ids[0]).to.eql(pm.collectionVariables.get(\"compositionId\"));",
+                  "});",
                   "pm.test(\"imagen completa del modelo: sin salida en bruto ni guía (B-038)\", () => {",
                   "  pm.expect(r.inpaint.raw_file).to.be.null;",
                   "  pm.expect(r.inpaint.guide_file).to.be.null;",
@@ -1105,6 +1167,16 @@
                   "key": "instruction",
                   "type": "text",
                   "value": "Cojines en mostaza"
+                },
+                {
+                  "key": "extra_instructions",
+                  "type": "text",
+                  "value": "Luz cálida de tarde"
+                },
+                {
+                  "key": "use_audit",
+                  "type": "text",
+                  "value": "true"
                 }
               ]
             }
@@ -1318,12 +1390,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"cadena sin brief: prompts automáticos, boceto, composición, final y auditoría\", () => {",
+                  "pm.test(\"cadena sin brief: prompts automáticos, boceto, composición, final y auditorías\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
                   "  pm.expect(b.briefs).to.eql(0);",
-                  "  // (prompt + imagen) x 3 etapas + auditoría, todo simulado",
-                  "  pm.expect(b.simulated_calls).to.eql(7);",
+                  "  // (prompt + imagen) x 3 etapas + auditorías del boceto y del final, todo simulado",
+                  "  pm.expect(b.simulated_calls).to.eql(8);",
                   "});"
                 ]
               }

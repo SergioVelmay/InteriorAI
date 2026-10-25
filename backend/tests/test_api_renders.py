@@ -10,7 +10,13 @@ from conftest import image_bytes, mark_active, mark_legacy
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app.foundry import ImageEditRequest, ImageResult, MockFoundryClient
+from app.foundry import (
+    ImageEditRequest,
+    ImageResult,
+    MockFoundryClient,
+    TextRequest,
+    TextResult,
+)
 from shared.roles import Role
 
 
@@ -18,6 +24,11 @@ class SpyClient(MockFoundryClient):
     def __init__(self) -> None:
         super().__init__()
         self.edits: list[tuple[Role, ImageEditRequest]] = []
+        self.texts: list[tuple[Role, TextRequest]] = []
+
+    async def _complete_text(self, role: Role, request: TextRequest) -> TextResult:
+        self.texts.append((role, request))
+        return await super()._complete_text(role, request)
 
     async def _edit_image(self, role: Role, request: ImageEditRequest) -> ImageResult:
         self.edits.append((role, request))
@@ -212,12 +223,84 @@ def test_composition_with_and_without_selected_draft(
 
     select(api, project, draft["id"])
     composed = run(api, project, "compositions", draft_id=draft["id"])["renders"][0]
-    assert composed["input_asset_ids"] == [project["capture"], draft["id"]]
+    # Paso 23: el boceto es la imagen de partida y las activas, apoyos (las del espacio, antes).
+    assert composed["input_asset_ids"] == [
+        draft["id"], project["capture"], project["product"], project["inspiration"],
+    ]  # fmt: skip
     assert composed["parent_render_id"] == draft["id"]
+    assert composed["brief_id"] is None
+    assert composed["prompt_version"].startswith("prompt_composicion@")
+    assert composed["size"] == "1536x1024"  # 3:2 por defecto
     role, request = spy.edits[-1]
     assert role is Role.STRUCTURAL_COMPOSER
-    assert len(request.images) == 2
-    assert request.prompt == project["brief"]["content"]["image_prompts"]["structural_composer"]
+    assert len(request.images) == 4
+    assert request.prompt == "mock"  # el del PROMPT_ENGINEER
+    context = spy.texts[-1][1].input
+    assert "Imagen 1: imagen de partida: el boceto seleccionado" in context
+    assert "Correcciones de la auditoría" not in context
+
+
+def test_composition_from_the_current_composition(
+    api: TestClient, spy: SpyClient, project: dict
+) -> None:
+    """B-055: «Generar con la composición actual» parte de la composición seleccionada."""
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    response = api.post(f"{project['url']}/renders/compositions", json={"source": "composicion"})
+    assert response.status_code == 422  # aún no hay composición seleccionada
+    first = run(api, project, "compositions")["renders"][0]
+    assert first["parent_render_id"] == draft["id"]  # por defecto, el boceto seleccionado
+    select(api, project, first["id"])
+    second = run(api, project, "compositions", source="composicion", size="1024x1536")
+    second = second["renders"][0]
+    assert second["parent_render_id"] == first["id"]
+    assert second["input_asset_ids"][0] == first["id"]
+    assert second["size"] == "1024x1536"
+    assert "Imagen 1: imagen de partida: la composición actual" in spy.texts[-1][1].input
+
+
+def test_composition_uses_the_draft_audit(api: TestClient, spy: SpyClient, project: dict) -> None:
+    """B-046: «Usar la auditoría» pasa al PROMPT_ENGINEER la última auditoría del boceto y las
+    notas del usuario (auditoría manual)."""
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    assert api.post(f"{project['url']}/renders/{draft['id']}/audit").status_code == 200
+    run(api, project, "compositions", use_audit=True, audit_notes="Falta la lámpara de pie")
+    context = spy.texts[-1][1].input
+    assert "## Correcciones de la auditoría del boceto" in context
+    assert "Auditoría con IA (" in context
+    assert "Notas del usuario: Falta la lámpara de pie" in context
+    run(api, project, "compositions", use_audit=False, audit_notes="No se usa")
+    assert "Correcciones de la auditoría" not in spy.texts[-1][1].input
+
+
+def test_supports_are_capped_and_prioritized(
+    api: TestClient, spy: SpyClient, project: dict
+) -> None:
+    """Hasta 12 apoyos (Paso 23): primero los del espacio, después por antigüedad."""
+    pid = project["url"].rsplit("/", 1)[1]
+    extra = []
+    for i in range(12):
+        response = api.post(
+            f"{project['url']}/assets/referencia",
+            files={"file": (f"extra{i}.png", image_bytes(color=f"#1{i:x}2233"))},
+        )
+        extra.append(response.json()["id"])
+    groups = {i: ["objetos"] for i in extra}
+    mark_active(api, pid, groups | {extra[-1]: ["geometria"], project["capture"]: ["perspectiva"],
+                                    project["product"]: ["objetos"],
+                                    project["inspiration"]: ["colores"]})  # fmt: skip
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    # Base (la vista) + 12 apoyos: la de geometría primero; quedan fuera las 2 más recientes.
+    assert draft["input_asset_ids"] == [
+        project["capture"], extra[-1], project["product"], project["inspiration"], *extra[:9],
+    ]  # fmt: skip
+    select(api, project, draft["id"])
+    composition = run(api, project, "compositions")["renders"][0]
+    assert composition["input_asset_ids"] == [
+        draft["id"], project["capture"], extra[-1], project["product"], project["inspiration"],
+        *extra[:8],
+    ]  # fmt: skip  # la vista también es un apoyo: queda fuera una más
 
 
 # --- Etapa 3: render final -------------------------------------------------------------------
@@ -410,7 +493,12 @@ def test_inpaint_composition_uses_the_native_mask(
     assert body["cost_eur"] > 0
     assert retouch["stage"] == "composicion" and retouch["status"] == "generado"
     assert retouch["role"] == "STRUCTURAL_COMPOSER" and retouch["quality"] == "medium"
-    assert retouch["input_asset_ids"] == [composition["id"]]
+    # La composición que se retoca y los apoyos (Paso 23)
+    assert retouch["input_asset_ids"] == [
+        composition["id"], project["capture"], project["product"], project["inspiration"],
+    ]  # fmt: skip
+    assert retouch["prompt_version"].startswith("prompt_composicion@")
+    assert retouch["prompt_info"]["prompt"] == "mock"
     assert retouch["size"] == "1536x1024"
     info = retouch["inpaint"]
     assert info["source_render_id"] == composition["id"]
@@ -419,7 +507,11 @@ def test_inpaint_composition_uses_the_native_mask(
 
     role, request = spy.edits[-1]
     assert role is Role.STRUCTURAL_COMPOSER and request.mask is not None
-    assert "Cojines en mostaza" in request.prompt
+    assert len(request.images) == 4
+    assert request.prompt.startswith("mock\n\nThe area spans")  # el prompt escrito + la zona
+    context = spy.texts[-1][1].input  # el PROMPT_ENGINEER escribe el cambio
+    assert "## Modo retoque" in context and "Cojines en mostaza" in context
+    assert "Imagen 1: imagen que se retoca" in context
     with Image.open(io.BytesIO(request.mask.data)) as mask:  # transparente = editar
         assert mask.getpixel((400, 400))[3] == 0 and mask.getpixel((10, 10))[3] == 255
 

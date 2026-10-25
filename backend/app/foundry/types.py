@@ -90,7 +90,8 @@ class ImageRequest(_Model):
 
 
 class ImageEditRequest(ImageRequest):
-    images: list[InputImage] = Field(min_length=1, max_length=8)
+    # Los modelos GPT de imagen admiten hasta 16; el renderizador, 8 (lo limita su etapa).
+    images: list[InputImage] = Field(min_length=1, max_length=16)
     # Máscara RGBA: las zonas transparentes son las que se regeneran (inpainting).
     mask: InputImage | None = None
 

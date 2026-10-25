@@ -88,6 +88,7 @@ def build_context(
     references: list[Asset],
     indications: str,
     size: str,
+    extras: dict[str, str] | None = None,
 ) -> str:
     numbers = {item.asset.id: i for i, item in enumerate(inputs, start=1)}
     images = "\n".join(
@@ -110,6 +111,8 @@ def build_context(
         "## Formato de salida",
         f"{size} px",
     ]
+    for title, text in (extras or {}).items():  # p. ej. auditoría o modo retoque
+        sections += [f"## {title}", text]
     return "\n\n".join(sections)
 
 
@@ -122,6 +125,7 @@ async def write_prompt(
     references: list[Asset],
     indications: str,
     size: str,
+    extras: dict[str, str] | None = None,
 ) -> WrittenPrompt:
     """El PROMPT_ENGINEER escribe el prompt de la generación (ve también las imágenes)."""
     system = load_prompt(PROMPT_FILES[stage])
@@ -135,7 +139,7 @@ async def write_prompt(
         Role.PROMPT_ENGINEER,
         TextRequest(
             instructions=system.text,
-            input=build_context(project, inputs, references, indications, size),
+            input=build_context(project, inputs, references, indications, size, extras),
             images=images,
             json_schema=SCHEMA,
             schema_name="prompt_generacion",

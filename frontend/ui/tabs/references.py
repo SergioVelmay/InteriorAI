@@ -18,8 +18,10 @@ import anyio
 import gradio as gr
 
 from shared.models import RECIPE_GROUPS, Asset, AssetKind
+from shared.supports import MAX_SUPPORTS
 from ui.api_client import ApiError, BackendClient
 from ui.covers import asset_path, placeholder
+from ui.studio_views import excluded_count
 from ui.views import (
     COST_ANALYSIS,
     asset_caption,
@@ -27,6 +29,8 @@ from ui.views import (
     selected_ids,
     sheet_groups,
     sheet_status,
+    sheet_tooltips,
+    tooltips_html,
 )
 
 FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"]
@@ -66,6 +70,7 @@ def build_references_tab(
     client: BackendClient, data_dir: Path, active: gr.BrowserState
 ) -> ReferencesTab:
     notice = gr.Markdown(NO_PROJECT, visible=False)
+    supports_warning = gr.Markdown(visible=False, elem_id="iai-supports-warning")
     with gr.Row(equal_height=False):
         with gr.Column(scale=3):
             gallery = gr.Gallery(
@@ -102,6 +107,7 @@ def build_references_tab(
                 )  # fmt: skip
             with gr.Accordion("Ficha de la referencia", open=True):
                 status = gr.Markdown("")
+                tips = gr.HTML(elem_id="iai-sheet-tips")  # oculto: tooltips de las casillas
                 with gr.Row():
                     mark_all = gr.Button("Marcar todo", variant="secondary", size="sm")
                     unmark_all = gr.Button("Desmarcar todo", variant="secondary", size="sm")
@@ -123,8 +129,8 @@ def build_references_tab(
     groups = list(RECIPE_GROUPS)
     group_outputs = [c for g in groups for c in (group_boxes[g], element_boxes[g], group_ids[g])]
     detail_outputs = [selected, info, preview, notes, save_notes, reanalyze, status, save_sheet,
-                      *group_outputs]  # fmt: skip
-    panel_outputs = [notice, gallery, ids, *detail_outputs]
+                      tips, *group_outputs]  # fmt: skip
+    panel_outputs = [notice, supports_warning, gallery, ids, *detail_outputs]
 
     # --- Manejadores ---------------------------------------------------------------------
 
@@ -146,6 +152,7 @@ def build_references_tab(
             reanalyze: gr.update(interactive=asset is not None),
             status: status_text(asset),
             save_sheet: gr.update(interactive=has_sheet),
+            tips: tooltips_html(sheet_tooltips(asset)),
         }
         for group, (choices, marked) in sheet_groups(asset).items():
             visible = bool(choices)
@@ -161,9 +168,10 @@ def build_references_tab(
     async def refresh(active_id: str | None, keep: str | None = None) -> dict:
         if not active_id:
             return {notice: gr.update(visible=True), gallery: [], ids: [],
-                    **detail(None, None)}  # fmt: skip
+                    supports_warning: gr.update(visible=False), **detail(None, None)}  # fmt: skip
         try:
             assets = await client.list_assets(active_id, AssetKind.REFERENCIA)
+            excluded = excluded_count(await client.get_project(active_id))
         except ApiError as exc:
             gr.Warning(exc.detail)
             return unchanged()
@@ -172,6 +180,15 @@ def build_references_tab(
         current = next((a for a in assets if str(a.id) == keep), None)
         return {
             notice: gr.update(visible=False),
+            supports_warning: gr.update(
+                value=(
+                    f"⚠️ **{excluded} referencia(s) activa(s) no caben** en los bocetos: se envían "
+                    f"la imagen base y hasta {MAX_SUPPORTS} apoyos, primero los de perspectiva y "
+                    "geometría y después los más antiguos. Las que quedan fuera aparecen con el "
+                    "pie en rojo en **Bocetos**; descarta alguna si quieres elegir cuáles."
+                ),
+                visible=excluded > 0,
+            ),
             gallery: gr.update(
                 value=items, selected_index=asset_ids.index(keep) if current else None
             ),

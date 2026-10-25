@@ -35,6 +35,10 @@ def test_references_flow(ui: UI, projects: Projects, tmp_path: Path) -> None:
     ui.toast("Receta lista")
     item = page.locator(".iai-gallery .thumbnail-item", has_text="sofa-planificador")
     expect(item).to_contain_text(f"Activa · {GROUPS} marcado(s)")
+    # Paso 23: la casilla muestra el nombre; el detalle, en el tooltip.
+    expect(page.locator("#iai-sheet-objetos label").first).to_have_attribute(
+        "title", re.compile(".")
+    )
     expect(page.locator("#iai-reference-notes textarea")).to_have_value(
         "Con estas medidas: 285 x 160 cm"
     )
