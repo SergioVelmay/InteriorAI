@@ -36,8 +36,9 @@ las dependencias pendientes, CHANGELOG, etiqueta y Release.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-25`, PR #33. Tras el merge: etiqueta `v2.0.0` y GitHub Release (con el
-OK del usuario justo antes) y Docker reconstruido.
+✅ Cerrado — rama `feat/paso-25`, PR #33 revisada y mergeada por el usuario. Con su OK, etiqueta
+`v2.0.0` sobre `f30eab9` y [GitHub Release «InteriorAI 2.0.0»](https://github.com/SergioVelmay/InteriorAI/releases/tag/v2.0.0)
+(2026-10-25), con las notas del CHANGELOG. Docker reconstruido: `/health` devuelve la versión 2.0.0.
 
 ## 6. Pendiente / futuro
 
