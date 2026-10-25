@@ -8,6 +8,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado (incompatible: esquema v2 de los datos y de la API)
 
+- `/renders/final` sin `reference_ids` ni `seed`: el renderizador recibe solo la imagen de
+  partida y el prompt; nuevos `source` y `variant_of` (Paso 24).
+
 - Sin brief: cada generación escribe su propio prompt (PROMPT_ENGINEER) con sus entradas reales
   y guarda lo que ha entendido (`RenderRecord.prompt_info`); `/renders/drafts` ya no necesita un
   brief aprobado (Paso 22).
@@ -29,6 +32,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Solo `STRUCTURAL_COMPOSER` admite máscara (B-037).
 
 ### Añadido
+
+- Render Final completo (Paso 24: B-037, B-040, B-051, B-055): fotografía realista de la
+  composición seleccionada o del render final actual, con indicaciones globales en texto libre
+  (noche, iluminación, ambiente, personas), proporción (3:2 por defecto) y tres resoluciones
+  hasta 4 MP; «Otra versión» repite tal cual el prompt, la imagen de partida y la resolución.
 
 - Composición completa (Paso 23: B-038, B-039, B-045, B-046, B-055): auditoría opcional del
   boceto seleccionado frente a todas las referencias de perspectiva y geometría, con tus

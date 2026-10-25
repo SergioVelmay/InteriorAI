@@ -346,28 +346,88 @@ def test_final_render_uses_composition_and_references(
         assert image.size == (1920, 1080)  # recortado al centro, sin escalar
 
 
-def test_final_render_with_explicit_references(
-    api: TestClient, spy: SpyClient, project: dict
-) -> None:
-    composition = selected_composition(api, project)
-    final = run(
-        api, project, "final", composition_id=composition["id"],
-        reference_ids=[project["inspiration"]], seed=42,
+def v2_composition(api: TestClient) -> tuple[dict, dict]:
+    """Proyecto sin brief con boceto y composición seleccionados."""
+    project = new_project(api)
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    composition = run(api, project, "compositions")["renders"][0]
+    select(api, project, composition["id"])
+    return project, composition
+
+
+def test_final_render_from_the_selected_composition(api: TestClient, spy: SpyClient) -> None:
+    """Paso 24 (B-051, B-040): solo la imagen de partida y el prompt; 3:2 a 2448x1632."""
+    project, composition = v2_composition(api)
+    body = run(api, project, "final", extra_instructions="De noche, luz cálida")
+    [final] = body["renders"]
+    assert final["input_asset_ids"] == [composition["id"]]  # sin referencias
+    assert final["parent_render_id"] == composition["id"]
+    assert final["size"] == "2448x1632" and final["quality"] is None and final["seed"] is None
+    assert final["prompt_version"].startswith("prompt_render_final@")
+    assert final["variant_of_id"] is None
+    role, request = spy.edits[-1]
+    assert role is Role.PHOTOREALISTIC_RENDERER
+    assert len(request.images) == 1 and request.size == "2448x1632" and request.seed is None
+    context = spy.texts[-1][1].input
+    assert "Imagen 1: imagen de partida: la composición seleccionada" in context
+    assert "De noche, luz cálida" in context
+    assert "Lo marcado en las fichas" in context  # las referencias, como texto
+    with Image.open(
+        io.BytesIO(api.get(f"{project['url']}/assets/{final['id']}/content").content)
+    ) as im:
+        assert im.size == (2448, 1632)
+    smaller = run(api, project, "final", size="1536x864")["renders"][0]
+    assert smaller["size"] == "1536x864"
+
+
+def test_final_render_from_the_current_render(api: TestClient, spy: SpyClient) -> None:
+    """B-055: «Generar con el render final actual» parte del render final seleccionado."""
+    project, _ = v2_composition(api)
+    response = api.post(f"{project['url']}/renders/final", json={"source": "render_final"})
+    assert response.status_code == 422  # aún no hay render final seleccionado
+    first = run(api, project, "final")["renders"][0]
+    select(api, project, first["id"])
+    second = run(api, project, "final", source="render_final")["renders"][0]
+    assert second["parent_render_id"] == first["id"]
+    assert second["input_asset_ids"] == [first["id"]]
+    assert "Imagen 1: imagen de partida: el render final actual" in spy.texts[-1][1].input
+
+
+def test_another_version_repeats_prompt_start_and_size(api: TestClient, spy: SpyClient) -> None:
+    """B-051: «Otra versión» repite tal cual el prompt, la partida y el tamaño (la semilla de
+    Azure no es reproducible); no vuelve a llamar al PROMPT_ENGINEER."""
+    project, composition = v2_composition(api)
+    original = run(api, project, "final", size="2016x1344")["renders"][0]
+    texts = len(spy.texts)
+    variant = run(
+        api, project, "final", variant_of=original["id"], extra_instructions="Se ignora",
+        size="1024x1024",
     )["renders"][0]  # fmt: skip
-    assert final["input_asset_ids"] == [composition["id"], project["inspiration"]]
-    assert final["seed"] == 42
-    response = api.post(
-        f"{project['url']}/renders/final",
-        json={"composition_id": composition["id"], "reference_ids": [project["capture"]]},
+    assert len(spy.texts) == texts  # sin prompt nuevo
+    assert variant["variant_of_id"] == original["id"]
+    assert variant["prompt"] == original["prompt"]
+    assert variant["prompt_info"] == original["prompt_info"]
+    assert variant["size"] == "2016x1344"
+    assert variant["input_asset_ids"] == [composition["id"]]
+    assert variant["parent_render_id"] == composition["id"]
+    assert spy.edits[-1][1].prompt == original["prompt"]
+    wrong = api.post(f"{project['url']}/renders/final", json={"variant_of": composition["id"]})
+    assert wrong.status_code == 422  # solo de un render final
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert (
+        api.post(f"{project['url']}/renders/final", json={"variant_of": missing}).status_code == 404
     )
-    assert response.status_code == 201  # elegida por el usuario: cualquier referencia activa
-    pid = project["url"].rsplit("/", 1)[1]
-    mark_active(api, pid, {project["inspiration"]: []})  # descartada
-    response = api.post(
-        f"{project['url']}/renders/final",
-        json={"composition_id": composition["id"], "reference_ids": [project["inspiration"]]},
-    )
-    assert response.status_code == 422  # una referencia descartada no se usa
+    old = api.post(f"{project['url']}/renders/final", json={"seed": 1, "reference_ids": []})
+    assert old.status_code == 422  # sin semilla ni referencias desde el Paso 24
+
+
+def test_v1_final_renders_have_no_versions(api: TestClient, spy: SpyClient, project: dict) -> None:
+    composition = selected_composition(api, project)  # cadena de la v1 (brief)
+    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
+    assert final["prompt_info"] is None
+    response = api.post(f"{project['url']}/renders/final", json={"variant_of": final["id"]})
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize("size", ["200x200", "2048x2048", "abc"])

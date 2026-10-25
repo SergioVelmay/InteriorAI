@@ -403,6 +403,8 @@ class RenderRecord(_Model):
     prompt_version: str | None = None  # versión del prompt de sistema que lo escribió
     input_asset_ids: list[UUID]  # imagen base y referencias, en orden
     parent_render_id: UUID | None = None  # render de la etapa anterior del que deriva
+    # «Otra versión» (Paso 24, B-051): render final cuyo prompt, partida y tamaño se repiten
+    variant_of_id: UUID | None = None
     batch_id: UUID  # renders generados en la misma llamada
     size: str
     quality: str | None = None

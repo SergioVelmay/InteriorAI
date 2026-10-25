@@ -63,21 +63,37 @@ def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> Non
     compositions = api.get(f"{project['url']}/renders", params={"stage": "composicion"}).json()
     assert compositions[0]["parent_render_id"] == composition["id"]
 
-    # ③ Render Final (provisional hasta el Paso 24), sin auditoría.
+    # ③ Render Final (Paso 24): solo la imagen de partida y el prompt, 3:2 a 4 MP por defecto.
     final_tab = page.get_by_role("tab", name="Render Final")
     expect(final_tab).to_be_enabled()
     final_tab.click()
     expect(page.locator("#iai-audit-final")).to_have_count(0)
+    expect(page.locator("#iai-gen-finals-current")).to_be_disabled()  # sin render final
+    page.locator("#iai-final-indications textarea").fill("De noche")
     page.locator("#iai-gen-finals").click()
     ui.toast("Render final: 1 imagen(es)")
-    final = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()[0]
-    assert final["size"] == "1920x1080"  # proporción de la imagen base (16:9)
+    [final] = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()
+    assert final["size"] == "2448x1632" and len(final["input_asset_ids"]) == 1
+
+    # Proporción 16:9: la resolución pasa a la máxima de esa proporción.
+    page.locator("#iai-final-ratio").get_by_text("16:9").click()
+    expect(page.locator("#iai-final-size")).to_contain_text("2560 x 1440")
+    page.locator("#iai-select-finals").click()
+    ui.toast("Imagen seleccionada (render final)")
+    expect(page.locator("#iai-gen-finals-current")).to_be_enabled()
+    page.locator("#iai-gen-finals-current").click()
+    expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(2)
+    finals = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()
+    assert finals[0]["parent_render_id"] == final["id"] and finals[0]["size"] == "2560x1440"
+
+    # «Otra versión» de la imagen mostrada: mismo prompt, partida y tamaño (B-051).
+    page.locator("#iai-gen-finals-variant").click()
+    expect(page.locator("#iai-finals .thumbnail-item")).to_have_count(3)
+    variant = api.get(f"{project['url']}/renders", params={"stage": "render_final"}).json()[0]
+    assert variant["variant_of_id"] == finals[0]["id"] and variant["prompt"] == finals[0]["prompt"]
 
     # Una sola imagen seleccionada por etapa (B-043).
     page.locator("#iai-select-finals").click()
-    page.locator("#iai-gen-finals").click()
-    ui.toast("Render final: 1 imagen(es)")
-    page.locator("#iai-select-finals").click()  # la nueva, que es la que se muestra
     selected = page.locator("#iai-finals .thumbnail-item", has_text="seleccionado")
     expect(selected).to_have_count(1)
     expect(page.get_by_text("Confirmar (con coste)")).to_be_hidden()  # en mock no se confirma

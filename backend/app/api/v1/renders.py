@@ -64,12 +64,22 @@ class CompositionRequest(_RenderRequest):
 
 
 class FinalRequest(_RenderRequest):
-    composition_id: UUID = Field(description="Composición seleccionada")
-    reference_ids: list[UUID] | None = Field(
-        default=None, description="Referencias de textura/color (por defecto, las del brief)"
+    """Render final (B-051, B-055, B-040): a partir de la composición seleccionada o del render
+    final actual, con indicaciones globales; el renderizador recibe solo la imagen de partida y
+    el prompt. Tamaño: 3:2 a 2448x1632 por defecto (`shared.sizes`)."""
+
+    composition_id: UUID | None = Field(
+        default=None, description="Por defecto, la composición seleccionada"
+    )
+    source: Literal["composicion", "render_final"] = Field(
+        default="composicion", description="Imagen de partida: composición o render seleccionados"
+    )
+    variant_of: UUID | None = Field(
+        default=None,
+        description="«Otra versión»: repite tal cual el prompt, la partida y el tamaño de ese "
+        "render final (se ignoran las indicaciones y el tamaño)",
     )
     n: int = Field(default=1, ge=1, le=2)
-    seed: int | None = None
 
 
 class RenderRunResponse(BaseModel):
@@ -146,13 +156,17 @@ async def create_composition(
 
 @router.post("/final", status_code=status.HTTP_201_CREATED, response_model=RenderRunResponse)
 async def create_final(
-    project_id: UUID, body: FinalRequest, repo: RepositoryDep, foundry: FoundryDep
+    project_id: UUID,
+    repo: RepositoryDep,
+    foundry: FoundryDep,
+    body: Annotated[FinalRequest, Body()] = FinalRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 3 (PHOTOREALISTIC_RENDERER): render con la composición seleccionada + referencias."""
+    """Etapa 3 (PHOTOREALISTIC_RENDERER): fotografía realista de la composición seleccionada o
+    del render final actual; o «Otra versión» de un render final (`variant_of`)."""
     with telemetry_scope(project_id):
         renders = await generate_final(
-            repo, foundry, project_id, _options(body, seed=body.seed),
-            body.composition_id, body.reference_ids,
+            repo, foundry, project_id, _options(body), body.composition_id, body.source,
+            body.variant_of,
         )  # fmt: skip
     return await _response(repo, project_id, renders)
 

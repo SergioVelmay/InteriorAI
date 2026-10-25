@@ -34,12 +34,12 @@ from ui.studio_views import (
     composition_cost,
     composition_inputs,
     cost_hint,
-    default_textures,
     draft_cost,
     draft_inputs,
     draft_thumbs,
     editor_mask,
     euros,
+    final_cost,
     inpaint_hint,
     needs_confirmation,
     reference_summary,
@@ -48,6 +48,7 @@ from ui.studio_views import (
     render_inputs,
     render_title_md,
     renders_of,
+    resolution_choices,
     selected_render,
     support_thumbs,
     thumbs_html,
@@ -139,6 +140,21 @@ def test_draft_cost_follows_inputs_quality_and_variants() -> None:
     assert composition_cost("medium", 4) == pytest.approx(0.051)
 
 
+def test_final_render_cost_and_resolutions() -> None:
+    """Paso 24: precio por MP binario (primer MP, resto y 1 MP por la imagen de partida)."""
+    assert final_cost("2448x1632") == pytest.approx(
+        0.002 + 0.0264 + (2448 * 1632 / 1_048_576 - 1) * 0.0132 + 0.0132
+    )
+    assert final_cost("2448x1632") < 0.20  # sin confirmación
+    assert final_cost("1024x1024", prompt=False) == pytest.approx(0.0264 + 0.0132)
+    assert resolution_choices("3:2") == [
+        ("1536 x 1024 · 1.6 MP", "1536x1024"),
+        ("2016 x 1344 · 2.7 MP", "2016x1344"),
+        ("2448 x 1632 · 4.0 MP", "2448x1632"),
+    ]
+    assert [size for _, size in resolution_choices("9:16")][-1] == "1440x2560"
+
+
 def test_references_and_selection_helpers() -> None:
     view = reference("vista.png", ["perspectiva", "geometria"])
     sofa = reference("sofa.png", ["objetos", "colores"])
@@ -147,7 +163,6 @@ def test_references_and_selection_helpers() -> None:
     assert draft_inputs(p) == 2  # solo las activas
     assert composition_inputs(p) == 3  # la de partida y las dos activas como apoyo
     assert reference_summary(sofa) == "sofa.png · objetos y mobiliario (1), colores y paleta (1)"
-    assert default_textures(p) == [str(sofa.id)]  # la vista no es una textura
 
     old = render(RenderStage.DRAFT, RenderStatus.SELECTED)
     new = render(RenderStage.DRAFT, minutes=5)
@@ -336,7 +351,8 @@ async def test_drafts_need_active_references(tmp_path: Path) -> None:
 async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) -> None:
     """B-043: Composición con un boceto seleccionado; Render Final con una composición."""
     draft = render(RenderStage.DRAFT, RenderStatus.SELECTED, audits=[audit()])
-    final = render(RenderStage.FINAL, RenderStatus.SELECTED)
+    info = StagePrompt(prompt="A photo", interpretation="Foto", open_questions=[])
+    final = render(RenderStage.FINAL, RenderStatus.SELECTED, prompt_info=info)  # de la v2
     p = project(assets=[reference("vista.png", ["perspectiva"])], renders=[draft, final])
     result = await studio_tab(p, tmp_path, mode="azure").refresh_all(str(p.id))
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
@@ -350,6 +366,11 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     assert by_id(result, "iai-gen-compositions")["interactive"] is True
     assert by_id(result, "iai-gen-compositions-current")["interactive"] is False  # sin composición
     assert "Selecciona una composición" in by_id(result, "iai-start-composition")
+    # Render Final (Paso 24): sin composición seleccionada solo hay versiones del render mostrado.
+    assert by_id(result, "iai-gen-finals")["interactive"] is False
+    assert by_id(result, "iai-gen-finals-current")["interactive"] is True
+    assert by_id(result, "iai-gen-finals-variant")["interactive"] is True
+    assert "Azure: ≈ 0.079 € (a 4 MP)" in texts(result)
 
 
 async def test_show_render_opens_an_image_of_any_stage(tmp_path: Path) -> None:
