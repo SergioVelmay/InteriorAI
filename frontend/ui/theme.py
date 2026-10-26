@@ -181,6 +181,22 @@ CSS = f"""
 }}
 /* Ficha (B-066): los elementos en letra pequeña, los grupos en la normal. */
 [id^="iai-sheet-"]:not([id^="iai-sheet-group-"]) label {{ font-size: {SMALL} !important; }}
+/* B-090: junto a los botones con coste, «procesando» ocupa la línea del coste (o de la
+   confirmación), sin el icono de carga: el panel de Gradio, de 80 px, quedaba recortado. */
+.iai-action-note [data-testid="status-tracker"] {{
+    inset: 0 !important; height: auto !important; min-height: 0 !important;
+    flex-direction: row !important; justify-content: flex-start !important;
+    align-items: center !important;
+    background: transparent !important; overflow: hidden !important;
+}}
+.iai-action-note [data-testid="status-tracker"] > div:not(.progress-text) {{
+    display: none !important;
+}}
+.iai-action-note [data-testid="status-tracker"] .progress-text {{
+    position: static !important; transform: none !important; font-size: {SMALL} !important;
+    margin: 0 !important; padding: 0 var(--block-padding) !important;
+}}
+.iai-action-note .pending {{ visibility: hidden; }}
 /* Leyenda común de Costes IA (B-081): un rol por línea, con aire. */
 .iai-legend {{ padding: 0.5rem 0.75rem; }}
 .iai-legend h4 {{ color: #a1a1aa; font-size: 0.9rem; font-weight: 500; margin: 0 0 0.75rem; }}
@@ -231,8 +247,10 @@ CSS = f"""
 #iai-audit-report table td:first-child, #iai-audit-report table th:first-child {{
     min-width: 8.5rem;
 }}
-/* B-077: el prompt enviado con ajuste de línea, sin desplazamiento horizontal. */
-[id^="iai-more-"] pre, [id^="iai-more-"] pre code {{
+/* B-077 y B-091: el prompt enviado y las correcciones de la auditoría con ajuste de línea, sin
+   desplazamiento horizontal. */
+[id^="iai-more-"] pre, [id^="iai-more-"] pre code,
+#iai-audit-report pre, #iai-audit-report pre code {{
     white-space: pre-wrap !important; word-break: break-word !important;
 }}
 .iai-hidden {{ display: none !important; }}
