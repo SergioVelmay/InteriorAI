@@ -37,6 +37,7 @@ revisar la aplicación tras el Paso 29 (O-26 a O-33 → B-082 a B-089), antes de
 | Editor de máscara (Playwright, clics reales) | ✅ Goma → tamaño → pincel → tamaño → acercar → mano → pincel → tamaño → mano → goma → alejar → goma → tamaño → pincel: la herramienta activa siempre visible, las circunferencias en los dos deslizadores y el deslizador sin reabrirse solo |
 | Ancho de la página (1920 y 2560 px) | ✅ 1440 px en todas las pestañas y en los dos alcances de Costes IA |
 | Revisión visual (mock, copia de «Personalización Cocina Los Molinos») | ✅ Proyectos, Composición, Render Final y la trazabilidad |
+| CI de la PR #42 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0 €.
 
