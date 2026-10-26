@@ -38,10 +38,11 @@ Costes IA con colores vivos y una leyenda común (B-080, B-081).
 | Playwright en local (mock) | ✅ 5/5 |
 | Costes IA con una copia de los datos reales (mock) | ✅ Seis series; las llamadas antiguas aparecen con los nombres nuevos y las de la comparativa luna/sol del Paso 21 suman en el rol que hoy usa cada modelo |
 | Llamadas reales | No hacen falta |
+| CI de la PR #38 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-26`. Tras el merge: renombrar las variables del `.env` local
+⏳ En revisión — rama `feat/paso-26`, PR #38. Tras el merge: renombrar las variables del `.env` local
 (lo hace Claude, sin tocar los valores), reconstruir Docker y comprobar `python -m shared`.
 
 ## 6. Pendiente / futuro
