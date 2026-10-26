@@ -42,7 +42,9 @@ Coste real del paso: ≈ 0,25 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-28`, PR #40.
+✅ Cerrado — rama `feat/paso-28`, PR #40 revisada y mergeada por el usuario (2026-10-26), que
+aprobó los prompts y pidió renombrar los archivos de la v1 con nombres de roles anteriores.
+Docker reconstruido.
 
 ## 6. Pendiente / futuro
 

@@ -36,7 +36,7 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 25 | [Versión 2.0.0](paso-25-version-2.md) | `feat/paso-25` | ✅ Cerrado |
 | 26 | [Roles y Costes IA](paso-26-roles-costes.md) | `feat/paso-26` | ✅ Cerrado |
 | 27 | [Estilo común, Proyectos y Referencias](paso-27-estilo-proyectos-referencias.md) | `feat/paso-27` | ✅ Cerrado |
-| 28 | [Bocetos](paso-28-bocetos.md) | `feat/paso-28` | ⏳ En revisión |
+| 28 | [Bocetos](paso-28-bocetos.md) | `feat/paso-28` | ✅ Cerrado |
 
 Versión 2.0.0 (publicada el 2026-10-25): [plan de acción](plan-version-2.md), Pasos 17 a 25,
 entradas B-023 a B-055
