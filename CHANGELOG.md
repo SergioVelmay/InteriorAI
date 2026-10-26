@@ -46,6 +46,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   indicaciones solo actúan en la zona pintada; tabla de la auditoría sin palabras partidas;
   prompt con ajuste de línea; tamaño con su proporción («2448×1632 (3:2)») y sin «calidad» en
   el render final (B-071 a B-078).
+- **Detalles finales** (Paso 30): Proyectos sin «Actualizar», con «Referencias activas: 4 de
+  4» y «Render final elegido: SÍ»; Composición sin numeración, con los apoyos primero y las
+  imágenes de partida a 1/4 (también en Render Final); editor de máscara con la mano visible
+  como herramienta y el tamaño siempre con su icono; «Imágenes enviadas al modelo de imagen» y,
+  al final, el coste de la cadena; Costes IA siempre al ancho de las demás pestañas (B-082 a
+  B-089).
 - **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
   leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
   ancho completo.

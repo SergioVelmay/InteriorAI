@@ -155,11 +155,12 @@ class Panel:
     select_btn: gr.Button
     more_md: gr.Markdown
     inputs: gr.Gallery
+    chain_md: gr.Markdown
     shown: gr.State
 
     def components(self) -> list[gr.components.Component]:
         return [self.gallery, self.ids, self.viewer, self.title, self.select_btn, self.more_md,
-                self.inputs, self.shown]  # fmt: skip
+                self.inputs, self.chain_md, self.shown]  # fmt: skip
 
 
 def _action(label: str, slug: str, variant: str = "primary") -> Action:
@@ -186,8 +187,9 @@ def _thumbnails(slug: str, columns: int = 4) -> dict[str, Any]:
 
 def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dict[str, Any]:
     """A ancho completo (B-067): la imagen grande en su proporción, su línea, «Seleccionar» y,
-    debajo, la trazabilidad (lo que entendió la IA, el prompt y lo enviado al modelo, en
-    miniaturas de 1/6). `after_select` añade controles bajo «Seleccionar» («Otra versión»)."""
+    debajo, la trazabilidad (lo que entendió la IA, el prompt, las imágenes enviadas al modelo en
+    miniaturas de 1/6 y, al final, el coste de la cadena). `after_select` añade controles bajo
+    «Seleccionar» («Otra versión»)."""
     viewer = gr.Image(
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
@@ -198,12 +200,14 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         after_select()
     more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
     inputs = gr.Gallery(
-        label="Enviado al modelo", columns=6, height="auto", object_fit="contain",
+        label="Imágenes enviadas al modelo de imagen", columns=6, height="auto",
+        object_fit="contain",
         allow_preview=False, buttons=[], elem_classes=["iai-gallery", "iai-small", "iai-cols-6"],
         elem_id=f"iai-inputs-{slug}",
     )  # fmt: skip
+    chain_md = gr.Markdown(elem_id=f"iai-chain-{slug}")
     return {"viewer": viewer, "title": title, "select_btn": select_btn, "more_md": more_md,
-            "inputs": inputs, "shown": gr.State(None)}  # fmt: skip
+            "inputs": inputs, "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
 
 
 def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTabs:
@@ -243,10 +247,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     # ② Composición -----------------------------------------------------------------------------
     with gr.Tab("Composición", interactive=False) as composition_tab:
         notices.append(gr.Markdown(NO_PROJECT, visible=False))
-        # Secciones opcionales plegables (B-074): cerradas, salvo ① si el boceto ya tiene una
-        # auditoría al abrir el proyecto o la pestaña.
+        # Secciones opcionales plegables (B-074): cerradas, salvo la auditoría si el boceto ya
+        # tiene una al abrir el proyecto o la pestaña.
         with gr.Accordion(
-            "① Auditoría del boceto seleccionado (opcional)", open=False,
+            "Auditoría del boceto seleccionado (opcional)", open=False,
             elem_id="iai-audit-section",
         ) as audit_box:  # fmt: skip
             gr.Markdown(
@@ -265,7 +269,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             audit_md = gr.Markdown(elem_id="iai-audit-report")
 
         with gr.Accordion(
-            "② Retoque de la composición seleccionada", open=False,
+            "Retoque de la composición seleccionada (opcional)", open=False,
             elem_id="iai-retouch-section",
         ) as retouch_box:  # fmt: skip
             retouch_md = gr.Markdown(elem_classes="iai-muted")
@@ -315,7 +319,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 elem_id="iai-inpaint-instruction",
             )  # fmt: skip
 
-        gr.Markdown("### ③ Crear composición")
+        gr.Markdown("### Crear composición")
+        supports_md = gr.Markdown()
+        supports = gr.HTML(elem_id="iai-composition-supports")
         with gr.Row():
             comp_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
             comp_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
@@ -336,8 +342,6 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         comp_extra = gr.Textbox(
             label="Indicaciones (opcionales)", lines=2, elem_id="iai-composition-indications"
         )
-        supports_md = gr.Markdown()
-        supports = gr.HTML(elem_id="iai-composition-supports")
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
                 start_draft = gr.HTML(elem_id="iai-start-draft", elem_classes="iai-half")
@@ -435,7 +439,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             updates |= {action.button: gr.update(interactive=False), action.cost: ""}
         for panel in panels.values():
             updates |= {panel.gallery: [], panel.ids: [], panel.viewer: None, panel.title: "",
-                        panel.more_md: "", panel.inputs: [], panel.shown: None,
+                        panel.more_md: "", panel.inputs: [], panel.chain_md: "",
+                        panel.shown: None,
                         panel.select_btn: gr.update(interactive=False)}  # fmt: skip
         return updates
 
@@ -452,7 +457,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         chain = ""
         if render is not None:
             try:  # lo que ha costado llegar a esta imagen
-                chain = "\n\n" + chain_cost_md(await client.render_cost(project.id, render.id))
+                chain = chain_cost_md(await client.render_cost(project.id, render.id))
             except ApiError:
                 chain = ""
         is_selected = render is not None and render.status is RenderStatus.SELECTED
@@ -471,8 +476,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 interactive=render is not None and not is_selected,
                 value="Seleccionada ●" if is_selected else "Seleccionar",
             ),
-            panel.more_md: render_detail_md(project, render) + chain,
+            panel.more_md: render_detail_md(project, render),
             panel.inputs: render_inputs(project, render, data_dir),
+            panel.chain_md: chain,
         }
 
     async def view(active_id: str | None, *shown: str | None) -> dict:
@@ -905,7 +911,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         trigger(remount, inputs=editor_nonce, outputs=editor_nonce)
 
     async def refresh_all(active_id: str | None) -> dict:
-        """Al abrir el proyecto o la pestaña: ① abierta solo si el boceto tiene auditoría."""
+        """Al abrir el proyecto o la pestaña: la auditoría, abierta solo si el boceto tiene una."""
         updates = await view(active_id, None, None, None)
         draft_id = updates.get(selected_draft)
         audited = False

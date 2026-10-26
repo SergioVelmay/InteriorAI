@@ -73,7 +73,6 @@ def build_projects_tab(
                 elem_id="iai-projects",
             )
             ids = gr.State([])
-            refresh = gr.Button("Actualizar", variant="secondary", size="sm")
             with gr.Accordion("Nuevo proyecto", open=False):
                 new_name = gr.Textbox(
                     label="Nombre", placeholder="Salón-cocina-comedor", elem_id="iai-new-name"
@@ -216,7 +215,6 @@ def build_projects_tab(
     create_outputs = [*all_outputs, new_name, new_description]
     delete_outputs = [*all_outputs, confirm_delete, cancel_delete]
 
-    refresh.click(refresh_all, inputs=active, outputs=all_outputs)
     gallery.select(on_select, inputs=ids, outputs=[active, header, *detail_outputs])
     create.click(on_create, inputs=[new_name, new_description], outputs=create_outputs)
     save.click(on_save, inputs=[active, *fields], outputs=all_outputs)

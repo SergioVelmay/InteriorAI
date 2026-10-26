@@ -46,7 +46,8 @@ la pestaña puede volver a plegarla (fija su estado inicial al terminar).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-29`.
+✅ Cerrado — rama `feat/paso-29`, PR #41 revisada y mergeada por el usuario (2026-10-26).
+Docker reconstruido.
 
 ## 6. Pendiente / futuro
 

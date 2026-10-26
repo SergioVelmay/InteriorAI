@@ -2,9 +2,9 @@
 
 Propuesto el 2026-10-25, tras la ronda de observaciones del usuario sobre la 2.0.0: un flujo
 completo guiado («Personalización Cocina Los Molinos»), de la creación del proyecto a los renders
-finales, con capturas de trabajo en cada etapa. Recoge las 25 observaciones (O-1 a O-25) como
-entradas **B-057 a B-081** del [backlog](BACKLOG.md) (O-n → B-(056 + n)) y cierra con las
-capturas del README (B-023).
+finales, con capturas de trabajo en cada etapa. Recoge las 25 observaciones (O-1 a O-25) y las
+8 de la revisión tras el Paso 29 (O-26 a O-33) como entradas **B-057 a B-089** del
+[backlog](BACKLOG.md) (O-n → B-(056 + n)), y cierra con las capturas del README (B-023).
 
 ## Por qué 3.0.0
 
@@ -35,7 +35,8 @@ actualizados y CI en verde, PR revisada y mergeada por el usuario.
 | 27. Estilo común, Proyectos y Referencias | Pestaña activa en blanco y negrita; escala única de imágenes (1/1, 1/2, 1/4, 1/6); letra pequeña común; textos de Gradio en español; previsión de tiempo sin historial; 50/50 real; resumen del proyecto; recarga de Proyectos al entrar; vista previa de la referencia en su proporción; pie de las miniaturas en dos líneas | B-058 a B-066, B-079 | No |
 | 28. Bocetos | Maquetación a ancho completo; prompts sin elementos no marcados, sin dibujar anotaciones y con bocetos realistas y minimalistas (también en composición y render final) | B-067 a B-070 | ≈ 0,40-0,60 € (varias tandas de bocetos y alguna composición) |
 | 29. Composición y Render Final | Iconos del editor; rueda del ratón sobre el lienzo; aviso de retoque e indicaciones; secciones plegables; tabla de la auditoría; texto del coste de la cadena; prompt con ajuste de línea; Render Final sin «calidad» | B-071 a B-078 | No |
-| 30. Capturas y versión 3.0.0 | Caso de demostración del usuario sin marcas; capturas del README con Playwright, solo mirando (sin acciones de IA ni cambios de selección); README, CHANGELOG, etiqueta y Release | B-023 | No |
+| 30. Detalles finales | Revisión del usuario tras el Paso 29 (O-26 a O-33): Proyectos sin «Actualizar», «N de M» y SÍ/NO; Composición sin numeración y con otro orden; imágenes de partida a 1/4; editor de máscara; trazabilidad; Costes IA a ancho fijo | B-082 a B-089 | No |
+| 31. Capturas y versión 3.0.0 | Caso de demostración del usuario sin marcas; capturas del README con Playwright, solo mirando (sin acciones de IA ni cambios de selección); README, CHANGELOG, etiqueta y Release | B-023 | No |
 
 ## Decisiones tomadas
 
@@ -47,4 +48,4 @@ actualizados y CI en verde, PR revisada y mergeada por el usuario.
 ## Lo que aporta el usuario
 
 - Paso 28: revisar juntos los prompts de bocetos y composición tras las pruebas reales.
-- Paso 30: el proyecto de demostración terminado, sin marcas, con la aplicación levantada.
+- Paso 31: el proyecto de demostración terminado, sin marcas, con la aplicación levantada.
