@@ -65,7 +65,9 @@ def test_caption_status_and_info() -> None:
     assert sheet_status(asset(analyzed=False)) == "Sin analizar"
     assert sheet_status(asset()) == "Descartada"
     assert sheet_status(asset(["objetos:0", "colores:0"])) == "Activa · 2 marcado(s)"
-    assert asset_caption(asset(["objetos:0"])) == "sofa.png · 949x535 · Activa · 1 marcado(s)"
+    assert (
+        asset_caption(asset(["objetos:0"])) == "sofa.png\n949x535 · Activa · 1 marcado(s)"
+    )  # B-065
     info = asset_info_md(asset())
     assert "2.38 MB" in info and "949x535 px" in info and "Sofá modular verde" in info
 
@@ -173,6 +175,6 @@ async def test_references_tab_refresh(tmp_path: Path) -> None:
     assert warning["visible"] is False  # caben todas
     gallery = next(v for k, v in result.items() if isinstance(k, gr.Gallery))
     assert [item[1] for item in gallery["value"]] == [
-        "sofa.png · 949x535 · Activa · 1 marcado(s)",
-        "sofa.png · 949x535 · Sin analizar",
+        "sofa.png\n949x535 · Activa · 1 marcado(s)",
+        "sofa.png\n949x535 · Sin analizar",
     ]

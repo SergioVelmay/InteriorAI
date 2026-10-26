@@ -9,6 +9,7 @@ from shared import Settings
 from shared.models import utc_now
 from ui.api_client import BackendClient
 from ui.app import build_app, launch_kwargs
+from ui.forecast import FORECAST_S, Forecast
 from ui.tabs.projects import build_projects_tab
 
 
@@ -69,6 +70,43 @@ def test_launch_kwargs(settings: Settings) -> None:
     assert isinstance(kwargs["theme"], gr.themes.Base)
     assert kwargs["server_port"] == settings.network.frontend_port
     assert kwargs["allowed_paths"] == [str(settings.storage.data_dir)]
+    # B-063: textos internos de Gradio en español también en un navegador en inglés
+    texts = kwargs["i18n"].translations
+    assert texts["en"]["upload_text.drop_file"] == "Arrastra el archivo aquí"
+    assert texts["en"] == texts["es"]
+    assert "procesando" in kwargs["js"] and ".progress-text" in kwargs["js"]
+
+
+def test_forecasts_are_seeded_until_the_first_real_run(settings: Settings) -> None:
+    """B-064: sin historial, Gradio muestra nuestra previsión; la primera ejecución real la
+    descarta. Vigila el detalle interno de Gradio que usa `ui.forecast`."""
+    demo = build_app(settings, fake_backend([]))
+    seeded = {
+        fn: timing
+        for fn, timing in demo._queue.process_time_per_fn.items()
+        if isinstance(timing, Forecast)
+    }
+    # análisis (subir y volver a analizar) + 7 acciones con coste, cada una con su confirmación
+    assert len(seeded) == 2 + 7 * 2
+    assert sorted({t.avg_time for t in seeded.values()}) == sorted(set(FORECAST_S.values()))
+    timing = next(iter(seeded.values()))
+    timing.add(12.0)  # primera ejecución real
+    assert timing.avg_time == 12.0 and timing.count == 1
+
+
+def test_galleries_follow_the_image_scale(settings: Settings) -> None:
+    """B-079: cada galería declara cuántas imágenes caben por fila (1/4 o 1/6 del ancho)."""
+    demo = build_app(settings, fake_backend([]))
+    columns = {
+        block.elem_id: next(c for c in block.elem_classes if c.startswith("iai-cols-"))
+        for block in demo.blocks.values()
+        if isinstance(block, gr.Gallery) and block.elem_id
+    }
+    assert columns["iai-projects"] == columns["iai-references"] == "iai-cols-2"  # 50 %
+    assert columns["iai-drafts"] == "iai-cols-2"  # en su columna del 50 % (hasta el Paso 28)
+    assert columns["iai-compositions"] == columns["iai-finals"] == "iai-cols-4"
+    assert columns["iai-inputs-drafts"] == "iai-cols-3"  # pequeñas en el 50 %
+    assert columns["iai-inputs-compositions"] == columns["iai-inputs-finals"] == "iai-cols-6"
 
 
 async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:

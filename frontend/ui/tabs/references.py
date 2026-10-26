@@ -10,7 +10,7 @@ desmarcando todo y se reactiva marcando algo. Solo las activas se usan en el dis
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ from shared.models import RECIPE_GROUPS, Asset, AssetKind
 from shared.supports import MAX_SUPPORTS
 from ui.api_client import ApiError, BackendClient
 from ui.covers import asset_path, placeholder
+from ui.forecast import FORECAST_S
 from ui.studio_views import excluded_count
 from ui.views import (
     COST_ANALYSIS,
@@ -47,6 +48,8 @@ ANALYSIS_HINT = (
 class ReferencesTab:
     refresh_all: Callable[[str | None], Awaitable[dict]]
     all_outputs: list[gr.components.Component]
+    # Análisis con IA y su previsión en segundos (B-064, `ui.forecast`)
+    forecasts: list[tuple[dict[str, Any], float]] = field(default_factory=list)
 
 
 def status_text(asset: Asset | None) -> str:
@@ -72,10 +75,10 @@ def build_references_tab(
     notice = gr.Markdown(NO_PROJECT, visible=False)
     supports_warning = gr.Markdown(visible=False, elem_id="iai-supports-warning")
     with gr.Row(equal_height=False):
-        with gr.Column(scale=3):
+        with gr.Column(scale=1):  # 50/50 (B-059)
             gallery = gr.Gallery(
-                show_label=False, columns=3, height="auto", object_fit="cover",
-                allow_preview=False, buttons=[], elem_classes="iai-gallery",
+                show_label=False, columns=2, height="auto", object_fit="cover",
+                allow_preview=False, buttons=[], elem_classes=["iai-gallery", "iai-cols-2"],
                 elem_id="iai-references",
             )  # fmt: skip
             ids = gr.State([])
@@ -92,12 +95,14 @@ def build_references_tab(
                 upload_btn = gr.Button(
                     "Subir y analizar", variant="primary", elem_id="iai-reference-upload"
                 )
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             selected = gr.State(None)
             info = gr.Markdown(NO_SELECTION)
+            # Ancho de la columna y altura según la imagen (B-061)
             preview = gr.Image(
-                show_label=False, interactive=False, height=320, buttons=[], visible=False
-            )
+                show_label=False, interactive=False, buttons=[], visible=False,
+                elem_id="iai-reference-preview", elem_classes="iai-viewer",
+            )  # fmt: skip
             notes = gr.Textbox(label="Notas", lines=3, elem_id="iai-reference-notes")
             with gr.Row():
                 save_notes = gr.Button("Guardar notas", variant="secondary", interactive=False)
@@ -285,11 +290,13 @@ def build_references_tab(
     # --- Eventos ---------------------------------------------------------------------------
 
     gallery.select(on_select, inputs=[ids, active], outputs=panel_outputs)
-    upload_btn.click(
+    uploaded = upload_btn.click(
         on_upload, inputs=[file, upload_notes, active],
         outputs=[*panel_outputs, file, upload_notes],
     )  # fmt: skip
-    reanalyze.click(on_reanalyze, inputs=[active, selected, notes], outputs=panel_outputs)
+    reanalyzed = reanalyze.click(
+        on_reanalyze, inputs=[active, selected, notes], outputs=panel_outputs
+    )
     save_notes.click(on_save_notes, inputs=[active, selected, notes], outputs=panel_outputs)
     save_sheet.click(
         on_save_sheet,
@@ -328,4 +335,5 @@ def build_references_tab(
     async def refresh_all(active_id: str | None) -> dict:
         return await refresh(active_id)
 
-    return ReferencesTab(refresh_all, panel_outputs)
+    analysis = FORECAST_S["analisis"]
+    return ReferencesTab(refresh_all, panel_outputs, [(uploaded, analysis), (reanalyzed, analysis)])

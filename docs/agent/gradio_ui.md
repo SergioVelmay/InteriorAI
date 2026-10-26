@@ -18,6 +18,11 @@
 - Nada que no sea `gr.Tab` como hijo directo de un `gr.Tabs` (ni siquiera `gr.State`): Gradio 6
   duplica en la barra la pestaña seleccionada. Bocetos, Composición y Render Final se crean con
   `build_studio_tabs` dentro del `gr.Tabs` principal; su estado común vive en la primera.
+- Estilo común (Paso 27): pestaña activa en blanco y negrita; escala de imágenes por clase de
+  galería (`iai-cols-2/3/4/6`: 1/4 del ancho total en galerías, 1/6 en las pequeñas; tiras HTML
+  `.iai-thumbs` de 6, o 3 dentro de `iai-half`); letra pequeña `theme.SMALL`; textos de Gradio
+  en español con `launch(i18n=...)` (`theme.GRADIO_TEXTS`) y «procesando» por JS en
+  `.progress-text`; previsión de tiempo sembrada en la cola de Gradio (`ui/forecast.py`).
 - `ImageEditor` del retoque: su valor se envía solo al pulsar (botón puente oculto dentro del
   `gr.render`, accionado por JS en diferido; sincronizarlo en cada trazo bloqueaba la cola) y su
   `preprocess` se sustituye en la instancia por `layers_only` (el fondo y la compuesta podían

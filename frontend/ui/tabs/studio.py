@@ -14,7 +14,7 @@ enviado al modelo (B-047); la confirmación de coste, junto al botón que la pid
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -28,6 +28,7 @@ from shared.supports import MAX_SUPPORTS, active_references
 from ui.api_client import ApiError, BackendClient
 from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
+from ui.forecast import FORECAST_S
 from ui.studio_views import (
     COST_AUDIT,
     DRAFT_SIZES,
@@ -81,6 +82,16 @@ ACTION_STAGES = {
     "render_final_actual": RenderStage.FINAL,
     "otra_version": RenderStage.FINAL,
 }
+# Previsión de tiempo de cada acción mientras Gradio no tiene historial (B-064)
+ACTION_FORECASTS = {
+    "boceto": FORECAST_S["bocetos"],
+    "auditoria": FORECAST_S["auditoria"],
+    "composicion": FORECAST_S["composicion"],
+    "composicion_actual": FORECAST_S["composicion"],
+    "render_final": FORECAST_S["render_final"],
+    "render_final_actual": FORECAST_S["render_final"],
+    "otra_version": FORECAST_S["otra_version"],
+}
 
 
 def layers_only(editor: gr.ImageEditor, payload: Any) -> dict[str, Any] | None:
@@ -112,6 +123,8 @@ class StudioTabs:
     unlock: Callable[[str | None], Awaitable[dict]]  # solo el bloqueo de las pestañas
     unlock_outputs: list[gr.components.Component]
     show_render: Callable[[str | None, str | None], Awaitable[dict]]  # abre una imagen
+    # Eventos con coste y su previsión en segundos (B-064, `ui.forecast`)
+    forecasts: list[tuple[dict[str, Any], float]] = field(default_factory=list)
 
 
 @dataclass
@@ -161,10 +174,12 @@ def _action(label: str, slug: str, variant: str = "primary") -> Action:
     return Action(button, cost, confirm_box, confirm_md, confirm_btn, cancel_btn, gr.State(None))
 
 
-def _thumbnails(slug: str) -> dict[str, Any]:
+def _thumbnails(slug: str, columns: int = 4) -> dict[str, Any]:
+    """Galería de la etapa (B-079): 2 por fila en una columna del 50 %, 4 a ancho completo."""
     gallery = gr.Gallery(
-        show_label=False, columns=2, height="auto", object_fit="cover", allow_preview=False,
-        buttons=[], elem_classes="iai-gallery", elem_id=f"iai-{slug}",
+        show_label=False, columns=columns, height="auto", object_fit="cover",
+        allow_preview=False, buttons=[], elem_classes=["iai-gallery", f"iai-cols-{columns}"],
+        elem_id=f"iai-{slug}",
     )  # fmt: skip
     return {"gallery": gallery, "ids": gr.State([])}
 
@@ -186,9 +201,11 @@ def _viewer(
 
     def trace() -> tuple[gr.Markdown, gr.Gallery]:
         more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
+        small = 6 if details_open is None else 3  # escala 1/6 (B-079)
         inputs = gr.Gallery(
-            label="Enviado al modelo", columns=6, height="auto", object_fit="contain",
-            allow_preview=False, buttons=[], elem_classes=["iai-gallery", "iai-small"],
+            label="Enviado al modelo", columns=small, height="auto", object_fit="contain",
+            allow_preview=False, buttons=[],
+            elem_classes=["iai-gallery", "iai-small", f"iai-cols-{small}"],
             elem_id=f"iai-inputs-{slug}",
         )  # fmt: skip
         return more_md, inputs
@@ -206,6 +223,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     """Crea las tres pestañas dentro del `gr.Tabs` de la aplicación."""
     notices: list[gr.Markdown] = []
     panels: dict[RenderStage, Panel] = {}
+    forecasts: list[tuple[dict[str, Any], float]] = []
     actions: dict[str, Action] = {}
     retouch_images: dict[str, Any] = {}  # imagen de cada composición seleccionada (el editor)
 
@@ -232,7 +250,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                     elem_id="iai-draft-indications",
                 )  # fmt: skip
                 actions["boceto"] = _action("Generar bocetos", "drafts")
-                draft_gallery = _thumbnails("drafts")
+                draft_gallery = _thumbnails("drafts", columns=2)
             with gr.Column(scale=1):
                 draft_view = _viewer("drafts", details_open=False)
         panels[RenderStage.DRAFT] = Panel(RenderStage.DRAFT, **draft_gallery, **draft_view)
@@ -322,12 +340,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         supports = gr.HTML(elem_id="iai-composition-supports")
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
-                start_draft = gr.HTML(elem_id="iai-start-draft")
+                start_draft = gr.HTML(elem_id="iai-start-draft", elem_classes="iai-half")
                 actions["composicion"] = _action(
                     "Generar con el boceto seleccionado", "compositions"
                 )
             with gr.Column(scale=1):
-                start_composition = gr.HTML(elem_id="iai-start-composition")
+                start_composition = gr.HTML(
+                    elem_id="iai-start-composition", elem_classes="iai-half"
+                )
                 actions["composicion_actual"] = _action(
                     "Generar con la composición actual", "compositions-current"
                 )
@@ -364,12 +384,16 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         )  # fmt: skip
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
-                start_final_composition = gr.HTML(elem_id="iai-start-final-composition")
+                start_final_composition = gr.HTML(
+                    elem_id="iai-start-final-composition", elem_classes="iai-half"
+                )
                 actions["render_final"] = _action(
                     "Generar con la composición seleccionada", "finals"
                 )
             with gr.Column(scale=1):
-                start_final_current = gr.HTML(elem_id="iai-start-final-current")
+                start_final_current = gr.HTML(
+                    elem_id="iai-start-final-current", elem_classes="iai-half"
+                )
                 actions["render_final_actual"] = _action(
                     "Generar con el render final actual", "finals-current"
                 )
@@ -672,7 +696,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 return {mode: gr.skip()}
             return await request({"kind": key, **action}, active_id, current_mode, *shown)
 
-        (trigger or actions[key].button).click(handler, inputs=[*common, *inputs], outputs=outputs)
+        dependency = (trigger or actions[key].button).click(
+            handler, inputs=[*common, *inputs], outputs=outputs
+        )
+        forecasts.append((dependency, ACTION_FORECASTS[key]))
 
     async def on_retouch(active_id, current_mode, *values):
         """«Generar con la composición actual» con «Usar el retoque» (botón puente)."""
@@ -852,9 +879,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     )
 
     for key, action in actions.items():
-        action.confirm_btn.click(
+        confirmed = action.confirm_btn.click(
             confirm_handler(key), inputs=[action.pending, *common], outputs=outputs
         )
+        forecasts.append((confirmed, ACTION_FORECASTS[key]))
         action.cancel_btn.click(
             lambda action=action: {
                 **hide_confirm(action),
@@ -896,5 +924,5 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
 
     return StudioTabs(
         [drafts_tab, composition_tab, final_tab], refresh_all, outputs, unlock,
-        [composition_tab, final_tab], show_render,
+        [composition_tab, final_tab], show_render, forecasts,
     )  # fmt: skip

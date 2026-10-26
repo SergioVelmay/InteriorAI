@@ -28,6 +28,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   actual; el CSV añade «Rol en la llamada» con el original. La API de costes sustituye
   `by_role_deployment` por `role_deployments`, `by_day_role` y `by_project_role`, y cada
   registro lleva `call_role`.
+- **Estilo común** (Paso 27): pestaña activa en blanco y negrita; escala única de imágenes
+  (galerías de 2 o 4 por fila y miniaturas pequeñas de 3 o 6, sin miniaturas diminutas); letra
+  pequeña en la ficha y en los pies; textos de Gradio en español sea cual sea el idioma del
+  navegador («procesando» incluido); previsión de tiempo de cada acción desde la primera vez
+  (B-058, B-063, B-064, B-066, B-079).
+- **Proyectos y Referencias** (Paso 27): 50/50; resumen sin «Brief», con las referencias
+  activas y una línea por etapa; la pestaña Proyectos se recarga al entrar; vista previa de la
+  referencia en su proporción y pie de sus miniaturas en dos líneas (B-059 a B-062, B-065).
 - **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
   leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
   ancho completo.
