@@ -34,13 +34,14 @@ las referencias y den bocetos realistas y minimalistas (B-067 a B-070).
 | Postman en local (mock) | ✅ 53 peticiones, 96 comprobaciones |
 | Playwright en local (mock) | ✅ 6/6 |
 | Bocetos reales (FAST_DRAFT_MAKER, copia de «Personalización Cocina Los Molinos», 4 referencias activas) | ✅ 4 en calidad media en 51 s, 0,192 €. Con los prompts del Paso 22, los bocetos copiaban de la infografía el sofá, la mesa con sillas, las lámparas y las flores, y uno dibujaba las cotas rojas; ahora, cocina limpia con solo lo marcado (incluidas las cortinas, que sí estaban marcadas) y sin anotaciones. Comparación en `InteriorAI-capturas/etapa-06-paso-28/` (fuera del repositorio) |
+| CI de la PR #40 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 | Composición real con el primer boceto (COMPOSITION_BUILDER) | ✅ 42 s, 0,060 €: limpia, sin la tostadora, las plantas ni la vajilla de la referencia de materiales y sin los colores de marcado del esquema |
 
 Coste real del paso: ≈ 0,25 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-28`.
+⏳ En revisión — rama `feat/paso-28`, PR #40.
 
 ## 6. Pendiente / futuro
 
