@@ -243,67 +243,77 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     # ② Composición -----------------------------------------------------------------------------
     with gr.Tab("Composición", interactive=False) as composition_tab:
         notices.append(gr.Markdown(NO_PROJECT, visible=False))
-        gr.Markdown("### ① Auditoría del boceto seleccionado (opcional)")
-        gr.Markdown(
-            "Compara el boceto con **todas** las referencias activas que marcan perspectiva o "
-            "geometría y comprueba lo marcado en las fichas. Sus correcciones y tus "
-            "observaciones se usan al crear la composición con «Usar la auditoría».",
-            elem_classes="iai-muted",
-        )
-        audit_images = gr.HTML(elem_id="iai-audit-images")
-        audit_notes = gr.Textbox(
-            label="Auditoría manual: tus observaciones sobre el boceto (opcional)", lines=2,
-            placeholder="p. ej. «la ventana está más a la izquierda; falta la lámpara de pie»",
-            elem_id="iai-audit-notes",
-        )  # fmt: skip
-        actions["auditoria"] = _action("Auditar con IA", "audit", variant="secondary")
-        audit_md = gr.Markdown(elem_id="iai-audit-report")
-
-        gr.Markdown("### ② Retoque de la composición seleccionada")
-        retouch_md = gr.Markdown(elem_classes="iai-muted")
-
-        # Contenedor del editor: se vuelve a crear con cada composición seleccionada.
-        with gr.Column():
-            # Un editor nuevo por imagen y al hacerse visible: cambiar por código el valor de un
-            # ImageEditor montado lo deja sin la capa de trazos y, montado oculto, exporta el fondo
-            # truncado (Gradio 6).
-            @gr.render(
-                inputs=[selected_composition, editor_nonce], triggers=[editor_nonce.change],
-                concurrency_limit=1,
+        # Secciones opcionales plegables (B-074): cerradas, salvo ① si el boceto ya tiene una
+        # auditoría al abrir el proyecto o la pestaña.
+        with gr.Accordion(
+            "① Auditoría del boceto seleccionado (opcional)", open=False,
+            elem_id="iai-audit-section",
+        ) as audit_box:  # fmt: skip
+            gr.Markdown(
+                "Compara el boceto con **todas** las referencias activas que marcan perspectiva o "
+                "geometría y comprueba lo marcado en las fichas. Sus correcciones y tus "
+                "observaciones se usan al crear la composición con «Usar la auditoría».",
+                elem_classes="iai-muted",
+            )
+            audit_images = gr.HTML(elem_id="iai-audit-images")
+            audit_notes = gr.Textbox(
+                label="Auditoría manual: tus observaciones sobre el boceto (opcional)", lines=2,
+                placeholder="p. ej. «la ventana está más a la izquierda; falta la lámpara de pie»",
+                elem_id="iai-audit-notes",
             )  # fmt: skip
-            def retouch_area(render_id: str | None, nonce: int) -> None:
-                image = retouch_images.get(render_id or "")
-                if image is None:
-                    return
-                if isinstance(image, str):
-                    # Ya cargada: con una ruta, el editor puede reenviar el fondo truncado.
-                    with Image.open(image) as opened:
-                        image = opened.convert("RGB")
-                editor = gr.ImageEditor(
-                    value={"background": image, "layers": [], "composite": None},
-                    type="pil", format="png", sources=(), transforms=(), layers=False,
-                    brush=gr.Brush(colors=[("#ef4444", 0.6)], color_mode="fixed", default_size=40),
-                    eraser=gr.Eraser(default_size=40), show_label=False, height=560,
-                    interactive=True, key=f"iai-editor-{render_id}-{nonce}",
-                    elem_id="iai-inpaint-editor",
-                )  # fmt: skip
-                # El editor solo envía su valor al pulsar: este botón oculto lo acciona
-                # «Generar con la composición actual» cuando «Usar el retoque» está marcado
-                # (sincronizarlo en cada trazo subía las capas sin parar y bloqueaba la cola).
-                editor.preprocess = partial(layers_only, editor)  # type: ignore[method-assign]
-                bridge = gr.Button("retoque", elem_id="iai-retouch-bridge",
-                                   elem_classes="iai-hidden")  # fmt: skip
-                bridge.click(
-                    on_retouch, outputs=outputs,
-                    inputs=[*common, selected_composition, editor, retouch_instruction,
-                            comp_quality, comp_extra, use_audit, audit_notes],
-                )  # fmt: skip
+            actions["auditoria"] = _action("Auditar con IA", "audit", variant="secondary")
+            audit_md = gr.Markdown(elem_id="iai-audit-report")
 
-        retouch_instruction = gr.Textbox(
-            label="Cambio en la zona pintada", lines=2,
-            placeholder="p. ej. «una planta alta en la esquina, maceta de barro»",
-            elem_id="iai-inpaint-instruction",
-        )  # fmt: skip
+        with gr.Accordion(
+            "② Retoque de la composición seleccionada", open=False,
+            elem_id="iai-retouch-section",
+        ) as retouch_box:  # fmt: skip
+            retouch_md = gr.Markdown(elem_classes="iai-muted")
+
+            # Contenedor del editor: se vuelve a crear con cada composición seleccionada.
+            with gr.Column():
+                # Un editor nuevo por imagen y al hacerse visible: cambiar por código el valor
+                # de un ImageEditor montado lo deja sin la capa de trazos y, montado oculto,
+                # exporta el fondo truncado (Gradio 6).
+                @gr.render(
+                    inputs=[selected_composition, editor_nonce], triggers=[editor_nonce.change],
+                    concurrency_limit=1,
+                )  # fmt: skip
+                def retouch_area(render_id: str | None, nonce: int) -> None:
+                    image = retouch_images.get(render_id or "")
+                    if image is None:
+                        return
+                    if isinstance(image, str):
+                        # Ya cargada: con una ruta, el editor puede reenviar el fondo truncado.
+                        with Image.open(image) as opened:
+                            image = opened.convert("RGB")
+                    editor = gr.ImageEditor(
+                        value={"background": image, "layers": [], "composite": None},
+                        type="pil", format="png", sources=(), transforms=(), layers=False,
+                        brush=gr.Brush(
+                            colors=[("#ef4444", 0.6)], color_mode="fixed", default_size=40
+                        ),
+                        eraser=gr.Eraser(default_size=40), show_label=False, height=560,
+                        interactive=True, key=f"iai-editor-{render_id}-{nonce}",
+                        elem_id="iai-inpaint-editor",
+                    )  # fmt: skip
+                    # El editor solo envía su valor al pulsar: este botón oculto lo acciona
+                    # «Generar con la composición actual» cuando «Usar el retoque» está marcado
+                    # (sincronizarlo en cada trazo subía las capas sin parar y bloqueaba la cola).
+                    editor.preprocess = partial(layers_only, editor)  # type: ignore[method-assign]
+                    bridge = gr.Button("retoque", elem_id="iai-retouch-bridge",
+                                       elem_classes="iai-hidden")  # fmt: skip
+                    bridge.click(
+                        on_retouch, outputs=outputs,
+                        inputs=[*common, selected_composition, editor, retouch_instruction,
+                                comp_quality, comp_extra, use_audit, audit_notes],
+                    )  # fmt: skip
+
+            retouch_instruction = gr.Textbox(
+                label="Cambio en la zona pintada", lines=2,
+                placeholder="p. ej. «una planta alta en la esquina, maceta de barro»",
+                elem_id="iai-inpaint-instruction",
+            )  # fmt: skip
 
         gr.Markdown("### ③ Crear composición")
         with gr.Row():
@@ -318,6 +328,11 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 label="Usar el retoque (solo con «Generar con la composición actual»)",
                 elem_id="iai-use-retouch",
             )
+        retouch_hint = gr.Markdown(  # B-073
+            "⚠️ Con el retoque, las indicaciones solo actúan dentro de la zona pintada; para "
+            "cambios globales, genera sin retoque.",
+            visible=False, elem_id="iai-retouch-hint", elem_classes="iai-muted",
+        )  # fmt: skip
         comp_extra = gr.Textbox(
             label="Indicaciones (opcionales)", lines=2, elem_id="iai-composition-indications"
         )
@@ -746,6 +761,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
 
     outputs: list[gr.components.Component] = [
         *notices, mode, refs, refs_md, selected_draft, selected_composition, composition_tab,
+        audit_box,
         final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
         start_draft, start_composition, selected_final, start_final_composition,
         start_final_current,
@@ -882,11 +898,22 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     def remount(nonce: int) -> int:
         return nonce + 1  # editor nuevo, sin trazos
 
-    for trigger in (composition_tab.select, selected_composition.change):
+    use_retouch.change(
+        lambda on: gr.update(visible=bool(on)), inputs=use_retouch, outputs=retouch_hint
+    )
+    for trigger in (composition_tab.select, selected_composition.change, retouch_box.expand):
         trigger(remount, inputs=editor_nonce, outputs=editor_nonce)
 
     async def refresh_all(active_id: str | None) -> dict:
-        return await view(active_id, None, None, None)
+        """Al abrir el proyecto o la pestaña: ① abierta solo si el boceto tiene auditoría."""
+        updates = await view(active_id, None, None, None)
+        draft_id = updates.get(selected_draft)
+        audited = False
+        if draft_id:
+            project = await client.get_project(active_id)
+            draft = next((r for r in project.renders if str(r.id) == draft_id), None)
+            audited = bool(draft and draft.audits)
+        return {**updates, audit_box: gr.update(open=audited)}
 
     async def unlock(active_id: str | None) -> dict:
         """Desbloqueo de Composición y Render Final al cambiar de proyecto (sin abrir Bocetos)."""

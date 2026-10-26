@@ -36,6 +36,9 @@ def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> Non
     composition_tab = page.get_by_role("tab", name="Composición")
     expect(composition_tab).to_be_enabled()
     composition_tab.click()
+    # ① y ② plegadas (B-074): sin auditoría todavía, ① empieza cerrada.
+    expect(page.locator("#iai-audit-notes textarea")).to_be_hidden()
+    ui.expand("iai-audit-section")
     # En mock la ficha lo marca todo: las dos referencias aportan geometría, más el boceto.
     expect(page.locator("#iai-audit-images .iai-thumb")).to_have_count(3)
     expect(page.locator("#iai-gen-compositions-current")).to_be_disabled()  # sin composición

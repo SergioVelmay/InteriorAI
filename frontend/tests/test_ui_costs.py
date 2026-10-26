@@ -197,6 +197,7 @@ def test_pricing_rates_in_columns_with_units() -> None:
 def test_chain_cost_line() -> None:
     line = chain_cost_md({"totals": {"cost_eur": 0.2969, "calls": 6}, "simulated_calls": 2})
     assert "0.2969 €" in line and "6 llamada(s)" in line and "simulación: 2" in line
+    assert "brief" not in line  # B-076: la v3 no tiene brief
     assert chain_cost_md(None) == ""
 
 

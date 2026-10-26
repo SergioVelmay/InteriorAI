@@ -12,8 +12,9 @@ SMALL = "0.75rem"  # letra pequeña común (B-066): la de los tooltips
 # Gradio activa el modo oscuro con la clase `dark` en <body>; se fuerza al cargar. Además, los
 # tooltips de la ficha (Paso 23): las casillas muestran solo el nombre y el detalle se pone como
 # `title` de cada una, leído del contenedor oculto `#iai-sheet-tips` cada vez que cambia la página.
-# Y «processing» en español (B-063): Gradio lo escribe fijo en el indicador de progreso
-# (`.progress-text`), sin traducción; solo se toca ese texto, nunca el de la página.
+# La rueda del ratón sobre el editor de máscara desplaza la página (B-072): se intercepta antes
+# de que Gradio la use para el zoom. Y «processing» en español (B-063): Gradio lo escribe fijo
+# en el indicador de progreso (`.progress-text`), sin traducción; solo se toca ese texto.
 FORCE_DARK_JS = """() => {
     document.body.classList.add('dark');
     const progress = (node) => {
@@ -39,6 +40,11 @@ FORCE_DARK_JS = """() => {
             if (label.title !== tip) label.title = tip;
         });
     };
+    window.addEventListener('wheel', (event) => {
+        if (event.target.closest && event.target.closest('#iai-inpaint-editor .image-container')) {
+            event.stopImmediatePropagation();  // sin el zoom de Gradio: la página se desplaza
+        }
+    }, {capture: true, passive: true});
     new MutationObserver((mutations) => {
         apply();
         mutations.forEach((m) => { progress(m.target); m.addedNodes.forEach(progress); });
@@ -46,8 +52,8 @@ FORCE_DARK_JS = """() => {
 }"""
 
 # Textos internos de Gradio en español sea cual sea el idioma del navegador (B-063): se
-# sustituyen también los del inglés. No se traducen los del editor de máscara (su CSS y los E2E
-# usan sus etiquetas en inglés).
+# sustituyen también los del inglés. Las del editor de máscara se fijan también: Gradio las
+# traduce según el navegador y el CSS del editor depende de ellas.
 GRADIO_TEXTS = {
     "upload_text.drop_file": "Arrastra el archivo aquí",
     "upload_text.drop_image": "Arrastra la imagen aquí",
@@ -55,6 +61,17 @@ GRADIO_TEXTS = {
     "upload_text.click_to_upload": "Haz clic para elegirlo",
     "upload_text.paste_clipboard": "Pegar del portapapeles",
     "common.or": "o",
+    # Editor de máscara: su CSS y los E2E usan estas etiquetas (B-071)
+    "image_editor.brush": "Pincel",
+    "image_editor.erase": "Goma",
+    "image_editor.brush_size": "Tamaño del pincel",
+    "image_editor.eraser_size": "Tamaño de la goma",
+    "image_editor.color": "Color",
+    "image_editor.pan": "Desplazar",
+    "image_editor.zoom_in": "Acercar",
+    "image_editor.zoom_out": "Alejar",
+    "image_editor.redo": "Rehacer",
+    "image_editor.clear_canvas": "Borrar todo",
 }
 
 CSS = f"""
@@ -161,15 +178,38 @@ CSS = f"""
 /* Editor de máscaras (B-039): rojo fijo sin control de paleta y el tamaño del pincel como dos
    circunferencias concéntricas (controles internos del ImageEditor: lo comprueba el E2E). */
 #iai-inpaint-editor button[aria-label="Color"] {{ display: none !important; }}
-#iai-inpaint-editor button[aria-label="Brush Size"] svg {{ display: none !important; }}
-#iai-inpaint-editor button[aria-label="Brush Size"] > div {{
-    display: flex; align-items: center; justify-content: center;
+/* B-071: la herramienta activa en blanco y las demás en gris (Gradio lo hace al revés); lápiz
+   y goma algo más grandes; el tamaño, dos circunferencias de trazo fino, también dentro de su
+   deslizador (donde Gradio repetía el icono de «prohibido»). */
+#iai-inpaint-editor .toolbar-wrap button.quite-round {{ color: #71717a !important; }}
+#iai-inpaint-editor .toolbar-wrap button.quite-round.highlight {{ color: {TEXT} !important; }}
+#iai-inpaint-editor button[aria-label="Pincel"] > div,
+#iai-inpaint-editor button[aria-label="Goma"] > div {{
+    width: 20px !important; height: 20px !important;
 }}
-#iai-inpaint-editor button[aria-label="Brush Size"] > div::after {{
-    content: ""; width: 14px; height: 14px; border-radius: 50%;
-    border: 2px solid currentColor; box-sizing: border-box;
-    background: radial-gradient(circle, transparent 0 1.5px, currentColor 1.5px 3px,
+#iai-inpaint-editor button[aria-label^="Tamaño"] svg,
+#iai-inpaint-editor .size_picker span svg {{ display: none !important; }}
+#iai-inpaint-editor button[aria-label^="Tamaño"] > div,
+#iai-inpaint-editor .size_picker span {{
+    display: flex !important; align-items: center; justify-content: center;
+}}
+#iai-inpaint-editor button[aria-label^="Tamaño"] > div::after,
+#iai-inpaint-editor .size_picker span::after {{
+    content: ""; width: 15px; height: 15px; border-radius: 50%;
+    border: 1.25px solid currentColor; box-sizing: border-box;
+    background: radial-gradient(circle, transparent 0 2px, currentColor 2px 3px,
                                 transparent 3px);
+}}
+/* B-075: la tabla de la auditoría sin partir palabras. */
+#iai-audit-report table th, #iai-audit-report table td {{
+    word-break: normal !important; overflow-wrap: normal !important; hyphens: none !important;
+}}
+#iai-audit-report table td:first-child, #iai-audit-report table th:first-child {{
+    min-width: 8.5rem;
+}}
+/* B-077: el prompt enviado con ajuste de línea, sin desplazamiento horizontal. */
+[id^="iai-more-"] pre, [id^="iai-more-"] pre code {{
+    white-space: pre-wrap !important; word-break: break-word !important;
 }}
 .iai-hidden {{ display: none !important; }}
 /* Ficha de la referencia: solo nombres; el detalle, en el tooltip (Paso 23). */
