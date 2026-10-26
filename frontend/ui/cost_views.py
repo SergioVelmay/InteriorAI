@@ -16,16 +16,15 @@ from shared.roles import Role
 
 ALL = "Todos"
 STATUS_LABELS = {"ok": "correcta", "error": "error"}
-# Un color vivo y muy distinto por rol (B-080), el mismo en todos los gráficos; en el orden de
-# la leyenda, que sigue el flujo: referencias → prompts → bocetos → composición → render final
-# → auditoría.
+# Un color vivo y muy distinto por rol (B-080), el mismo en todos los gráficos. Orden de la
+# leyenda (B-093): primero los de texto y después los de imagen, cada grupo en el orden de uso.
 ROLE_COLORS = {
     Role.REFERENCE_ANALYST.value: "#22c55e",  # verde
     Role.PROMPT_ARCHITECT.value: "#a855f7",  # morado
-    Role.FAST_DRAFT_MAKER.value: "#3b82f6",  # azul
-    Role.COMPOSITION_BUILDER.value: "#facc15",  # amarillo
-    Role.REALISTIC_RENDERER.value: "#f97316",  # naranja
-    Role.GEOMETRY_AUDITOR.value: "#ef4444",  # rojo
+    Role.GEOMETRY_AUDITOR.value: "#3b82f6",  # azul
+    Role.FAST_DRAFT_MAKER.value: "#facc15",  # amarillo
+    Role.COMPOSITION_BUILDER.value: "#f97316",  # naranja
+    Role.REALISTIC_RENDERER.value: "#ef4444",  # rojo
 }
 # Tabla del registro (B-033): lo esencial; el resto, en el detalle de la fila y en el CSV.
 RECORD_COLUMNS = [

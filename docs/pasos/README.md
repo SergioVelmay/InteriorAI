@@ -45,7 +45,7 @@ entradas B-023 a B-055
 del [backlog](BACKLOG.md).
 
 Versión 3.0.0 (propuesta): [plan de acción](plan-version-3.md), Pasos 26 a 31, entradas
-B-057 a B-091 (observaciones O-1 a O-35 del usuario) y B-023 del [backlog](BACKLOG.md).
+B-057 a B-093 (observaciones O-1 a O-37 del usuario) y B-023 del [backlog](BACKLOG.md).
 
 Mantenimiento posterior a la 1.0.0:
 

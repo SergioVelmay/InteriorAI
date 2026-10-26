@@ -197,6 +197,9 @@ CSS = f"""
     margin: 0 !important; padding: 0 var(--block-padding) !important;
 }}
 .iai-action-note .pending {{ visibility: hidden; }}
+/* B-092: sin el relleno de 6 px que Gradio pone al lienzo de Altair; Vega calcula el ratón desde
+   el borde exterior y la zona del tooltip quedaba desplazada respecto a la barra dibujada. */
+.altair canvas {{ padding: 0 !important; }}
 /* Leyenda común de Costes IA (B-081): un rol por línea, con aire. */
 .iai-legend {{ padding: 0.5rem 0.75rem; }}
 .iai-legend h4 {{ color: #a1a1aa; font-size: 0.9rem; font-weight: 500; margin: 0 0 0.75rem; }}
