@@ -6,7 +6,7 @@ from PIL import Image
 
 from app.foundry.mock import sample_from_schema
 from app.pipelines.images import prepare_image
-from app.pipelines.prompt_writer import InputRole, build_context
+from app.pipelines.prompt_writer import InputRole, build_context, references_section
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
 from shared.models import (
@@ -100,14 +100,14 @@ async def test_prepare_image_never_upscales() -> None:
 
 def test_prompts_are_versioned_by_content() -> None:
     for name in (
-        "reference_analyst", "prompt_engineer", "prompt_bocetos", "prompt_composicion",
+        "reference_analyst", "brief_v1", "prompt_bocetos", "prompt_composicion",
         "prompt_render_final",
     ):  # fmt: skip
         prompt = load_prompt(name)
         assert prompt.text
         assert prompt.version.startswith(f"{name}@")
         assert len(prompt.version.split("@")[1]) == 12
-    assert "INGLÉS" in load_prompt("prompt_engineer").text
+    assert "INGLÉS" in load_prompt("brief_v1").text
     assert "estimada" in load_prompt("reference_analyst").text
 
 
@@ -138,6 +138,14 @@ def test_stage_prompt_context_has_roles_selections_and_indications() -> None:
     )  # fmt: skip
     assert "- Imagen 1: imagen base — «vista»" in text and "- Imagen 2: apoyo — «sofa»" in text
     assert '"imagen": 2' in text and '"Objetos y mobiliario"' in text
-    assert '"Colores y paleta"' not in text  # solo lo marcado
+    # Lo marcado en `seleccion` y, de las que se envían como imagen, lo NO marcado en `ignorar`
+    # (Paso 28, B-068): el modelo ve la imagen entera.
+    [entry, _] = references_section([sofa, view], {view.id: 1, sofa.id: 2})
+    assert list(entry["seleccion"]) == ["Objetos y mobiliario"]
+    assert "Colores y paleta" in entry["ignorar"] and "Objetos y mobiliario" not in entry["ignorar"]
+    assert entry["ignorar"]["Colores y paleta"] == ["Sofá JÄTTEBO"]
+    [text_only] = references_section([sofa], {})
+    assert "ignorar" not in text_only  # no se envía como imagen: no hace falta
+    assert "lo que hay que ignorar" in text
     assert '"origen_medidas": "estimada"' in text
     assert "Luz de tarde" in text and "Más cálido" in text and "1536x1024" in text

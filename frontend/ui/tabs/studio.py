@@ -184,12 +184,10 @@ def _thumbnails(slug: str, columns: int = 4) -> dict[str, Any]:
     return {"gallery": gallery, "ids": gr.State([])}
 
 
-def _viewer(
-    slug: str, *, details_open: bool | None, after_select: Callable[[], None] | None = None
-) -> dict[str, Any]:
-    """La imagen grande en su proporción, su línea, «Seleccionar» y la trazabilidad: en un
-    desplegable (Bocetos, `details_open=False`) o a la vista, debajo (`None`). `after_select`
-    añade controles bajo «Seleccionar» («Otra versión» en Render Final)."""
+def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dict[str, Any]:
+    """A ancho completo (B-067): la imagen grande en su proporción, su línea, «Seleccionar» y,
+    debajo, la trazabilidad (lo que entendió la IA, el prompt y lo enviado al modelo, en
+    miniaturas de 1/6). `after_select` añade controles bajo «Seleccionar» («Otra versión»)."""
     viewer = gr.Image(
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
@@ -198,23 +196,12 @@ def _viewer(
     select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
     if after_select is not None:
         after_select()
-
-    def trace() -> tuple[gr.Markdown, gr.Gallery]:
-        more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
-        small = 6 if details_open is None else 3  # escala 1/6 (B-079)
-        inputs = gr.Gallery(
-            label="Enviado al modelo", columns=small, height="auto", object_fit="contain",
-            allow_preview=False, buttons=[],
-            elem_classes=["iai-gallery", "iai-small", f"iai-cols-{small}"],
-            elem_id=f"iai-inputs-{slug}",
-        )  # fmt: skip
-        return more_md, inputs
-
-    if details_open is None:
-        more_md, inputs = trace()
-    else:
-        with gr.Accordion("Ver más: lo que entendió la IA, el prompt y lo enviado", open=False):
-            more_md, inputs = trace()
+    more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
+    inputs = gr.Gallery(
+        label="Enviado al modelo", columns=6, height="auto", object_fit="contain",
+        allow_preview=False, buttons=[], elem_classes=["iai-gallery", "iai-small", "iai-cols-6"],
+        elem_id=f"iai-inputs-{slug}",
+    )  # fmt: skip
     return {"viewer": viewer, "title": title, "select_btn": select_btn, "more_md": more_md,
             "inputs": inputs, "shown": gr.State(None)}  # fmt: skip
 
@@ -238,21 +225,19 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         notices.append(gr.Markdown(NO_PROJECT, visible=False))
         refs_md = gr.Markdown(elem_id="iai-active-references")
         refs = gr.HTML(elem_id="iai-studio-references")
-        with gr.Row(equal_height=False):
-            with gr.Column(scale=1):
-                with gr.Row():
-                    draft_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
-                    draft_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
-                draft_n = gr.Slider(1, 8, value=4, step=1, label="Variantes")
-                draft_extra = gr.Textbox(
-                    label="Indicaciones (opcionales)", lines=2,
-                    placeholder="p. ej. «más cálido, tarde de otoño, alfombra de yute»",
-                    elem_id="iai-draft-indications",
-                )  # fmt: skip
-                actions["boceto"] = _action("Generar bocetos", "drafts")
-                draft_gallery = _thumbnails("drafts", columns=2)
-            with gr.Column(scale=1):
-                draft_view = _viewer("drafts", details_open=False)
+        # A ancho completo, como Composición y Render Final (B-067)
+        with gr.Row():
+            draft_quality = gr.Radio(QUALITIES, value="medium", label="Calidad")
+            draft_size = gr.Radio(DRAFT_SIZES, value="1536x1024", label="Formato")
+        draft_n = gr.Slider(1, 8, value=4, step=1, label="Variantes")
+        draft_extra = gr.Textbox(
+            label="Indicaciones (opcionales)", lines=2,
+            placeholder="p. ej. «más cálido, tarde de otoño, alfombra de yute»",
+            elem_id="iai-draft-indications",
+        )  # fmt: skip
+        actions["boceto"] = _action("Generar bocetos", "drafts")
+        draft_gallery = _thumbnails("drafts")
+        draft_view = _viewer("drafts")
         panels[RenderStage.DRAFT] = Panel(RenderStage.DRAFT, **draft_gallery, **draft_view)
 
     # ② Composición -----------------------------------------------------------------------------
@@ -355,7 +340,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                     "generar", elem_id="iai-gen-current-plain", elem_classes="iai-hidden"
                 )
         comp_gallery = _thumbnails("compositions")
-        comp_view = _viewer("compositions", details_open=None)
+        comp_view = _viewer("compositions")
         panels[RenderStage.COMPOSITION] = Panel(
             RenderStage.COMPOSITION, **comp_gallery, **comp_view
         )
@@ -407,7 +392,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             )
             actions["otra_version"] = _action("Otra versión", "finals-variant", "secondary")
 
-        final_view = _viewer("finals", details_open=None, after_select=variant_controls)
+        final_view = _viewer("finals", after_select=variant_controls)
         panels[RenderStage.FINAL] = Panel(RenderStage.FINAL, **final_gallery, **final_view)
 
     shown_states = [panels[s].shown for s in STAGES]

@@ -18,6 +18,8 @@
 - Nada que no sea `gr.Tab` como hijo directo de un `gr.Tabs` (ni siquiera `gr.State`): Gradio 6
   duplica en la barra la pestaña seleccionada. Bocetos, Composición y Render Final se crean con
   `build_studio_tabs` dentro del `gr.Tabs` principal; su estado común vive en la primera.
+- Bocetos, Composición y Render Final a ancho completo (Paso 28): galería de 4 por fila y la
+  imagen elegida en su proporción con la trazabilidad debajo (`_viewer`, sin desplegable).
 - Estilo común (Paso 27): pestaña activa en blanco y negrita; escala de imágenes por clase de
   galería (`iai-cols-2/3/4/6`: 1/4 del ancho total en galerías, 1/6 en las pequeñas; tiras HTML
   `.iai-thumbs` de 6, o 3 dentro de `iai-half`); letra pequeña `theme.SMALL`; textos de Gradio

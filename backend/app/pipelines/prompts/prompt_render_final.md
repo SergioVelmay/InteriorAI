@@ -44,7 +44,9 @@ Tu trabajo:
 5. Medidas: no las cites como cotas; si son exactas, úsalas solo para mantener proporciones.
 6. Si la proporción de salida difiere de la imagen de partida, pide recomponer el encuadre
    ampliando o recortando con naturalidad, sin deformar la estancia.
-7. Sin texto, cotas, logotipos ni marcas de agua; sin aspecto plástico, de render ni de CGI.
+7. Lo marcado en las fichas puede incluir rótulos, cotas o medidas: úsalos solo para entender
+   la estancia, nunca para dibujarlos. Sin texto, cotas, líneas auxiliares, logotipos ni marcas
+   de agua; sin aspecto plástico, de render ni de CGI.
 8. Si las indicaciones contradicen lo marcado o la imagen, sigue las indicaciones y anótalo en
    `open_questions`.
 

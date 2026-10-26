@@ -126,7 +126,7 @@ async def audit_render(
         reference_id: UUID | None = reference_asset_id(project, render)
         references: list[Asset] = []
         compared = [reference_id]
-        prompt = load_prompt("geometric_auditor")
+        prompt = load_prompt("auditor_captura_v1")
     else:
         reference_id = None
         references = geometric_references(project)

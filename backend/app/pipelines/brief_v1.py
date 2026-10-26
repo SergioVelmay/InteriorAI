@@ -1,4 +1,7 @@
-"""PROMPT_ARCHITECT: descripción + imagen base + fichas de referencias → brief de diseño."""
+"""Brief de diseño de la v1 (PROMPT_ARCHITECT): descripción + imagen base + fichas → brief.
+
+Solo para las cadenas e imágenes de la v1; se retira con B-056 (antes `prompt_engineer.py`).
+"""
 
 from __future__ import annotations
 
@@ -163,7 +166,7 @@ async def create_brief(
 ) -> DesignBrief:
     """Genera una nueva versión del brief en estado `propuesto`."""
     project = await repo.get(project_id)
-    prompt = load_prompt("prompt_engineer")
+    prompt = load_prompt("brief_v1")
     context = await build_context(repo, project, instructions, parent)
 
     result = await client.complete_text(

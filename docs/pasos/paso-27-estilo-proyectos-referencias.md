@@ -44,7 +44,8 @@ tiempo) y las mejoras de Proyectos y Referencias (B-058 a B-066 y B-079).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-27`, PR #39.
+✅ Cerrado — rama `feat/paso-27`, PR #39 revisada y mergeada por el usuario (2026-10-26). Docker
+reconstruido.
 
 ## 6. Pendiente / futuro
 

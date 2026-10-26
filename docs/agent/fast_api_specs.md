@@ -137,7 +137,7 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 
 ## Pipelines y HITL (Paso 8)
 
-- `app/pipelines/`: `reference_analyst.py` (recetas y fichas de las referencias, Paso 21), `sources.py` (uso de las referencias activas hasta el Paso 22), `prompt_engineer.py` (brief),
+- `app/pipelines/`: `reference_analyst.py` (recetas y fichas de las referencias, Paso 21), `sources.py` (uso de las referencias activas hasta el Paso 22), `brief_v1.py` (brief de la v1),
   `schemas.py` (`strict_schema`), `images.py` (`prepare_image`, 1.024 px JPEG),
   `prompts/*.md` (prompts de sistema; `load_prompt(name).version` = hash).
 - `app/hitl/`: `ensure_transition` + tablas de transiciones; `briefs.py` (`edit_brief`,
@@ -187,6 +187,9 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   frente a todas las referencias activas con perspectiva o geometría (`reference_asset_ids`,
   prompt `auditor_espacio`) y con las observaciones del usuario (`notes`); las imágenes de la v1
   se comparan con su captura de origen (`reference_asset_id`, siguiendo la cadena de renders).
+- Contexto del PROMPT_ARCHITECT (`prompt_writer.references_section`): de cada referencia, lo
+  marcado (`seleccion`) y, de las que se envían como imagen, lo no marcado (`ignorar`), para que
+  el prompt diga qué no tomar (Paso 28, B-068).
 - Qué recibe cada generación (`shared/supports.py`, compartido con la interfaz): la imagen de
   partida (base con perspectiva en los bocetos; boceto o composición seleccionados en la
   composición) y hasta `MAX_SUPPORTS = 12` apoyos, primero los del espacio y después por

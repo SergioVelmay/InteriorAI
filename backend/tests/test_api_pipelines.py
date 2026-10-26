@@ -205,7 +205,7 @@ def test_brief_context_and_creation(api: TestClient, spy: SpyClient, project: di
     brief = body["brief"]
     assert brief["version"] == 1
     assert brief["status"] == "propuesto"
-    assert brief["prompt_version"].startswith("prompt_engineer@")
+    assert brief["prompt_version"].startswith("brief_v1@")
     # Imágenes del espacio: perspectiva primero y después geometría.
     assert brief["source_asset_ids"] == [project["capture"]["id"], project["plan"]["id"]]
     # Fichas: solo las referencias activas.

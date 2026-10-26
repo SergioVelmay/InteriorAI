@@ -18,7 +18,7 @@ from app.hitl.briefs import (
     find_brief,
     reject_brief,
 )
-from app.pipelines.prompt_engineer import create_brief
+from app.pipelines.brief_v1 import create_brief
 from app.pipelines.reference_analyst import analyze_asset, index_references, save_sheet
 from app.telemetry import current_request_id, request_cost, telemetry_scope
 from shared.models import Asset, DesignBrief
