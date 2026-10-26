@@ -187,6 +187,9 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   frente a todas las referencias activas con perspectiva o geometría (`reference_asset_ids`,
   prompt `auditor_espacio`) y con las observaciones del usuario (`notes`); las imágenes de la v1
   se comparan con su captura de origen (`reference_asset_id`, siguiendo la cadena de renders).
+- Contexto del PROMPT_ARCHITECT (`prompt_writer.references_section`): de cada referencia, lo
+  marcado (`seleccion`) y, de las que se envían como imagen, lo no marcado (`ignorar`), para que
+  el prompt diga qué no tomar (Paso 28, B-068).
 - Qué recibe cada generación (`shared/supports.py`, compartido con la interfaz): la imagen de
   partida (base con perspectiva en los bocetos; boceto o composición seleccionados en la
   composición) y hasta `MAX_SUPPORTS = 12` apoyos, primero los del espacio y después por

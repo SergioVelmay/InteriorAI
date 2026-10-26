@@ -36,6 +36,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **Proyectos y Referencias** (Paso 27): 50/50; resumen sin «Brief», con las referencias
   activas y una línea por etapa; la pestaña Proyectos se recarga al entrar; vista previa de la
   referencia en su proporción y pie de sus miniaturas en dos líneas (B-059 a B-062, B-065).
+- **Bocetos** (Paso 28): a ancho completo, como Composición y Render Final; realistas y
+  minimalistas, con solo lo marcado en las fichas (el prompt dice qué no tomar de cada imagen)
+  y sin reproducir rótulos ni cotas de las referencias, también en la composición y el render
+  final (B-067 a B-070).
 - **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
   leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
   ancho completo.

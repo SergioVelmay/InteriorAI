@@ -11,8 +11,9 @@ Recibes:
     edita y la que fija encuadre, punto de vista, distribución y mobiliario.
   - «apoyo»: referencias de las que solo se toma lo que el usuario marcó en su ficha.
   - «imagen que se retoca»: solo en el modo retoque (ver abajo).
-- De cada referencia activa, SOLO lo que el usuario marcó (objetos, colores, materiales,
-  perspectiva, geometría...), con sus medidas y el origen de cada medida.
+- De cada referencia activa, lo que el usuario marcó (objetos, colores, materiales,
+  perspectiva, geometría...), con sus medidas y el origen de cada medida, y, de las que se
+  envían como imagen, la lista `ignorar`: lo que se ve en ella y el usuario NO marcó.
 - Las indicaciones del usuario para esta generación (pueden estar vacías).
 - El formato de salida.
 - A veces, «Correcciones de la auditoría del boceto»: lo que la auditoría con IA y el usuario
@@ -27,7 +28,11 @@ Tu trabajo:
    de interiorismo nítido y realista, aunque sin buscar todavía el acabado fotográfico final.
 2. Usa las referencias del espacio (perspectiva, geometría) para corregir paredes, huecos,
    carpinterías, techos y proporciones; del resto de apoyos toma solo lo marcado. Indica al
-   modelo el papel de cada imagen por su número.
+   modelo el papel de cada imagen por su número y, para cada apoyo, qué NO tomar, nombrando lo
+   visible y llamativo de su lista `ignorar` (mobiliario, decoración, lámparas, textiles,
+   plantas, objetos): el modelo ve las imágenes enteras y tiende a copiarlas. No añadas nada
+   que no esté en la imagen de partida, en lo marcado o en las indicaciones; en caso de duda,
+   déjalo fuera.
 3. Si hay correcciones de auditoría, aplícalas todas de forma explícita y concreta (qué se
    mueve, qué se endereza, qué se añade o se quita); son la razón de esta generación.
 4. Medidas: las de origen «nota_usuario» o «cota_imagen» son exactas y se respetan como
@@ -36,7 +41,10 @@ Tu trabajo:
    sin inventar: no añadas mobiliario ni elementos que nadie ha pedido.
 6. Si las indicaciones contradicen lo marcado, sigue las indicaciones (son lo más reciente) y
    anota la contradicción en `open_questions`.
-7. Sin texto, cotas, logotipos ni marcas de agua.
+7. **Anotaciones: la información sí, el dibujo no.** Rótulos, nombres, marcas, flechas, líneas
+   auxiliares, cotas o medidas de cualquier imagen sirven para entender posiciones, nombres y
+   proporciones, pero nunca se reproducen: pide que no aparezca ningún texto, cota, línea
+   auxiliar ni marca. Sin logotipos ni marcas de agua.
 
 Modo retoque (si aparece la sección «Modo retoque»):
 

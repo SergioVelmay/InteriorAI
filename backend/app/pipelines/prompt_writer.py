@@ -64,7 +64,9 @@ def _element(element: RecipeElement) -> dict:
 
 
 def references_section(references: list[Asset], numbers: dict) -> list[dict]:
-    """Lo marcado en cada referencia activa, con su número de imagen si se envía."""
+    """Lo marcado en cada referencia activa, con su número de imagen si se envía. De las que se
+    envían como imagen, también lo NO marcado (`ignorar`): el modelo de imagen ve la imagen
+    entera y el prompt debe decirle qué no tomar (Paso 28, B-068)."""
     entries = []
     for asset in references:
         if asset.sheet is None:
@@ -78,6 +80,11 @@ def references_section(references: list[Asset], numbers: dict) -> list[dict]:
             RECIPE_GROUPS[group]: [_element(e) for e in elements]
             for group, elements in asset.sheet.selected_elements().items()
         }
+        if asset.id in numbers:
+            entry["ignorar"] = {
+                RECIPE_GROUPS[group]: [e.label for e in elements]
+                for group, elements in asset.sheet.unselected_elements().items()
+            }
         entries.append(entry)
     return entries
 
@@ -102,7 +109,7 @@ def build_context(
         project.description.strip() or "(sin descripción)",
         "## Imágenes que recibirá el modelo de imagen (en este orden)",
         images or "(ninguna)",
-        "## Lo marcado en las fichas de las referencias activas",
+        "## Lo marcado en las fichas de las referencias activas (y lo que hay que ignorar)",
         json.dumps(references_section(references, numbers), ensure_ascii=False, indent=2)
         if references
         else "(ninguna)",

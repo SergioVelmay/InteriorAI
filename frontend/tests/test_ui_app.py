@@ -103,10 +103,12 @@ def test_galleries_follow_the_image_scale(settings: Settings) -> None:
         if isinstance(block, gr.Gallery) and block.elem_id
     }
     assert columns["iai-projects"] == columns["iai-references"] == "iai-cols-2"  # 50 %
-    assert columns["iai-drafts"] == "iai-cols-2"  # en su columna del 50 % (hasta el Paso 28)
-    assert columns["iai-compositions"] == columns["iai-finals"] == "iai-cols-4"
-    assert columns["iai-inputs-drafts"] == "iai-cols-3"  # pequeñas en el 50 %
-    assert columns["iai-inputs-compositions"] == columns["iai-inputs-finals"] == "iai-cols-6"
+    # Las tres etapas a ancho completo (Bocetos desde el Paso 28, B-067)
+    assert columns["iai-drafts"] == columns["iai-compositions"] == columns["iai-finals"]
+    assert columns["iai-drafts"] == "iai-cols-4"
+    assert {columns[f"iai-inputs-{s}"] for s in ("drafts", "compositions", "finals")} == {
+        "iai-cols-6"
+    }
 
 
 async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:

@@ -158,6 +158,16 @@ class ReferenceSheet(_Model):
                 groups.setdefault(element_id.split(":")[0], []).append(element)
         return groups
 
+    def unselected_elements(self) -> dict[str, list[RecipeElement]]:
+        """Lo NO marcado, por grupo: lo que el modelo de imagen ve en la referencia pero no
+        debe tomar (Paso 28, B-068)."""
+        chosen = set(self.selected)
+        groups: dict[str, list[RecipeElement]] = {}
+        for element_id, element in self.recipe.elements():
+            if element_id not in chosen:
+                groups.setdefault(element_id.split(":")[0], []).append(element)
+        return groups
+
 
 # --- Ficha de la v1 (histórico; ya no se genera) ----------------------------------------------
 

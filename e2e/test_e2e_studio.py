@@ -26,7 +26,6 @@ def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> Non
     expect(page.locator("#iai-drafts .thumbnail-item")).to_have_count(4)
     drafts = api.get(f"{project['url']}/renders", params={"stage": "boceto"}).json()
     assert all(d["prompt_info"] and d["brief_id"] is None for d in drafts)
-    page.get_by_text("Ver más: lo que entendió la IA").first.click()
     expect(page.locator("#iai-more-drafts")).to_contain_text("Lo que ha entendido la IA")
     page.locator("#iai-drafts .thumbnail-item").nth(1).click()
     page.locator("#iai-select-drafts").click()
