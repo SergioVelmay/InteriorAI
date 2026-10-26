@@ -40,10 +40,11 @@ tiempo) y las mejoras de Proyectos y Referencias (B-058 a B-066 y B-079).
 | Playwright en local (mock) | ✅ 6/6 (nueva: pestaña activa, recarga de Proyectos y textos de Gradio con el navegador en inglés), en Chromium y en Edge |
 | Revisión visual (copia de los datos reales, navegador en inglés) | ✅ «Arrastra el archivo aquí · o · Haz clic para elegirlo» y «procesando \| 0.8/25.1s» desde la primera ejecución |
 | Llamadas reales | No hacen falta |
+| CI de la PR #39 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-27`.
+⏳ En revisión — rama `feat/paso-27`, PR #39.
 
 ## 6. Pendiente / futuro
 
