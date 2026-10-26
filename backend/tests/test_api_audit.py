@@ -153,7 +153,7 @@ def test_v1_images_are_audited_against_their_capture(api: TestClient, spy: SpyCl
     assert composition["brief_id"] == brief["id"]
     report = audit(api, project, composition["id"]).json()["audit"]
     assert report["reference_asset_id"] == project["capture"]  # la de origen, no la composición
-    assert report["prompt_version"].startswith("geometric_auditor@")
+    assert report["prompt_version"].startswith("auditor_captura_v1@")
 
 
 def test_audit_validation(api: TestClient, spy: SpyClient, chain: dict) -> None:

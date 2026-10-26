@@ -24,6 +24,7 @@ las referencias y den bocetos realistas y minimalistas (B-067 a B-070).
 | `prompt_bocetos.md` (B-068, B-069, B-070) | «Solo lo marcado», con qué tomar y qué NO tomar de cada imagen; estancia limpia por defecto; anotaciones sin dibujar (y nunca «keep the dimensions in their traced location»); imagen realista y minimalista, sobria como un render de catálogo |
 | `prompt_composicion.md` | Las mismas exclusiones por imagen (lista `ignorar`) y la regla de las anotaciones |
 | `prompt_render_final.md` | La regla de las anotaciones de las fichas |
+| Nombres de la v1 (petición del usuario en la PR) | Los últimos archivos con nombres de roles anteriores, exclusivos de la v1, pasan a nombrarse por lo que hacen: `prompt_engineer.py` → `brief_v1.py`, `prompts/prompt_engineer.md` → `prompts/brief_v1.md` y `prompts/geometric_auditor.md` → `prompts/auditor_captura_v1.md`. Los `prompt_version` ya guardados conservan el nombre anterior (son historia) |
 
 ## 4. Validación
 

@@ -100,14 +100,14 @@ async def test_prepare_image_never_upscales() -> None:
 
 def test_prompts_are_versioned_by_content() -> None:
     for name in (
-        "reference_analyst", "prompt_engineer", "prompt_bocetos", "prompt_composicion",
+        "reference_analyst", "brief_v1", "prompt_bocetos", "prompt_composicion",
         "prompt_render_final",
     ):  # fmt: skip
         prompt = load_prompt(name)
         assert prompt.text
         assert prompt.version.startswith(f"{name}@")
         assert len(prompt.version.split("@")[1]) == 12
-    assert "INGLÉS" in load_prompt("prompt_engineer").text
+    assert "INGLÉS" in load_prompt("brief_v1").text
     assert "estimada" in load_prompt("reference_analyst").text
 
 
