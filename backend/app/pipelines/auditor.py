@@ -1,4 +1,4 @@
-"""GEOMETRIC_AUDITOR: compara una imagen generada con las referencias del espacio.
+"""GEOMETRY_AUDITOR: compara una imagen generada con las referencias del espacio.
 
 A demanda (es el rol más caro): el informe se guarda en el render y no bloquea la selección.
 Desde el Paso 23 (B-046) se audita el boceto seleccionado frente a TODAS las referencias activas
@@ -138,7 +138,7 @@ async def audit_render(
         for asset_id in (*compared, render.id)
     ]
     result = await client.complete_text(
-        Role.GEOMETRIC_AUDITOR,
+        Role.GEOMETRY_AUDITOR,
         TextRequest(
             instructions=prompt.text,
             input=_context(project, brief, render, references, notes),
@@ -160,13 +160,11 @@ async def audit_render(
         reference_asset_id=reference_id,
         reference_asset_ids=[a.id for a in references],
         notes=notes.strip(),
-        deployment=deployment_name(Role.GEOMETRIC_AUDITOR)
-        if deployment_name
-        else result.deployment,
+        deployment=deployment_name(Role.GEOMETRY_AUDITOR) if deployment_name else result.deployment,
         reasoning_effort=reasoning_effort,
         prompt_version=prompt.version,
         request_id=current_request_id(),
-        cost_eur=estimate(Role.GEOMETRIC_AUDITOR, result.usage) if estimate else None,
+        cost_eur=estimate(Role.GEOMETRY_AUDITOR, result.usage) if estimate else None,
     )
 
     def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:

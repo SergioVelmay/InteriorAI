@@ -1,9 +1,10 @@
 """Pestaña Costes IA: el gasto real en IA del proyecto activo o de todos los proyectos.
 
-Indicadores, coste por rol y despliegue, por día y por proyecto (Altair, B-032), registro de
-llamadas con filtros, detalle de la fila seleccionada y descarga en CSV (B-033), y la tabla de
-precios vigente (B-034). Solo gasto real: las llamadas simuladas del modo mock no cuentan
-(B-031).
+Indicadores; leyenda común (cada rol con su despliegue actual) junto al coste por rol, y
+debajo, a ancho completo, el coste por día y por proyecto apilados por rol (Altair, B-032,
+B-080, B-081); registro de llamadas con filtros, detalle de la fila seleccionada y descarga en
+CSV (B-033), y la tabla de precios vigente (B-034). Solo gasto real: las llamadas simuladas del
+modo mock no cuentan (B-031). Cada llamada cuenta en el rol que hoy tiene su despliegue (Paso 26).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from ui.cost_views import (
     day_chart,
     filter_records,
     kpi_html,
+    legend_html,
     notes_md,
     pricing_frame,
     project_chart,
@@ -58,9 +60,12 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         refresh = gr.Button("Actualizar", variant="secondary", scale=0)
     kpis = gr.HTML()
     notes = gr.Markdown(elem_classes="iai-muted", elem_id="iai-cost-notes")
-    with gr.Row():
-        by_role = gr.Plot(show_label=False, elem_id="iai-cost-role")
-        by_day = gr.Plot(show_label=False, elem_id="iai-cost-day")
+    with gr.Row(equal_height=False):
+        with gr.Column(scale=1):
+            legend = gr.HTML(elem_id="iai-cost-legend")
+        with gr.Column(scale=1):
+            by_role = gr.Plot(show_label=False, elem_id="iai-cost-role")
+    by_day = gr.Plot(show_label=False, elem_id="iai-cost-day")
     by_project = gr.Plot(show_label=False, visible=False, elem_id="iai-cost-project")
     with gr.Accordion("Registro de llamadas", open=True):
         with gr.Row(equal_height=True):
@@ -83,13 +88,13 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         pricing = gr.Dataframe(interactive=False, wrap=False, elem_id="iai-cost-pricing")
 
     outputs: list[gr.components.Component] = [
-        kpis, notes, by_role, by_day, by_project, records_state, shown_state, all_projects,
+        kpis, notes, legend, by_role, by_day, by_project, records_state, shown_state, all_projects,
         table, detail, download, pricing,
     ]  # fmt: skip
 
     def empty(message: str) -> dict:
         return {
-            kpis: "", notes: message, by_role: None, by_day: None,
+            kpis: "", notes: message, legend: "", by_role: None, by_day: None,
             by_project: gr.update(visible=False), records_state: [], shown_state: [],
             all_projects: False, table: None, detail: record_detail_md(None),
             download: gr.update(value=None, interactive=False), pricing: gr.skip(),
@@ -131,8 +136,9 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
             notes: " ".join(
                 [*alert_lines(await client.cost_alerts(), project_id), notes_md(summary)]
             ),
+            legend: legend_html(summary),
             by_role: role_chart(summary),
-            by_day: day_chart(records),
+            by_day: day_chart(summary),
             by_project: gr.update(value=project_chart(summary), visible=project_id is None),
             records_state: records,
             all_projects: project_id is None,

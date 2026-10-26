@@ -24,6 +24,7 @@ from app.storage import CorruptDataError, ProjectRepository
 from app.telemetry import create_metered_client, load_pricing
 from app.telemetry.middleware import RequestIdMiddleware
 from shared import ProviderMode, Settings, get_settings
+from shared.settings import legacy_env_warning
 
 logger = logging.getLogger("interiorai.backend")
 
@@ -68,6 +69,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=_lifespan,
     )
     app.state.settings = settings = settings or get_settings()
+    if warning := legacy_env_warning(settings.legacy_env):
+        logger.warning(warning)  # Paso 26: nombres anteriores de los roles en el `.env`
     app.state.repository = ProjectRepository(settings.storage.data_dir)
     app.state.foundry = create_metered_client(
         settings, app.state.repository, load_pricing(settings.storage.pricing_file)

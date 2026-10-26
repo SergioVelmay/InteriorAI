@@ -5,6 +5,7 @@ la configuración (`DEPLOYMENT_ROLE_<ROL>`). Aquí no aparece ningún nombre com
 """
 
 from enum import StrEnum
+from typing import Any
 
 
 class ApiKind(StrEnum):
@@ -16,12 +17,12 @@ class ApiKind(StrEnum):
 
 
 class Role(StrEnum):
-    PROMPT_ENGINEER = "PROMPT_ENGINEER"
-    GEOMETRIC_AUDITOR = "GEOMETRIC_AUDITOR"
+    PROMPT_ARCHITECT = "PROMPT_ARCHITECT"
+    GEOMETRY_AUDITOR = "GEOMETRY_AUDITOR"
     REFERENCE_ANALYST = "REFERENCE_ANALYST"
-    FAST_DRAFT = "FAST_DRAFT"
-    STRUCTURAL_COMPOSER = "STRUCTURAL_COMPOSER"
-    PHOTOREALISTIC_RENDERER = "PHOTOREALISTIC_RENDERER"
+    FAST_DRAFT_MAKER = "FAST_DRAFT_MAKER"
+    COMPOSITION_BUILDER = "COMPOSITION_BUILDER"
+    REALISTIC_RENDERER = "REALISTIC_RENDERER"
 
     @property
     def api_kind(self) -> ApiKind:
@@ -32,11 +33,31 @@ class Role(StrEnum):
         return f"DEPLOYMENT_ROLE_{self.value}"
 
 
+# Nombres anteriores → actuales: CONTEXT_MANAGER en el Paso 18 y el resto en el Paso 26 (B-057,
+# versión 3.0.0). Los datos guardados (telemetría y renders) se leen con el nombre actual sin
+# reescribirse; en el `.env` solo valen los nombres actuales (`shared.settings.legacy_env_vars`).
+RENAMED_ROLES: dict[str, Role] = {
+    "CONTEXT_MANAGER": Role.REFERENCE_ANALYST,
+    "PROMPT_ENGINEER": Role.PROMPT_ARCHITECT,
+    "GEOMETRIC_AUDITOR": Role.GEOMETRY_AUDITOR,
+    "FAST_DRAFT": Role.FAST_DRAFT_MAKER,
+    "STRUCTURAL_COMPOSER": Role.COMPOSITION_BUILDER,
+    "PHOTOREALISTIC_RENDERER": Role.REALISTIC_RENDERER,
+}
+
+
+def current_role(value: Any) -> Any:
+    """Un rol guardado con su nombre anterior, con el actual (para validadores `before`)."""
+    if isinstance(value, str) and value in RENAMED_ROLES:
+        return RENAMED_ROLES[value].value
+    return value
+
+
 _API_KIND: dict[Role, ApiKind] = {
-    Role.PROMPT_ENGINEER: ApiKind.RESPONSES,
-    Role.GEOMETRIC_AUDITOR: ApiKind.RESPONSES,
+    Role.PROMPT_ARCHITECT: ApiKind.RESPONSES,
+    Role.GEOMETRY_AUDITOR: ApiKind.RESPONSES,
     Role.REFERENCE_ANALYST: ApiKind.RESPONSES,
-    Role.FAST_DRAFT: ApiKind.IMAGES,
-    Role.STRUCTURAL_COMPOSER: ApiKind.IMAGES,
-    Role.PHOTOREALISTIC_RENDERER: ApiKind.PROVIDER_IMAGES,
+    Role.FAST_DRAFT_MAKER: ApiKind.IMAGES,
+    Role.COMPOSITION_BUILDER: ApiKind.IMAGES,
+    Role.REALISTIC_RENDERER: ApiKind.PROVIDER_IMAGES,
 }

@@ -32,7 +32,7 @@ def asset(kind: AssetKind, mime: str = "image/png", **extra) -> Asset:
 
 def render(asset_id, stage: RenderStage, status: RenderStatus, minutes: int = 0) -> RenderRecord:
     return RenderRecord(
-        id=asset_id, stage=stage, status=status, role=Role.FAST_DRAFT, deployment="d",
+        id=asset_id, stage=stage, status=status, role=Role.FAST_DRAFT_MAKER, deployment="d",
         brief_id=uuid4(), brief_version=1, prompt="p", input_asset_ids=[], batch_id=uuid4(),
         size="1536x1024", created_at=utc_now() + timedelta(minutes=minutes),
     )  # fmt: skip
@@ -89,8 +89,8 @@ def test_summary_counts_and_costs() -> None:
     )
     costs = {
         "totals": {"cost_eur": 0.27, "calls": 9},
-        "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.02, "calls": 4},
-                    {"key": "PHOTOREALISTIC_RENDERER", "cost_eur": 0.25, "calls": 5}],
+        "by_role": [{"key": "FAST_DRAFT_MAKER", "cost_eur": 0.02, "calls": 4},
+                    {"key": "REALISTIC_RENDERER", "cost_eur": 0.25, "calls": 5}],
         "records": [{}] * 9,
     }  # fmt: skip
     md = project_summary_md(p, costs)
@@ -99,7 +99,7 @@ def test_summary_counts_and_costs() -> None:
     assert "Render final elegido: **sí**" in md
     assert "Gasto real estimado en IA: **0.2700 €** en 9 llamadas" in md
     # Desglose por rol, del más caro al más barato (B-027).
-    assert md.index("PHOTOREALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT: 0.0200 €")
+    assert md.index("REALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT_MAKER: 0.0200 €")
     assert calls_label(costs) == "Llamadas de IA (9)"
     assert calls_label(costs | {"records": [{}] * 3}) == "Llamadas de IA (las 3 últimas de 9)"
     assert calls_label(None) == "Llamadas de IA"

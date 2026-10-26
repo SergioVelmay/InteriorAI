@@ -112,7 +112,7 @@ def test_prompts_are_versioned_by_content() -> None:
 
 
 def test_stage_prompt_context_has_roles_selections_and_indications() -> None:
-    """Paso 22: el PROMPT_ENGINEER recibe el papel de cada imagen y solo lo marcado."""
+    """Paso 22: el PROMPT_ARCHITECT recibe el papel de cada imagen y solo lo marcado."""
     element = {
         "label": "Sofá JÄTTEBO",
         "detail": "",

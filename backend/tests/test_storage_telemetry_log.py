@@ -13,7 +13,7 @@ from shared.roles import Role
 
 def record(cost: float) -> TelemetryRecord:
     return TelemetryRecord(
-        role=Role.FAST_DRAFT, deployment="d", operation="generate_image", status="ok",
+        role=Role.FAST_DRAFT_MAKER, deployment="d", operation="generate_image", status="ok",
         latency_s=1.0, cost_eur=cost,
     )  # fmt: skip
 

@@ -85,10 +85,10 @@ def test_renderer_size_follows_the_capture(size: tuple, expected: str | None) ->
 @pytest.mark.parametrize(
     ("role", "size", "expected"),
     [
-        (Role.PHOTOREALISTIC_RENDERER, "1920x1080", "1920x1088"),
-        (Role.PHOTOREALISTIC_RENDERER, "1920x1280", "1920x1280"),
-        (Role.PHOTOREALISTIC_RENDERER, "1081x1919", "1088x1920"),
-        (Role.STRUCTURAL_COMPOSER, "1536x1024", "1536x1024"),
+        (Role.REALISTIC_RENDERER, "1920x1080", "1920x1088"),
+        (Role.REALISTIC_RENDERER, "1920x1280", "1920x1280"),
+        (Role.REALISTIC_RENDERER, "1081x1919", "1088x1920"),
+        (Role.COMPOSITION_BUILDER, "1536x1024", "1536x1024"),
     ],
 )
 def test_generation_size_rounds_up_to_16(role: Role, size: str, expected: str) -> None:

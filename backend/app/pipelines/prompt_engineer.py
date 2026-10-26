@@ -1,4 +1,4 @@
-"""PROMPT_ENGINEER: descripción + imagen base + fichas de referencias → brief de diseño."""
+"""PROMPT_ARCHITECT: descripción + imagen base + fichas de referencias → brief de diseño."""
 
 from __future__ import annotations
 
@@ -167,7 +167,7 @@ async def create_brief(
     context = await build_context(repo, project, instructions, parent)
 
     result = await client.complete_text(
-        Role.PROMPT_ENGINEER,
+        Role.PROMPT_ARCHITECT,
         TextRequest(
             instructions=prompt.text,
             input=context.text,

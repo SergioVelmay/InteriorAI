@@ -582,7 +582,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         if kind == "composicion_actual" and action.get("retouch"):
             return "retocar la zona pintada de la composición actual"
         return {
-            "auditoria": "auditar el boceto (GEOMETRIC_AUDITOR)",
+            "auditoria": "auditar el boceto (GEOMETRY_AUDITOR)",
             "composicion": "generar la composición con el boceto seleccionado",
             "composicion_actual": "generar con la composición actual",
             "render_final": "generar el render final con la composición seleccionada",

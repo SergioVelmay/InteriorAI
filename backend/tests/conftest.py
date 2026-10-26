@@ -13,8 +13,9 @@ from shared import Settings
 from shared.models import RECIPE_GROUPS, ReferenceSheet
 
 _PREFIXES = (
-    "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_", "DATA_DIR", "LOG_", "APP_",
-    "MAX_UPLOAD", "PRICING_", "PROMPT_ENGINEER_", "REFERENCE_ANALYST_", "COST_ALERT_",
+    "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRY_AUDITOR_", "DATA_DIR", "LOG_", "APP_",
+    "MAX_UPLOAD", "PRICING_", "PROMPT_ARCHITECT_", "REFERENCE_ANALYST_", "COST_ALERT_",
+    "GEOMETRIC_AUDITOR_", "PROMPT_ENGINEER_",  # nombres anteriores (Paso 26)
 )  # fmt: skip
 PRICING_FILE = Path(__file__).resolve().parents[2] / "config" / "pricing.yaml"
 

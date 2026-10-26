@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from shared.roles import Role
+from shared.roles import Role, current_role
 
 SCHEMA_VERSION = 2  # 1 → 2: modelo de datos de la versión 2.0.0 (Paso 17)
 # Cabe la descripción de cualquier proyecto migrado (descripción + notas de diseño de la v1).
@@ -223,7 +223,7 @@ class Asset(_Model):
     created_at: datetime = Field(default_factory=utc_now)
 
 
-# --- Brief de diseño (PROMPT_ENGINEER) -----------------------------------------------
+# --- Brief de diseño (PROMPT_ARCHITECT) -----------------------------------------------
 
 
 class FurnitureItem(_Model):
@@ -245,7 +245,7 @@ class ImagePrompts(_Model):
 
 
 class DesignBriefContent(_Model):
-    """Salida estructurada del PROMPT_ENGINEER (editable por el usuario)."""
+    """Salida estructurada del PROMPT_ARCHITECT (editable por el usuario)."""
 
     title: str
     summary: str = Field(description="Resumen del diseño, en español")
@@ -289,9 +289,9 @@ class DesignBrief(_Model):
 
 
 class RenderStage(StrEnum):
-    DRAFT = "boceto"  # FAST_DRAFT
-    COMPOSITION = "composicion"  # STRUCTURAL_COMPOSER
-    FINAL = "render_final"  # PHOTOREALISTIC_RENDERER
+    DRAFT = "boceto"  # FAST_DRAFT_MAKER
+    COMPOSITION = "composicion"  # COMPOSITION_BUILDER
+    FINAL = "render_final"  # REALISTIC_RENDERER
 
     @property
     def label(self) -> str:
@@ -308,7 +308,7 @@ class RenderStatus(StrEnum):
     SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
 
 
-# --- Auditoría geométrica (GEOMETRIC_AUDITOR) --------------------------------------------
+# --- Auditoría geométrica (GEOMETRY_AUDITOR) --------------------------------------------
 
 
 class AuditCheck(_Model):
@@ -328,7 +328,7 @@ class AuditDeviation(_Model):
 
 
 class AuditReport(_Model):
-    """Salida estructurada del GEOMETRIC_AUDITOR."""
+    """Salida estructurada del GEOMETRY_AUDITOR."""
 
     verdict: Literal["conforme", "conforme_con_observaciones", "no_conforme"]
     score: int = Field(ge=0, le=100, description="Fidelidad global a la captura y al brief")
@@ -376,7 +376,7 @@ class RenderInpaint(_Model):
 
 
 class StagePrompt(_Model):
-    """Prompt automático de una generación (Paso 22: sustituye al brief). El PROMPT_ENGINEER lo
+    """Prompt automático de una generación (Paso 22: sustituye al brief). El PROMPT_ARCHITECT lo
     escribe al generar, con las entradas reales de la etapa, y explica lo que ha entendido."""
 
     prompt: str = Field(description="Prompt para el modelo de imagen, EN INGLÉS")
@@ -418,6 +418,13 @@ class RenderRecord(_Model):
     raw_of_render_id: UUID | None = None  # histórico (v1): salida en bruto de ese retoque
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def _renamed_role(cls, value: Any) -> Any:
+        """Roles renombrados (Paso 26, B-057): las imágenes anteriores se leen con el nombre
+        actual sin reescribir `metadatos.json`."""
+        return current_role(value)
 
 
 class ProjectFields(_Model):
@@ -485,7 +492,6 @@ class ProjectIndex(_Model):
 
 
 AiOperation = Literal["complete_text", "generate_image", "edit_image"]
-_RENAMED_ROLES = {"CONTEXT_MANAGER": Role.REFERENCE_ANALYST.value}  # nombre anterior → actual
 
 
 class TelemetryRecord(_Model):
@@ -518,10 +524,10 @@ class TelemetryRecord(_Model):
     @field_validator("role", mode="before")
     @classmethod
     def _renamed_role(cls, value: Any) -> Any:
-        """El rol CONTEXT_MANAGER se renombró a REFERENCE_ANALYST (Paso 18, B-052). Los registros
-        anteriores se leen con el nombre nuevo en lugar de reescribirlos: la telemetría es
-        JSONL de solo añadir (`app.storage.telemetry_log`) y es la misma función."""
-        return _RENAMED_ROLES.get(value, value) if isinstance(value, str) else value
+        """Roles renombrados (Pasos 18 y 26): los registros anteriores se leen con el nombre
+        actual en lugar de reescribirlos (la telemetría es JSONL de solo añadir,
+        `app.storage.telemetry_log`, y es la misma función)."""
+        return current_role(value)
 
 
 class TelemetryLog(_Model):

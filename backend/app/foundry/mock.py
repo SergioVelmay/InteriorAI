@@ -154,8 +154,8 @@ class MockFoundryClient(FoundryClient):
         usage = Usage(
             input_tokens=_tokens(request.instructions + request.input)
             + len(request.images) * IMAGE_INPUT_TOKENS,
-            output_tokens=output * 5 if role is Role.GEOMETRIC_AUDITOR else output,
-            reasoning_tokens=output * 4 if role is Role.GEOMETRIC_AUDITOR else 0,
+            output_tokens=output * 5 if role is Role.GEOMETRY_AUDITOR else output,
+            reasoning_tokens=output * 4 if role is Role.GEOMETRY_AUDITOR else 0,
         )
         latency = time.perf_counter() - start
         deployment = f"mock-{role.value.lower()}"

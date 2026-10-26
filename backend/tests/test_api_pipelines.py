@@ -37,7 +37,7 @@ class SpyClient(MockFoundryClient):
 @pytest.fixture
 def api(make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("DEPLOYMENT_ROLE_REFERENCE_ANALYST", "gpt-6-luna")
-    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ENGINEER", "gpt-6.1-sol")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ARCHITECT", "gpt-6.1-sol")
     return make_api()
 
 
@@ -216,7 +216,7 @@ def test_brief_context_and_creation(api: TestClient, spy: SpyClient, project: di
     assert body["cost_eur"] > 0
 
     [(role, request)] = spy.requests
-    assert role is Role.PROMPT_ENGINEER
+    assert role is Role.PROMPT_ARCHITECT
     assert request.schema_name == "brief_diseno"
     assert len(request.images) == 2
     assert image_size(request.images[0].data) == (1024, 576)
@@ -337,7 +337,9 @@ def test_brief_not_found(api: TestClient, project: dict) -> None:
 
 
 def test_foundry_errors_are_translated(api: TestClient, spy: SpyClient, project: dict) -> None:
-    spy.fail_with = FoundryRateLimitError("Cuota de Azure agotada (429)", role=Role.PROMPT_ENGINEER)
+    spy.fail_with = FoundryRateLimitError(
+        "Cuota de Azure agotada (429)", role=Role.PROMPT_ARCHITECT
+    )
     response = api.post(f"{project['url']}/briefs")
     assert response.status_code == 429
     assert "Cuota" in response.json()["detail"]
@@ -359,7 +361,7 @@ def test_pipeline_calls_are_in_project_telemetry(
     costs = api.get(f"{project['url']}/costs").json()
     by_role = {g["key"]: g for g in costs["by_role"]}
     assert by_role["REFERENCE_ANALYST"]["calls"] == 4
-    assert by_role["PROMPT_ENGINEER"]["calls"] == 1
+    assert by_role["PROMPT_ARCHITECT"]["calls"] == 1
     request_ids = {r["request_id"] for r in costs["records"]}
     assert request_ids == {index.headers["x-request-id"], brief.headers["x-request-id"]}
     assert costs["totals"]["cost_eur"] == pytest.approx(

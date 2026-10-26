@@ -150,7 +150,7 @@ def test_repo_pricing_reproduces_the_october_invoice(table: PricingTable) -> Non
 
 
 def test_unknown_deployment_or_missing_table_has_no_price(table: PricingTable) -> None:
-    assert estimate_cost(table, "mock-fast_draft", Usage(input_tokens=10)) is None
+    assert estimate_cost(table, "mock-fast_draft_maker", Usage(input_tokens=10)) is None
     assert estimate_cost(None, "gpt-6-luna", Usage(input_tokens=10)) is None
 
 

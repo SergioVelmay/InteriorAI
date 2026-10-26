@@ -26,7 +26,7 @@ from shared.models import (
 
 DEFAULT_TIMEOUT_S = 30
 AI_TIMEOUT_S = 600  # llamadas que invocan a la IA (indexación, brief, renders)
-AI_AUDIT_TIMEOUT_S = 1_000  # el backend espera hasta GEOMETRIC_AUDITOR_TIMEOUT_S (900 s)
+AI_AUDIT_TIMEOUT_S = 1_000  # el backend espera hasta GEOMETRY_AUDITOR_TIMEOUT_S (900 s)
 
 
 class ApiError(Exception):
@@ -252,7 +252,7 @@ class BackendClient:
     async def audit_render(
         self, project_id: UUID | str, render_id: UUID | str, notes: str = ""
     ) -> dict[str, Any]:
-        """GEOMETRIC_AUDITOR (el rol más caro), con las observaciones del usuario."""
+        """GEOMETRY_AUDITOR (el rol más caro), con las observaciones del usuario."""
         response = await self._request(
             "POST", f"{self._project(project_id)}/renders/{render_id}/audit",
             json={"notes": notes}, timeout=AI_AUDIT_TIMEOUT_S,

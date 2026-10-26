@@ -19,8 +19,8 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    mediante Pydantic Settings (`shared.settings.get_settings()`). Nunca se hardcodean ni se loguean
    (usar `SecretStr`). `.env` jamás se versiona; las variables nuevas se añaden a `.env.example`.
 2. **Cero nombres comerciales de modelo en el código.** Se usa el enum de roles
-   (`PROMPT_ENGINEER`, `GEOMETRIC_AUDITOR`, `REFERENCE_ANALYST`, `FAST_DRAFT`,
-   `STRUCTURAL_COMPOSER`, `PHOTOREALISTIC_RENDERER`). Los nombres solo aparecen en
+   (`PROMPT_ARCHITECT`, `GEOMETRY_AUDITOR`, `REFERENCE_ANALYST`, `FAST_DRAFT_MAKER`,
+   `COMPOSITION_BUILDER`, `REALISTIC_RENDERER`). Los nombres solo aparecen en
    `.env.example` y `config/pricing.yaml`. Despliegue de un rol: `settings.deployment_for(role)`.
 3. **Escritura atómica** de todo JSON en `data/` (temp + `os.replace`) bajo lock por proyecto:
    usar siempre `ProjectRepository` (`backend/app/storage/`), nunca escribir a mano. Única

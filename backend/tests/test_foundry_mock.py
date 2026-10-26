@@ -48,18 +48,18 @@ def test_factory_returns_mock_in_mock_mode() -> None:
 
 async def test_text_is_deterministic_and_identifies_role(client: MockFoundryClient) -> None:
     request = TextRequest(input="Salón de 4x6 m, estilo nórdico", instructions="Eres un experto")
-    first = await client.complete_text(Role.PROMPT_ENGINEER, request)
-    second = await client.complete_text(Role.PROMPT_ENGINEER, request)
+    first = await client.complete_text(Role.PROMPT_ARCHITECT, request)
+    second = await client.complete_text(Role.PROMPT_ARCHITECT, request)
     assert first.text == second.text
-    assert "[MOCK PROMPT_ENGINEER]" in first.text
-    assert first.deployment == "mock-prompt_engineer"
+    assert "[MOCK PROMPT_ARCHITECT]" in first.text
+    assert first.deployment == "mock-prompt_architect"
     assert first.usage.input_tokens > 0
     assert first.usage.output_tokens > 0
     assert first.usage.reasoning_tokens == 0
 
 
 async def test_auditor_simulates_reasoning_tokens(client: MockFoundryClient) -> None:
-    result = await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="Audita"))
+    result = await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="Audita"))
     assert result.usage.reasoning_tokens > 0
     assert result.usage.output_tokens > result.usage.reasoning_tokens
 
@@ -74,7 +74,7 @@ async def test_images_add_input_tokens(client: MockFoundryClient) -> None:
 
 async def test_json_schema_returns_valid_data(client: MockFoundryClient) -> None:
     result = await client.complete_text(
-        Role.PROMPT_ENGINEER, TextRequest(input="x", json_schema=SCHEMA)
+        Role.PROMPT_ARCHITECT, TextRequest(input="x", json_schema=SCHEMA)
     )
     assert result.data == {
         "titulo": "mock",
@@ -89,7 +89,7 @@ async def test_json_schema_returns_valid_data(client: MockFoundryClient) -> None
 
 async def test_generate_images(client: MockFoundryClient) -> None:
     result = await client.generate_image(
-        Role.FAST_DRAFT, ImageRequest(prompt="Salón nórdico", size="512x384", n=2)
+        Role.FAST_DRAFT_MAKER, ImageRequest(prompt="Salón nórdico", size="512x384", n=2)
     )
     assert len(result.images) == 2
     assert result.images[0].data != result.images[1].data
@@ -102,7 +102,7 @@ async def test_generate_images(client: MockFoundryClient) -> None:
 
 async def test_jpeg_output_format(client: MockFoundryClient) -> None:
     result = await client.generate_image(
-        Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x", size="256x256", output_format="jpeg")
+        Role.REALISTIC_RENDERER, ImageRequest(prompt="x", size="256x256", output_format="jpeg")
     )
     assert result.images[0].mime_type == "image/jpeg"
     assert result.usage.total_tokens == 0  # el renderizador se factura por imagen
@@ -116,7 +116,7 @@ async def test_edit_with_mask_changes_only_masked_zone(client: MockFoundryClient
     mask_image.save(buffer, "PNG")
 
     result = await client.edit_image(
-        Role.STRUCTURAL_COMPOSER,
+        Role.COMPOSITION_BUILDER,
         ImageEditRequest(
             prompt="Sofá gris",
             size="256x256",
@@ -132,10 +132,10 @@ async def test_edit_with_mask_changes_only_masked_zone(client: MockFoundryClient
 @pytest.mark.parametrize(
     ("role", "operation"),
     [
-        (Role.FAST_DRAFT, "text"),
-        (Role.PHOTOREALISTIC_RENDERER, "text"),
-        (Role.PROMPT_ENGINEER, "image"),
-        (Role.GEOMETRIC_AUDITOR, "image"),
+        (Role.FAST_DRAFT_MAKER, "text"),
+        (Role.REALISTIC_RENDERER, "text"),
+        (Role.PROMPT_ARCHITECT, "image"),
+        (Role.GEOMETRY_AUDITOR, "image"),
     ],
 )
 async def test_role_and_operation_must_match(
@@ -148,12 +148,12 @@ async def test_role_and_operation_must_match(
             await client.generate_image(role, ImageRequest(prompt="x"))
 
 
-@pytest.mark.parametrize("role", [Role.PHOTOREALISTIC_RENDERER, Role.FAST_DRAFT])
+@pytest.mark.parametrize("role", [Role.REALISTIC_RENDERER, Role.FAST_DRAFT_MAKER])
 async def test_only_the_composer_accepts_a_mask(client: MockFoundryClient, role: Role) -> None:
     request = ImageEditRequest(
         prompt="x", images=[InputImage(data=png())], mask=InputImage(data=png())
     )
-    with pytest.raises(FoundryUnsupportedError, match="STRUCTURAL_COMPOSER"):
+    with pytest.raises(FoundryUnsupportedError, match="COMPOSITION_BUILDER"):
         await client.edit_image(role, request)  # especialización (B-037)
 
 

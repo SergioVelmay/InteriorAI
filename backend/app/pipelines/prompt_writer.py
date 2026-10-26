@@ -1,6 +1,6 @@
 """Prompt automático de cada generación (Paso 22: sustituye al brief de la v1).
 
-Al pulsar «Generar» en cualquier etapa, el PROMPT_ENGINEER escribe el prompt de ESA generación
+Al pulsar «Generar» en cualquier etapa, el PROMPT_ARCHITECT escribe el prompt de ESA generación
 con sus entradas reales: la descripción del proyecto, las imágenes que recibirá el modelo de
 imagen (con su papel), lo marcado en las fichas de las referencias activas y las indicaciones
 del usuario. Devuelve también lo que ha entendido y sus dudas, que se guardan con cada imagen.
@@ -127,7 +127,7 @@ async def write_prompt(
     size: str,
     extras: dict[str, str] | None = None,
 ) -> WrittenPrompt:
-    """El PROMPT_ENGINEER escribe el prompt de la generación (ve también las imágenes)."""
+    """El PROMPT_ARCHITECT escribe el prompt de la generación (ve también las imágenes)."""
     system = load_prompt(PROMPT_FILES[stage])
     images: list[InputImage] = [
         await prepare_image(
@@ -136,7 +136,7 @@ async def write_prompt(
         for item in inputs
     ]
     result = await client.complete_text(
-        Role.PROMPT_ENGINEER,
+        Role.PROMPT_ARCHITECT,
         TextRequest(
             instructions=system.text,
             input=build_context(project, inputs, references, indications, size, extras),

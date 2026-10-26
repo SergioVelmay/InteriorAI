@@ -177,7 +177,7 @@ class AzureFoundryClient(FoundryClient):
         """Ejecuta una llamada del SDK reintentando solo 429/503 (nunca timeouts)."""
         client = (
             self._openai.with_options(timeout=self._settings.auditor.timeout_s)
-            if role is Role.GEOMETRIC_AUDITOR
+            if role is Role.GEOMETRY_AUDITOR
             else self._openai
         )
         with _openai_errors(role):

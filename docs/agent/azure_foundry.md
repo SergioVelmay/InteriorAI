@@ -13,12 +13,19 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 
 | Rol (enum) | Variable de entorno | `ApiKind` | Uso |
 |------------|---------------------|-----------|-----|
-| `PROMPT_ENGINEER` | `DEPLOYMENT_ROLE_PROMPT_ENGINEER` | `RESPONSES` | Descripción e imágenes → brief y prompts de imagen (luna: en cada generación, casi gratis) |
-| `GEOMETRIC_AUDITOR` | `DEPLOYMENT_ROLE_GEOMETRIC_AUDITOR` | `RESPONSES` | QA del render frente a SketchUp (`reasoning.effort`) |
-| `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Fichas de las referencias (sol: visión precisa). Antes del Paso 18 se llamaba `CONTEXT_MANAGER`; la telemetría antigua se lee con el nombre nuevo |
-| `FAST_DRAFT` | `DEPLOYMENT_ROLE_FAST_DRAFT` | `IMAGES` | Bocetos rápidos |
-| `STRUCTURAL_COMPOSER` | `DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER` | `IMAGES` | Encaje de mobiliario; **único rol con máscara** (`MASK_ROLE`, B-037) |
-| `PHOTOREALISTIC_RENDERER` | `DEPLOYMENT_ROLE_PHOTOREALISTIC_RENDERER` | `PROVIDER_IMAGES` | Render final; edición por **referencias** (sin máscara) |
+| `PROMPT_ARCHITECT` | `DEPLOYMENT_ROLE_PROMPT_ARCHITECT` | `RESPONSES` | Descripción e imágenes → brief y prompts de imagen (luna: en cada generación, casi gratis) |
+| `GEOMETRY_AUDITOR` | `DEPLOYMENT_ROLE_GEOMETRY_AUDITOR` | `RESPONSES` | QA del render frente a SketchUp (`reasoning.effort`) |
+| `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Fichas de las referencias (sol: visión precisa). Antes del Paso 18 se llamaba `CONTEXT_MANAGER` |
+| `FAST_DRAFT_MAKER` | `DEPLOYMENT_ROLE_FAST_DRAFT_MAKER` | `IMAGES` | Bocetos rápidos |
+| `COMPOSITION_BUILDER` | `DEPLOYMENT_ROLE_COMPOSITION_BUILDER` | `IMAGES` | Encaje de mobiliario; **único rol con máscara** (`MASK_ROLE`, B-037) |
+| `REALISTIC_RENDERER` | `DEPLOYMENT_ROLE_REALISTIC_RENDERER` | `PROVIDER_IMAGES` | Render final; edición por **referencias** (sin máscara) |
+
+Nombres desde el Paso 26 (versión 3.0.0, B-057): antes `PROMPT_ENGINEER`, `GEOMETRIC_AUDITOR`,
+`FAST_DRAFT`, `STRUCTURAL_COMPOSER` y `PHOTOREALISTIC_RENDERER`. Los datos guardados con un
+nombre anterior (telemetría y `RenderRecord.role`) se leen con el actual
+(`shared.roles.RENAMED_ROLES`, `current_role`); en el `.env` solo valen los actuales y
+`Settings.legacy_env` detecta los anteriores para avisar (registro del backend al arrancar,
+`python -m shared` y el error de configuración en modo `azure`).
 
 ## Superficies de API
 
@@ -32,13 +39,13 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 - **El SDK `openai` 3.x usa `httpx2`, una librería distinta de `httpx`**: no compartir clientes.
   `httpx` es dependencia explícita del backend (renderizador).
 - Responses API: `store=False`; imágenes como `input_image` (data URL Base64);
-  `reasoning={"effort": GEOMETRIC_AUDITOR_REASONING_EFFORT}` **solo** para el auditor;
+  `reasoning={"effort": GEOMETRY_AUDITOR_REASONING_EFFORT}` **solo** para el auditor;
   salida estructurada con `text.format = {type: json_schema, strict: true}` (esquemas estrictos:
   todas las propiedades en `required` y `additionalProperties: false`).
 - Renderizador (API del proveedor): cuerpo `{model: <despliegue>, prompt, width, height,
   output_format, seed?, input_image?, input_image_2..8?}`; respuesta `data[0].b64_json`
   (se aceptan también `data[0].url` y `result.sample`). **Una imagen por petición**; máx. 4 MP;
-  15 RPM en el nivel bajo. **No admite máscara** (inpainting → `STRUCTURAL_COMPOSER`).
+  15 RPM en el nivel bajo. **No admite máscara** (inpainting → `COMPOSITION_BUILDER`).
 
 ## Código (`backend/app/foundry/`)
 
@@ -64,23 +71,23 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 | `AZURE_FOUNDRY_RENDERER_PATH` | Ruta de la API del renderizador |
 | `AZURE_FOUNDRY_RENDERER_API_VERSION` | `preview` (obligatoria para la API del proveedor) |
 | `AZURE_FOUNDRY_TIMEOUT_S`, `AZURE_FOUNDRY_MAX_RETRIES` | Resiliencia |
-| `PROMPT_ENGINEER_REASONING_EFFORT`, `REFERENCE_ANALYST_REASONING_EFFORT` | `medium` por defecto (B-053, Paso 18); `Settings.reasoning_effort(role)` |
-| `GEOMETRIC_AUDITOR_REASONING_EFFORT` | `medium` (decisión del usuario, Paso 10; `max` también es válido) |
-| `GEOMETRIC_AUDITOR_TIMEOUT_S` | 900 s (el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
+| `PROMPT_ARCHITECT_REASONING_EFFORT`, `REFERENCE_ANALYST_REASONING_EFFORT` | `medium` por defecto (B-053, Paso 18); `Settings.reasoning_effort(role)` |
+| `GEOMETRY_AUDITOR_REASONING_EFFORT` | `medium` (decisión del usuario, Paso 10; `max` también es válido) |
+| `GEOMETRY_AUDITOR_TIMEOUT_S` | 900 s (el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
 
 ## Comportamiento verificado contra Azure (Paso 6, 2026-10-17)
 
-Asignación de entonces: `PROMPT_ENGINEER` en sol y el antiguo `CONTEXT_MANAGER` en luna (en el
+Asignación de entonces: `PROMPT_ARCHITECT` en sol y el antiguo `CONTEXT_MANAGER` en luna (en el
 Paso 18 se intercambiaron; ver más abajo).
 
 | Rol | Latencia | Tokens entrada / salida / razonamiento | Observaciones |
 |-----|----------|----------------------------------------|---------------|
-| PROMPT_ENGINEER | 6,1 s | 44 / 65 / 0 | Sin razonamiento por defecto |
+| PROMPT_ARCHITECT | 6,1 s | 44 / 65 / 0 | Sin razonamiento por defecto |
 | REFERENCE_ANALYST | 3,9 s | 83 / 64 / 37 | **Razona por defecto**; JSON estricto correcto |
-| GEOMETRIC_AUDITOR (`max`) | 23,0 s | 74 / 1.084 / 1.012 | El 93 % de la salida es razonamiento |
-| FAST_DRAFT (1024², low) | 14,5 s | 24 / 196 / 0 | PNG |
-| STRUCTURAL_COMPOSER (edit + máscara, low) | 18,4 s | 1.053 / 196 / 0 | **La máscara es orientativa**: el objeto puede salirse de la zona |
-| PHOTOREALISTIC_RENDERER (1024²) | 34,5 s | — (por imagen) | JPEG; nombre del despliegue tal cual |
+| GEOMETRY_AUDITOR (`max`) | 23,0 s | 74 / 1.084 / 1.012 | El 93 % de la salida es razonamiento |
+| FAST_DRAFT_MAKER (1024², low) | 14,5 s | 24 / 196 / 0 | PNG |
+| COMPOSITION_BUILDER (edit + máscara, low) | 18,4 s | 1.053 / 196 / 0 | **La máscara es orientativa**: el objeto puede salirse de la zona |
+| REALISTIC_RENDERER (1024²) | 34,5 s | — (por imagen) | JPEG; nombre del despliegue tal cual |
 
 Implicaciones: dejar margen en `max_output_tokens` (incluye el razonamiento); el auditor es
 lento y con coste dominado por razonamiento; para inpainting exacto, recomponer en local solo
@@ -120,7 +127,7 @@ por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el
 cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,
 intentos rechazados que sustituye, retoques y su salida en bruto), sus auditorías y el brief
 con sus versiones previas (`DesignBrief.request_id`; los briefs anteriores se emparejan por
-hora con su llamada de `PROMPT_ENGINEER`, ±10 s). Sin ramas descartadas ni la indexación de
+hora con su llamada de `PROMPT_ARCHITECT`, ±10 s). Sin ramas descartadas ni la indexación de
 referencias.
 
 - `app.state.foundry` es un **`MeteredFoundryClient`** que envuelve al cliente mock/Azure
@@ -164,7 +171,7 @@ referencias.
 - El SDK `openai` se crea con `max_retries=0`; `_openai_call` reintenta solo **429 y 503**
   (Azure no procesó la petición), hasta `AZURE_FOUNDRY_MAX_RETRIES`, respetando `Retry-After`.
   El renderizador sigue la misma regla.
-- El auditor usa `GEOMETRIC_AUDITOR_TIMEOUT_S` (`with_options(timeout=...)`).
+- El auditor usa `GEOMETRY_AUDITOR_TIMEOUT_S` (`with_options(timeout=...)`).
 
 ## Auditoría observada (Paso 10)
 

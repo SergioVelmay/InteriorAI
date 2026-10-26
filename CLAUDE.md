@@ -45,7 +45,7 @@ curl http://127.0.0.1:8000/api/v1/projects/<id_proyecto>/costs
 
 ```bash
 # Verificación real de Azure (COSTE): solo con AI_PROVIDER_MODE=azure puesto por el usuario
-echo s | docker compose exec -T backend python -m app.foundry.smoke --role FAST_DRAFT
+echo s | docker compose exec -T backend python -m app.foundry.smoke --role FAST_DRAFT_MAKER
 ```
 
 ```bash

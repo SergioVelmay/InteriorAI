@@ -53,7 +53,7 @@ RENDERER_MAX_PIXELS = 4_000_000  # 4 MP
 RENDERER_LONG_SIDE_PX = 1_920
 INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativa (B-038)
 DEFAULT_GPT_SIZE = "1536x1024"  # 3:2 (B-040)
-# Papel de cada imagen de entrada, tal como se explica al PROMPT_ENGINEER.
+# Papel de cada imagen de entrada, tal como se explica al PROMPT_ARCHITECT.
 BASE_ROLE = "imagen base: se dibuja sobre ella y se conserva su punto de vista y su geometría"
 SUPPORT_ROLE = "apoyo: se toma solo lo marcado en su ficha"
 DRAFT_ROLE = "boceto seleccionado: aporta color, ambiente, mobiliario y distribución"
@@ -91,9 +91,9 @@ RENDER_TRANSITIONS = {
 # Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
 # a petición del usuario (Paso 10); el renderizador cobra por MP, no por formato.
 _STAGE_ROLES: dict[RenderStage, tuple[Role, Literal["png", "jpeg"]]] = {
-    RenderStage.DRAFT: (Role.FAST_DRAFT, "png"),
-    RenderStage.COMPOSITION: (Role.STRUCTURAL_COMPOSER, "png"),
-    RenderStage.FINAL: (Role.PHOTOREALISTIC_RENDERER, "png"),
+    RenderStage.DRAFT: (Role.FAST_DRAFT_MAKER, "png"),
+    RenderStage.COMPOSITION: (Role.COMPOSITION_BUILDER, "png"),
+    RenderStage.FINAL: (Role.REALISTIC_RENDERER, "png"),
 }
 
 
@@ -175,7 +175,7 @@ _DEFAULT_SIZES = {
 
 
 def resolve_size(role: Role, requested: str | None, base: Asset) -> str:
-    family = "renderer" if role is Role.PHOTOREALISTIC_RENDERER else "gpt"
+    family = "renderer" if role is Role.REALISTIC_RENDERER else "gpt"
     size = requested or _DEFAULT_SIZES[family][_orientation(base)]
     if family == "gpt":
         if size not in GPT_IMAGE_SIZES:
@@ -205,7 +205,7 @@ def generation_size(role: Role, size: str) -> str:
     Comprobado con una llamada real (B-020, Paso 16): si se le pide 1920x1080, lo acepta pero
     devuelve 1920x1072 (redondea hacia abajo en silencio), así que no basta con pedir el
     tamaño exacto."""
-    if role is not Role.PHOTOREALISTIC_RENDERER:
+    if role is not Role.REALISTIC_RENDERER:
         return size
     width, height = (int(v) for v in size.split("x"))
     return f"{_ceil16(width)}x{_ceil16(height)}"
@@ -314,7 +314,7 @@ async def _run_stage(
             variant_of_id=variant_of,
             batch_id=batch_id,
             size=size,
-            quality=None if role is Role.PHOTOREALISTIC_RENDERER else quality,
+            quality=None if role is Role.REALISTIC_RENDERER else quality,
             seed=options.seed,
             request_id=current_request_id(),
             cost_eur=round(total / len(result.images), 6) if total is not None else None,
@@ -335,7 +335,7 @@ async def _prompt(
     options: RenderOptions,
     extras: dict[str, str] | None = None,
 ) -> tuple[str, WrittenPrompt | None]:
-    """El prompt de la generación: el que escribe el PROMPT_ENGINEER con las entradas reales
+    """El prompt de la generación: el que escribe el PROMPT_ARCHITECT con las entradas reales
     (Paso 22) o, si el usuario lo da, el suyo tal cual."""
     if options.prompt_override:
         return build_prompt(options.prompt_override, options), None
@@ -365,7 +365,7 @@ async def generate_drafts(
     supports, _ = split_supports(project, base)  # hasta MAX_SUPPORTS, por prioridad
     inputs = [InputRole(base, BASE_ROLE)] if base else []
     inputs += [InputRole(a, SUPPORT_ROLE) for a in supports]
-    size = resolve_size(Role.FAST_DRAFT, options.size or DEFAULT_GPT_SIZE, inputs[0].asset)
+    size = resolve_size(Role.FAST_DRAFT_MAKER, options.size or DEFAULT_GPT_SIZE, inputs[0].asset)
     options = RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"})
     prompt, written = await _prompt(repo, client, project, RenderStage.DRAFT, inputs, size, options)
     return await _run_stage(
@@ -429,7 +429,7 @@ async def generate_composition(
     if source == "boceto" and brief is not None:  # v1
         base = base_asset(project, brief)
         inputs = [base.id] + ([draft.id] if draft else [])
-        size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size, base)
+        size = resolve_size(Role.COMPOSITION_BUILDER, options.size, base)
         prompt = build_prompt(brief.content.image_prompts.structural_composer, options)
         return await _run_stage(
             repo, client, project, RenderStage.COMPOSITION, inputs, draft, prompt, size, options,
@@ -448,7 +448,7 @@ async def generate_composition(
     supports, _ = split_supports(project, None)
     roles = [InputRole(_render_asset(project, start), start_role)]
     roles += [InputRole(a, SUPPORT_ROLE) for a in supports]
-    size = resolve_size(Role.STRUCTURAL_COMPOSER, options.size or DEFAULT_GPT_SIZE, roles[0].asset)
+    size = resolve_size(Role.COMPOSITION_BUILDER, options.size or DEFAULT_GPT_SIZE, roles[0].asset)
     corrections = audit_corrections(project, draft, audit_notes) if use_audit else ""
     extras = {"Correcciones de la auditoría del boceto": corrections} if corrections else None
     prompt, written = await _prompt(
@@ -479,7 +479,7 @@ async def generate_final(
     """Etapa 3 (Paso 24: B-051, B-055, B-040): fotografía realista a partir de la composición
     seleccionada o del render final actual (el seleccionado), con las indicaciones globales del
     usuario. El renderizador solo recibe la imagen de partida y el prompt (sin referencias: lo
-    marcado en las fichas llega como texto al PROMPT_ENGINEER); 3:2 a 2448x1632 por defecto.
+    marcado en las fichas llega como texto al PROMPT_ARCHITECT); 3:2 a 2448x1632 por defecto.
 
     `variant_of` («Otra versión»): repite tal cual el prompt, la imagen de partida y el tamaño de
     ese render final (la semilla del renderizador en Azure no es reproducible, Paso 18). Las
@@ -508,7 +508,7 @@ async def generate_final(
         start_role = FINAL_FROM_COMPOSITION_ROLE
     roles = [InputRole(_render_asset(project, start), start_role)]
     size = resolve_size(
-        Role.PHOTOREALISTIC_RENDERER, options.size or DEFAULT_RENDERER_SIZE, roles[0].asset
+        Role.REALISTIC_RENDERER, options.size or DEFAULT_RENDERER_SIZE, roles[0].asset
     )
     prompt, written = await _prompt(repo, client, project, RenderStage.FINAL, roles, size, options)
     return await _run_stage(
@@ -552,7 +552,7 @@ async def _final_v1(
     texturas (salvo la imagen base), en la proporción de la imagen base."""
     base = base_asset(project, brief)
     references = [a.id for a in texture_references(project, base)][:MAX_RENDERER_REFERENCES]
-    size = resolve_size(Role.PHOTOREALISTIC_RENDERER, options.size or renderer_size(base), base)
+    size = resolve_size(Role.REALISTIC_RENDERER, options.size or renderer_size(base), base)
     prompt = build_prompt(brief.content.image_prompts.photorealistic_renderer, options)
     return await _run_stage(
         repo, client, project, RenderStage.FINAL, [composition.id, *references], composition,
@@ -592,7 +592,7 @@ async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UU
 def inpaint_prompt(change: str, bounds: str, *, written: bool = False) -> str:
     """Prompt del retoque con máscara: el cambio debe quedar dentro de la zona pintada.
 
-    `written`: el cambio ya es el prompt en inglés del PROMPT_ENGINEER (Paso 23), que ya pide
+    `written`: el cambio ya es el prompt en inglés del PROMPT_ARCHITECT (Paso 23), que ya pide
     editar solo la zona; si no, es la instrucción del usuario en español.
     """
     keep = "same framing, geometry, perspective, camera, lighting, materials and colors"
@@ -625,9 +625,9 @@ async def inpaint_render(
     use_audit: bool = False,
     audit_notes: str = "",
 ) -> RenderRecord:
-    """Retoca la zona pintada de una composición con la máscara nativa del STRUCTURAL_COMPOSER.
+    """Retoca la zona pintada de una composición con la máscara nativa del COMPOSITION_BUILDER.
 
-    Paso 23: es «Generar con la composición actual» con «Usar el retoque»: el PROMPT_ENGINEER
+    Paso 23: es «Generar con la composición actual» con «Usar el retoque»: el PROMPT_ARCHITECT
     escribe el prompt del cambio (con los límites de la zona, las referencias activas, las
     indicaciones y, si se pide, la auditoría del boceto) y el modelo recibe la composición y
     los apoyos. El resultado es la imagen completa que devuelve el modelo (B-038: sin

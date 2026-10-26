@@ -16,13 +16,16 @@ from shared.roles import Role
 
 ALL = "Todos"
 STATUS_LABELS = {"ok": "correcta", "error": "error"}
-ROLE_COLORS = {  # colores estables por rol en todos los gráficos
-    Role.PROMPT_ENGINEER.value: "#a1a1aa",
-    Role.REFERENCE_ANALYST.value: "#71717a",
-    Role.FAST_DRAFT.value: "#38bdf8",
-    Role.STRUCTURAL_COMPOSER.value: "#818cf8",
-    Role.PHOTOREALISTIC_RENDERER.value: "#f59e0b",
-    Role.GEOMETRIC_AUDITOR.value: "#f43f5e",
+# Un color vivo y muy distinto por rol (B-080), el mismo en todos los gráficos; en el orden de
+# la leyenda, que sigue el flujo: referencias → prompts → bocetos → composición → render final
+# → auditoría.
+ROLE_COLORS = {
+    Role.REFERENCE_ANALYST.value: "#22c55e",  # verde
+    Role.PROMPT_ARCHITECT.value: "#a855f7",  # morado
+    Role.FAST_DRAFT_MAKER.value: "#3b82f6",  # azul
+    Role.COMPOSITION_BUILDER.value: "#facc15",  # amarillo
+    Role.REALISTIC_RENDERER.value: "#f97316",  # naranja
+    Role.GEOMETRY_AUDITOR.value: "#ef4444",  # rojo
 }
 # Tabla del registro (B-033): lo esencial; el resto, en el detalle de la fila y en el CSV.
 RECORD_COLUMNS = [
@@ -31,10 +34,11 @@ RECORD_COLUMNS = [
 ]  # fmt: skip
 # CSV: todas las columnas, también las que la tabla no muestra (decisión del usuario).
 CSV_COLUMNS = [
-    "Fecha (UTC)", "Proyecto", "Rol", "Despliegue", "Operación", "Estado", "Error", "Coste (€)",
-    "Desglose del coste", "Tarifa", "Latencia (s)", "Tokens entrada", "Tokens en caché",
-    "Tokens escritos en caché", "Tokens de texto", "Tokens de imagen", "Tokens salida",
-    "Tokens de razonamiento", "Imágenes", "MPx generados", "MPx referencia", "Petición", "Id",
+    "Fecha (UTC)", "Proyecto", "Rol", "Rol en la llamada", "Despliegue", "Operación", "Estado",
+    "Error", "Coste (€)", "Desglose del coste", "Tarifa", "Latencia (s)", "Tokens entrada",
+    "Tokens en caché", "Tokens escritos en caché", "Tokens de texto", "Tokens de imagen",
+    "Tokens salida", "Tokens de razonamiento", "Imágenes", "MPx generados", "MPx referencia",
+    "Petición", "Id",
 ]  # fmt: skip
 
 # Gráficos en el tema oscuro de la app.
@@ -84,45 +88,13 @@ def notes_md(summary: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
-# --- Gráficos (B-032) -------------------------------------------------------------------------
-
-
-def series_colors(pairs: dict[str, str]) -> dict[str, str]:
-    """Color de cada serie «ROL (despliegue)» ({serie: rol}): el de su rol y, si el rol tiene
-    varios despliegues, cada uno más claro que el anterior."""
-    colors: dict[str, str] = {}
-    seen: dict[str, int] = {}
-    for series in sorted(pairs):
-        role = pairs[series]
-        base = ROLE_COLORS.get(role, "#a1a1aa")
-        step = seen.get(role, 0)
-        seen[role] = step + 1
-        colors[series] = _lighten(base, 0.35 * step)
-    return colors
-
-
-def _lighten(color: str, amount: float) -> str:
-    rgb = [int(color[i : i + 2], 16) for i in (1, 3, 5)]
-    mixed = [round(c + (255 - c) * min(amount, 0.8)) for c in rgb]
-    return "#" + "".join(f"{c:02x}" for c in mixed)
-
-
-def _color(colors: dict[str, str]) -> alt.Color:
-    """Leyenda completa y legible (B-032): debajo, un elemento por línea y sin recortar."""
-    return alt.Color(
-        "Serie:N",
-        title="Rol (despliegue)",
-        scale=alt.Scale(domain=list(colors), range=list(colors.values())),
-        legend=alt.Legend(
-            orient="bottom", direction="vertical", columns=1, labelLimit=0,
-            labelColor="#d4d4d8", titleColor="#a1a1aa", symbolType="square",
-            labelFontSize=13, titleFontSize=13, symbolSize=120,
-        ),
-    )  # fmt: skip
-
+# --- Gráficos (B-032, B-080, B-081) ------------------------------------------------------------
+# Una serie por rol actual (Paso 26): cada llamada cuenta en el rol que hoy tiene su despliegue
+# (lo hace el backend). La leyenda es única y va fuera de los gráficos (`legend_html`).
 
 # Ancho fijo: `gr.Plot` no da tamaño al contenedor y `width="container"` deja el gráfico vacío.
-HALF_WIDTH, FULL_WIDTH = 420, 900  # media pantalla (por rol y por día) y pantalla completa
+# Media columna (coste por rol, junto a la leyenda) y ancho completo (por día y por proyecto).
+HALF_WIDTH, FULL_WIDTH = 520, 1160
 
 
 def _finish(chart: alt.Chart, title: str, width: int, height: int = 260) -> alt.Chart:
@@ -135,91 +107,102 @@ def _finish(chart: alt.Chart, title: str, width: int, height: int = 260) -> alt.
     )
 
 
-def _angle(labels: list[str]) -> int:
+def _angle(labels: list[str], chars: int = _LABEL_CHARS) -> int:
     """Etiquetas en horizontal mientras quepan; si no, giradas (B-032)."""
-    return 0 if sum(len(label) + 2 for label in labels) <= _LABEL_CHARS else -40
+    return 0 if sum(len(label) + 2 for label in labels) <= chars else -40
+
+
+def _color() -> alt.Color:
+    """Siempre los seis roles con sus colores; sin leyenda (la hay común, fuera)."""
+    return alt.Color(
+        "Rol:N",
+        scale=alt.Scale(domain=list(ROLE_COLORS), range=list(ROLE_COLORS.values())),
+        legend=None,
+    )
+
+
+def legend_html(summary: dict[str, Any]) -> str:
+    """Leyenda común de todos los gráficos (B-081): cada rol con su despliegue actual."""
+    deployments = summary.get("role_deployments") or {}
+    items = "".join(
+        f'<li><span class="iai-swatch" style="background:{color}"></span>'
+        f"<strong>{html.escape(role)}</strong>"
+        + (f" <span>({html.escape(deployments[role])})</span>" if deployments.get(role) else "")
+        + "</li>"
+        for role, color in ROLE_COLORS.items()
+    )
+    return f'<div class="iai-legend"><h4>Rol (despliegue actual)</h4><ul>{items}</ul></div>'
 
 
 def role_frame(summary: dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame(
-        [{"Serie": g["key"], "Rol": g["label"], "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
-         for g in summary.get("by_role_deployment", [])],
-        columns=["Serie", "Rol", "Coste (€)", "Llamadas"],
+        [{"Rol": g["key"], "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
+         for g in summary.get("by_role", [])],
+        columns=["Rol", "Coste (€)", "Llamadas"],
     )  # fmt: skip
 
 
 def role_chart(summary: dict[str, Any]) -> alt.Chart:
-    """Coste por rol y despliegue; etiqueta en dos líneas: rol y, debajo, «(despliegue)»."""
+    """Coste por rol, en el orden de la leyenda."""
     frame = role_frame(summary)
-    colors = series_colors(dict(zip(frame["Serie"], frame["Rol"], strict=True)))
-    two_lines = "[split(datum.label, ' (')[0], '(' + split(datum.label, ' (')[1]]"
     chart = (
         alt.Chart(frame)
         .mark_bar()
         .encode(
-            x=alt.X("Serie:N", title=None, sort=list(colors),
-                    axis=alt.Axis(labelExpr=two_lines, labelAngle=-75, labelAlign="right",
-                                  labelLimit=0)),
+            x=alt.X("Rol:N", title=None, sort=list(ROLE_COLORS),
+                    axis=alt.Axis(labelAngle=-40, labelAlign="right", labelLimit=0)),
             y=alt.Y("Coste (€):Q", scale=alt.Scale(domainMin=0)),
-            color=_color(colors),
-            tooltip=["Serie", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
+            color=_color(),
+            tooltip=["Rol", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
         )
     )  # fmt: skip
-    return _finish(chart, "Coste por rol (despliegue)", HALF_WIDTH, height=300)
+    return _finish(chart, "Coste por rol", HALF_WIDTH, height=300)
 
 
-def day_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
-    """Coste por día y serie «ROL (despliegue)» (barras apiladas) a partir de los registros."""
-    totals: dict[tuple[str, str, str], float] = {}
-    for record in records:
-        series = f"{record['role']} ({record['deployment']})"
-        key = (record["timestamp"][:10], series, record["role"])
-        totals[key] = totals.get(key, 0.0) + (record["cost_eur"] or 0.0)
+def _stacked(groups: list[dict[str, Any]], column: str, label: bool = False) -> pd.DataFrame:
+    """Desglose cruzado del backend (`by_day_role`, `by_project_role`) → filas para apilar."""
     return pd.DataFrame(
-        [{"Día": day, "Serie": series, "Rol": role, "Coste (€)": round(cost, 6)}
-         for (day, series, role), cost in sorted(totals.items())],
-        columns=["Día", "Serie", "Rol", "Coste (€)"],
+        [{column: (g["label"] or g["key"][:8]) if label else g["key"], "Rol": g["role"],
+          "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
+         for g in groups],
+        columns=[column, "Rol", "Coste (€)", "Llamadas"],
     )  # fmt: skip
 
 
-def day_chart(records: list[dict[str, Any]]) -> alt.Chart:
-    frame = day_frame(records)
-    colors = series_colors(dict(zip(frame["Serie"], frame["Rol"], strict=True)))
-    days = sorted(set(frame["Día"]))
+def _stacked_chart(frame: pd.DataFrame, column: str, title: str) -> alt.Chart:
+    labels = list(dict.fromkeys(frame[column]))
     chart = (
         alt.Chart(frame)
         .mark_bar()
         .encode(
-            x=alt.X("Día:O", title=None, axis=alt.Axis(labelAngle=_angle(days))),
+            x=alt.X(f"{column}:N", title=None, sort=labels,
+                    axis=alt.Axis(labelAngle=_angle(labels, _LABEL_CHARS * 2), labelLimit=0)),
             y=alt.Y("sum(Coste (€)):Q", title="Coste (€)", scale=alt.Scale(domainMin=0)),
-            color=_color(colors),
-            tooltip=["Día", "Serie", alt.Tooltip("Coste (€):Q", format=".4f")],
+            color=_color(),
+            order=alt.Order("Orden:Q"),
+            tooltip=[column, "Rol", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
         )
+        .transform_calculate(Orden=f"indexof({list(ROLE_COLORS)}, datum.Rol)")
     )  # fmt: skip
-    return _finish(chart, "Coste por día", HALF_WIDTH, height=300)
+    return _finish(chart, title, FULL_WIDTH, height=300)
+
+
+def day_frame(summary: dict[str, Any]) -> pd.DataFrame:
+    return _stacked(summary.get("by_day_role", []), "Día")
+
+
+def day_chart(summary: dict[str, Any]) -> alt.Chart:
+    """Coste por día, apilado por rol (B-081): a ancho completo, crece con los días."""
+    return _stacked_chart(day_frame(summary), "Día", "Coste por día")
 
 
 def project_frame(summary: dict[str, Any]) -> pd.DataFrame:
-    return pd.DataFrame(
-        [{"Proyecto": g["label"] or g["key"][:8], "Coste (€)": g["cost_eur"]}
-         for g in summary["by_project"]],
-        columns=["Proyecto", "Coste (€)"],
-    )  # fmt: skip
+    return _stacked(summary.get("by_project_role", []), "Proyecto", label=True)
 
 
 def project_chart(summary: dict[str, Any]) -> alt.Chart:
-    frame = project_frame(summary)
-    chart = (
-        alt.Chart(frame)
-        .mark_bar(color="#71717a")
-        .encode(
-            x=alt.X("Proyecto:N", title=None,
-                    axis=alt.Axis(labelAngle=_angle(list(frame["Proyecto"])), labelLimit=0)),
-            y=alt.Y("Coste (€):Q", scale=alt.Scale(domainMin=0)),
-            tooltip=["Proyecto", alt.Tooltip("Coste (€):Q", format=".4f")],
-        )
-    )  # fmt: skip
-    return _finish(chart, "Coste por proyecto", FULL_WIDTH)
+    """Coste por proyecto, apilado por rol (B-081)."""
+    return _stacked_chart(project_frame(summary), "Proyecto", "Coste por proyecto")
 
 
 # --- Registro de llamadas (B-033) -----------------------------------------------------------------
@@ -290,6 +273,7 @@ def record_detail_md(record: dict[str, Any] | None) -> str:
     if record is None:
         return "_Selecciona una fila del registro para ver el detalle de la llamada._"
     breakdown = _breakdown(record) or "—"
+    call_role = record.get("call_role") or record["role"]
     lines = [
         f"#### {html.escape(record['role'])} · {html.escape(record['deployment'])} · "
         f"{_when(record)} UTC",
@@ -310,6 +294,9 @@ def record_detail_md(record: dict[str, Any] | None) -> str:
         f"- **Latencia:** {record['latency_s']:.2f} s · **petición:** "
         f"`{record.get('request_id') or '—'}` · **id:** `{record['id']}`",
     ]
+    if call_role != record["role"]:  # su despliegue es hoy de otro rol (Paso 26)
+        lines.insert(1, f"- **Rol en la llamada:** {html.escape(call_role)} (hoy, su "
+                        f"despliegue lo usa {html.escape(record['role'])})")  # fmt: skip
     return "\n".join(lines)
 
 
@@ -320,7 +307,8 @@ def records_csv(records: list[dict[str, Any]]) -> str:
     writer.writerow(CSV_COLUMNS)
     for r in records:
         writer.writerow([
-            _when(r), r.get("project_name") or "", r["role"], r["deployment"], r["operation"],
+            _when(r), r.get("project_name") or "", r["role"], r.get("call_role") or r["role"],
+            r["deployment"], r["operation"],
             STATUS_LABELS.get(r["status"], r["status"]), r.get("error_type") or "", _cost(r),
             json.dumps(r.get("cost_breakdown") or {}, ensure_ascii=False),
             r.get("pricing_tier") or "", round(r["latency_s"], 3), r["input_tokens"],

@@ -69,7 +69,7 @@ data/
 | GET | `/projects/{id}/assets?kind=` | `[Asset]` | 5 ✅ |
 | GET/DELETE | `/projects/{id}/assets/{asset_id}` | `Asset` / 204 (borrado suave) | 5 ✅ |
 | GET | `/projects/{id}/assets/{asset_id}/content` | archivo (`inline`, `nosniff`) | 5 ✅ |
-| GET | `/projects/{id}/costs?limit=50&include_simulated=true` | `CostSummary`: totales, `by_role`, `by_day`, `by_deployment`, `by_project`, últimos registros (con proyecto) y `simulated_excluded` | 7 · 14 ✅ |
+| GET | `/projects/{id}/costs?limit=50&include_simulated=true` | `CostSummary`: totales, `by_role` (rol actual, `label` = su despliegue actual), `by_day`, `by_deployment`, `by_project`, `by_day_role` y `by_project_role` (para apilar), `role_deployments` (despliegue actual de cada rol), últimos registros (con proyecto y `call_role`) y `simulated_excluded`. Cada llamada cuenta en el rol que **hoy** tiene su despliegue (Paso 26) | 7 · 14 · 26 ✅ |
 | GET | `/costs?limit=50&include_simulated=true` | Igual para **todos los proyectos** (`project_id: null`, desglose `by_project`) | 14 ✅ |
 | GET | `/costs/alerts` | `CostAlerts`: gasto real (sin simulación) por proyecto y total frente a `COST_ALERT_PROJECT_EUR` / `COST_ALERT_TOTAL_EUR`; solo informa | 16 ✅ |
 | GET | `/projects/{id}/renders/{render_id}/cost` | `RenderChainCost`: coste acumulado de la cadena que lleva al render (sin simulación; la simulada aparte) | 14 ✅ |
@@ -89,7 +89,7 @@ data/
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{notes?}` → `{render, audit, cost_eur, request_id}` (boceto, composición o final; las imágenes nuevas, frente a todas las referencias del espacio) | 10 · 23 ✅ |
-| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`, `extra_instructions`, `use_audit`, `audit_notes`] → 201 `{renders, cost_eur}` (solo composiciones, B-038; prompt del PROMPT_ENGINEER, Paso 23) | 13b · 17 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`, `extra_instructions`, `use_audit`, `audit_notes`] → 201 `{renders, cost_eur}` (solo composiciones, B-038; prompt del PROMPT_ARCHITECT, Paso 23) | 13b · 17 ✅ |
 | GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque (los archivos bruto/guía de la v1 quedan en disco) | 13b · 17 ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
@@ -170,7 +170,7 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
 - **Una sola imagen seleccionada por etapa** (B-043): seleccionar otra devuelve la anterior a
   `generado`.
 - Retoques (`inpaint_render`, Paso 13b · B-038): solo composiciones, con máscara nativa
-  (`STRUCTURAL_COMPOSER`) y la posición de la zona en el prompt; se guarda la imagen completa
+  (`COMPOSITION_BUILDER`) y la posición de la zona en el prompt; se guarda la imagen completa
   del modelo (sin recomponer) y `{id}-mascara.png` (`RenderInpaint`). Los retoques de la v1
   (render final con guía, `{id}-bruto.png`, `{id}-guia.jpeg`) se conservan como historia.
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
