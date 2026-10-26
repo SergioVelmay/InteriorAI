@@ -42,8 +42,11 @@ Costes IA con colores vivos y una leyenda común (B-080, B-081).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-26`, PR #38. Tras el merge: renombrar las variables del `.env` local
-(lo hace Claude, sin tocar los valores), reconstruir Docker y comprobar `python -m shared`.
+✅ Cerrado — rama `feat/paso-26`, PR #38 revisada y mergeada por el usuario (2026-10-26). Variables
+del `.env` local renombradas (solo los nombres, con el comentario alineado con `.env.example`),
+Docker reconstruido y `python -m shared` en el contenedor: los seis roles con su despliegue, listo
+para el modo `azure` y sin avisos de nombres anteriores. Costes IA con los datos reales: el mismo
+total (3,4943 €, 66 llamadas) repartido en los seis roles actuales.
 
 ## 6. Pendiente / futuro
 

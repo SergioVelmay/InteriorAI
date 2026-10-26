@@ -60,16 +60,17 @@ def build_projects_tab(
     header: gr.HTML,
 ) -> ProjectsTab:
     with gr.Row(equal_height=False):
-        with gr.Column(scale=3):
+        with gr.Column(scale=1):  # 50/50 (B-059)
             gallery = gr.Gallery(
                 label="Proyectos",
                 show_label=False,
-                columns=3,
+                columns=2,
                 height="auto",
                 object_fit="cover",
                 allow_preview=False,
                 buttons=[],  # galería de selección: sin descargar ni pantalla completa
-                elem_classes="iai-gallery",
+                elem_classes=["iai-gallery", "iai-cols-2"],
+                elem_id="iai-projects",
             )
             ids = gr.State([])
             refresh = gr.Button("Actualizar", variant="secondary", size="sm")
@@ -79,8 +80,8 @@ def build_projects_tab(
                 )
                 new_description = gr.Textbox(label="Descripción", lines=4)
                 create = gr.Button("Crear proyecto", variant="primary")
-        with gr.Column(scale=2):
-            summary = gr.Markdown(EMPTY_SUMMARY)
+        with gr.Column(scale=1):
+            summary = gr.Markdown(EMPTY_SUMMARY, elem_id="iai-project-summary")
             with gr.Accordion(calls_label(None), open=False) as calls_box:  # B-027
                 calls = gr.Markdown(
                     project_calls_md([]), max_height=420, elem_id="iai-project-calls"

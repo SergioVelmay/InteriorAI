@@ -75,21 +75,22 @@ def gallery_caption(project: ProjectMetadata) -> str:
 
 
 def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -> str:
-    kinds = Counter(a.kind for a in project.assets)
+    """Resumen del proyecto (B-060): referencias, activas y una línea por etapa."""
+    references = [a for a in project.assets if a.kind is AssetKind.REFERENCIA]
+    active = sum(1 for a in references if a.sheet is not None and a.sheet.active)
     stages = Counter(r.stage for r in project.renders)
     selected_final = any(
         r.stage is RenderStage.FINAL and r.status is RenderStatus.SELECTED for r in project.renders
     )
-    latest_brief = max(project.briefs, key=lambda b: b.version, default=None)
-    brief = f"v{latest_brief.version} · {latest_brief.status}" if latest_brief else "sin brief"
     lines = [
         f"### {html.escape(project.name)}",
         f"Actualizado el {project.updated_at:%d/%m/%Y %H:%M} UTC",
         "",
-        f"- Imágenes de referencia: **{kinds[AssetKind.REFERENCIA]}**",
-        f"- Brief: **{brief}**",
-        f"- Bocetos: **{stages[RenderStage.DRAFT]}** · composiciones: "
-        f"**{stages[RenderStage.COMPOSITION]}** · renders finales: **{stages[RenderStage.FINAL]}**",
+        f"- Imágenes de referencia: **{len(references)}**",
+        f"- Referencias activas: **{active}**",
+        f"- Bocetos generados: **{stages[RenderStage.DRAFT]}**",
+        f"- Composiciones generadas: **{stages[RenderStage.COMPOSITION]}**",
+        f"- Renders finales generados: **{stages[RenderStage.FINAL]}**",
         f"- Render final elegido: **{'sí' if selected_final else 'no'}**",
     ]
     if costs is not None:
@@ -152,12 +153,13 @@ def sheet_status(asset: Asset) -> str:
 
 
 def asset_caption(asset: Asset) -> str:
-    parts = [asset.original_name]
+    """Pie de una referencia (B-065): el nombre arriba y, debajo, tamaño y estado."""
+    details = []
     if asset.width_px and asset.height_px:
-        parts.append(f"{asset.width_px}x{asset.height_px}")
+        details.append(f"{asset.width_px}x{asset.height_px}")
     if asset.kind is AssetKind.REFERENCIA:
-        parts.append(sheet_status(asset))
-    return " · ".join(parts)
+        details.append(sheet_status(asset))
+    return f"{asset.original_name}\n{' · '.join(details)}" if details else asset.original_name
 
 
 def asset_info_md(asset: Asset) -> str:

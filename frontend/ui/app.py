@@ -11,11 +11,12 @@ import gradio as gr
 
 from shared import Settings, get_settings
 from ui.api_client import BackendClient
+from ui.forecast import seed_forecasts
 from ui.tabs.costs import build_costs_tab
 from ui.tabs.projects import build_projects_tab
 from ui.tabs.references import build_references_tab
 from ui.tabs.studio import build_studio_tabs
-from ui.theme import CSS, FORCE_DARK_JS, build_theme
+from ui.theme import CSS, FORCE_DARK_JS, GRADIO_TEXTS, build_theme
 from ui.views import header_html
 
 ACTIVE_PROJECT_KEY = "interiorai.active_project"
@@ -29,7 +30,7 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
         active = gr.BrowserState(None, storage_key=ACTIVE_PROJECT_KEY)
         header = gr.HTML(header_html(None, None))
         with gr.Tabs():
-            with gr.Tab("Proyectos"):
+            with gr.Tab("Proyectos") as projects_tab:
                 projects = build_projects_tab(client, data_dir, active, header)
             with gr.Tab("Referencias") as references_tab:
                 references = build_references_tab(client, data_dir, active)
@@ -39,6 +40,8 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
                 costs = build_costs_tab(client, active)
 
         demo.load(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
+        # Al volver a Proyectos, galería, portadas y resumen al día (B-062).
+        projects_tab.select(projects.refresh_all, inputs=active, outputs=projects.all_outputs)
         # Al entrar en Referencias se recarga con el proyecto activo (puede haber cambiado).
         references_tab.select(references.refresh_all, inputs=active, outputs=references.all_outputs)
         # Composición y Render Final se desbloquean en cuanto cambia el proyecto activo.
@@ -47,6 +50,7 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
         for tab in studio.tabs:
             tab.select(studio.refresh_all, inputs=active, outputs=studio.all_outputs)
         costs_tab.select(costs.load, inputs=costs.inputs, outputs=costs.all_outputs)
+    seed_forecasts(demo, [*references.forecasts, *studio.forecasts])  # B-064
     return demo
 
 
@@ -57,6 +61,7 @@ def launch_kwargs(settings: Settings) -> dict[str, Any]:
         "theme": build_theme(),
         "css": CSS,
         "js": FORCE_DARK_JS,
+        "i18n": gr.I18n(en=GRADIO_TEXTS, es=GRADIO_TEXTS),  # B-063
         # Las portadas se leen del volumen compartido (montado en solo lectura).
         "allowed_paths": [str(settings.storage.data_dir)],
         "footer_links": [],  # sin el pie de Gradio («Use via API», «Built with Gradio»)
