@@ -8,22 +8,24 @@ import pandas as pd
 
 from ui.api_client import BackendClient
 from ui.cost_views import (
+    ROLE_COLORS,
     alert_lines,
     chain_cost_md,
     day_chart,
     day_frame,
     filter_records,
     kpi_html,
+    legend_html,
     notes_md,
     pricing_frame,
     project_calls_md,
     project_chart,
+    project_frame,
     record_detail_md,
     records_csv,
     records_frame,
     role_chart,
     role_frame,
-    series_colors,
 )
 from ui.tabs.costs import ACTIVE, EVERYTHING, build_costs_tab
 
@@ -43,9 +45,9 @@ def record(role: str, cost: float | None, day: str = "2026-10-18", **extra) -> d
 
 
 RECORDS = [
-    record("PHOTOREALISTIC_RENDERER", 0.0873, deployment="FLUX.2-pro"),
-    record("FAST_DRAFT", 0.0305, day="2026-10-17"),
-    record("GEOMETRIC_AUDITOR", 0.0, status="error", error_type="FoundryTimeoutError"),
+    record("REALISTIC_RENDERER", 0.0873, deployment="FLUX.2-pro"),
+    record("FAST_DRAFT_MAKER", 0.0305, day="2026-10-17"),
+    record("GEOMETRY_AUDITOR", 0.0, status="error", error_type="FoundryTimeoutError"),
 ]
 
 
@@ -55,13 +57,22 @@ def summary(**extra) -> dict:
         "includes_simulated": False, "simulated_excluded": 0,
         "totals": {"calls": 3, "errors": 1, "unpriced_calls": 0, "cost_eur": 0.1178,
                    "images_out": 2, "megapixels_out": 4.9152, "latency_s": 37.02},
-        "by_role": [{"key": "FAST_DRAFT", "cost_eur": 0.0305, "calls": 1},
-                    {"key": "PHOTOREALISTIC_RENDERER", "cost_eur": 0.0873, "calls": 1}],
-        "by_role_deployment": [
-            {"key": "FAST_DRAFT (d)", "label": "FAST_DRAFT", "cost_eur": 0.0305, "calls": 1},
-            {"key": "PHOTOREALISTIC_RENDERER (FLUX.2-pro)", "label": "PHOTOREALISTIC_RENDERER",
-             "cost_eur": 0.0873, "calls": 1}],
+        "by_role": [{"key": "FAST_DRAFT_MAKER", "label": "d", "cost_eur": 0.0305, "calls": 1},
+                    {"key": "REALISTIC_RENDERER", "label": "FLUX.2-pro", "cost_eur": 0.0873,
+                     "calls": 1}],
+        "role_deployments": {"REFERENCE_ANALYST": "gpt-6.1-sol", "PROMPT_ARCHITECT": "gpt-6-luna",
+                             "FAST_DRAFT_MAKER": "d", "COMPOSITION_BUILDER": None,
+                             "REALISTIC_RENDERER": "FLUX.2-pro", "GEOMETRY_AUDITOR": None},
         "by_project": [{"key": PROJECT, "label": "Salón", "cost_eur": 0.1178}],
+        "by_day_role": [
+            {"key": "2026-10-17", "role": "FAST_DRAFT_MAKER", "cost_eur": 0.0305, "calls": 1},
+            {"key": "2026-10-18", "role": "REALISTIC_RENDERER", "cost_eur": 0.0873, "calls": 1},
+            {"key": "2026-10-18", "role": "GEOMETRY_AUDITOR", "cost_eur": 0.0, "calls": 1}],
+        "by_project_role": [
+            {"key": PROJECT, "label": "Salón", "role": "FAST_DRAFT_MAKER", "cost_eur": 0.0305,
+             "calls": 1},
+            {"key": PROJECT, "label": "Salón", "role": "REALISTIC_RENDERER", "cost_eur": 0.0873,
+             "calls": 1}],
         "records": RECORDS,
     } | extra  # fmt: skip
 
@@ -92,46 +103,51 @@ def test_kpis_and_notes() -> None:
     assert "Todavía no hay llamadas reales" in notes_md(empty)
 
 
-def test_series_colors_follow_the_role() -> None:
-    colors = series_colors({
-        "PROMPT_ENGINEER (gpt-6-luna)": "PROMPT_ENGINEER",
-        "PROMPT_ENGINEER (gpt-6.1-sol)": "PROMPT_ENGINEER",
-        "FAST_DRAFT (flare)": "FAST_DRAFT",
-    })  # fmt: skip
-    assert colors["FAST_DRAFT (flare)"] == "#38bdf8"
-    assert colors["PROMPT_ENGINEER (gpt-6-luna)"] == "#a1a1aa"
-    assert colors["PROMPT_ENGINEER (gpt-6.1-sol)"] not in {"#a1a1aa", "#38bdf8"}  # más claro
-
-
-def test_charts_have_a_full_legend_and_readable_labels() -> None:
-    """B-032: leyenda «rol (despliegue)», una por línea y sin recortar; rol en dos líneas."""
-    spec = role_chart(summary()).to_dict()
-    legend = spec["encoding"]["color"]["legend"]
-    assert legend["columns"] == 1 and legend["labelLimit"] == 0 and legend["orient"] == "bottom"
-    assert spec["encoding"]["color"]["scale"]["domain"] == [
-        "FAST_DRAFT (d)", "PHOTOREALISTIC_RENDERER (FLUX.2-pro)",
+def test_six_vivid_role_colors_and_a_common_legend() -> None:
+    """B-080 y B-081: un color por rol, distinto y vivo; una sola leyenda, fuera de los gráficos,
+    con el despliegue actual de cada rol."""
+    assert list(ROLE_COLORS) == [
+        "REFERENCE_ANALYST", "PROMPT_ARCHITECT", "FAST_DRAFT_MAKER", "COMPOSITION_BUILDER",
+        "REALISTIC_RENDERER", "GEOMETRY_AUDITOR",
     ]  # fmt: skip
-    assert "split(datum.label" in spec["encoding"]["x"]["axis"]["labelExpr"]
-    assert role_frame(summary(by_role_deployment=[])).empty
+    assert len(set(ROLE_COLORS.values())) == 6
+    legend = legend_html(summary())
+    assert legend.count("<li>") == 6
+    assert "<strong>PROMPT_ARCHITECT</strong> <span>(gpt-6-luna)</span>" in legend
+    assert "<strong>COMPOSITION_BUILDER</strong></li>" in legend  # sin despliegue configurado
+    for chart in (role_chart(summary()), day_chart(summary()), project_chart(summary())):
+        color = chart.to_dict()["encoding"]["color"]
+        assert color["legend"] is None  # la leyenda es la común
+        assert color["scale"]["domain"] == list(ROLE_COLORS)  # mismos colores en todos
 
-    days = day_frame(RECORDS)
+
+def test_charts_by_role_day_and_project() -> None:
+    spec = role_chart(summary()).to_dict()
+    assert spec["encoding"]["x"]["sort"] == list(ROLE_COLORS)
+    assert role_frame(summary(by_role=[])).empty
+
+    days = day_frame(summary())
     assert days.to_dict("records")[0] == {
-        "Día": "2026-10-17", "Serie": "FAST_DRAFT (d)", "Rol": "FAST_DRAFT", "Coste (€)": 0.0305,
+        "Día": "2026-10-17", "Rol": "FAST_DRAFT_MAKER", "Coste (€)": 0.0305, "Llamadas": 1,
     }  # fmt: skip
-    assert day_chart(RECORDS).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == 0  # caben
-    many = [record("FAST_DRAFT", 0.01, day=f"2026-10-{d:02d}") for d in range(1, 20)]
-    assert day_chart(many).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == -40  # giradas
+    spec = day_chart(summary()).to_dict()
+    assert spec["encoding"]["y"]["field"] == "Coste (€)" and spec["mark"]["type"] == "bar"
+    assert spec["width"] == 1160  # ancho completo (B-081)
+    assert spec["encoding"]["x"]["axis"]["labelAngle"] == 0
+    many = summary(by_day_role=[{"key": f"2026-10-{d:02d}", "role": "FAST_DRAFT_MAKER",
+                                 "cost_eur": 0.01, "calls": 1} for d in range(1, 31)])  # fmt: skip
+    assert day_chart(many).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == -40
 
-    projects = summary(by_project=[{"key": str(i), "label": f"Proyecto con nombre largo {i}",
-                                    "cost_eur": 0.1} for i in range(5)])  # fmt: skip
-    assert project_chart(projects).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == -40
-    assert project_chart(summary()).to_dict()["encoding"]["x"]["axis"]["labelAngle"] == 0
+    frame = project_frame(summary())
+    assert list(frame["Rol"]) == ["FAST_DRAFT_MAKER", "REALISTIC_RENDERER"]  # apilado por rol
+    assert set(frame["Proyecto"]) == {"Salón"}
+    assert project_chart(summary()).to_dict()["width"] == 1160
 
 
 def test_records_table_detail_and_csv() -> None:
     """B-033: tabla con despliegue y MPx, sin simulada ni petición; el resto en el detalle."""
     assert len(filter_records(RECORDS, "Todos", "error")) == 1
-    assert len(filter_records(RECORDS, "FAST_DRAFT", "Todos")) == 1
+    assert len(filter_records(RECORDS, "FAST_DRAFT_MAKER", "Todos")) == 1
     frame = records_frame(RECORDS)
     assert isinstance(frame, pd.DataFrame) and len(frame) == 3
     assert list(frame.columns) == [
@@ -149,9 +165,18 @@ def test_records_table_detail_and_csv() -> None:
     assert "en caché 20" in detail and "razonamiento 7" in detail and "`r1`" in detail
     assert "Selecciona una fila" in record_detail_md(None)
 
+    # Rol actual del despliegue; el original de la llamada, en el detalle y en el CSV (Paso 26)
+    moved = record("REFERENCE_ANALYST", 0.04, deployment="gpt-6.1-sol",
+                   call_role="PROMPT_ARCHITECT")  # fmt: skip
+    assert "**Rol en la llamada:** PROMPT_ARCHITECT" in record_detail_md(moved)
+    assert "Rol en la llamada" not in record_detail_md(RECORDS[0])
+    assert records_csv([moved]).splitlines()[1].split(";")[2:5] == [
+        "REFERENCE_ANALYST", "PROMPT_ARCHITECT", "gpt-6.1-sol",
+    ]  # fmt: skip
+
     lines = records_csv(RECORDS).splitlines()
     header = lines[0].split(";")
-    assert header[:4] == ["Fecha (UTC)", "Proyecto", "Rol", "Despliegue"]
+    assert header[:5] == ["Fecha (UTC)", "Proyecto", "Rol", "Rol en la llamada", "Despliegue"]
     assert {"Error", "Petición", "Tokens en caché", "Desglose del coste"} <= set(header)
     assert "FoundryTimeoutError" in lines[3] and len(lines) == 4
 
@@ -231,6 +256,7 @@ async def test_costs_tab_scopes(tmp_path: Path) -> None:
     assert all(r.url.params.get("include_simulated", "false") == "false" for r in seen)  # B-031
     assert by_id(result, "iai-cost-project")["visible"] is False
     assert by_id(result, "iai-cost-role").to_dict()["mark"]["type"] == "bar"
+    assert "Rol (despliegue actual)" in by_id(result, "iai-cost-legend")
     assert len(by_id(result, "iai-cost-table")["value"]) == 3
     csv_path = anyio.Path(by_id(result, "iai-cost-csv")["value"])
     assert (await csv_path.read_text(encoding="utf-8-sig")).count("\n") == 4  # cabecera + 3
@@ -281,13 +307,13 @@ async def test_cost_alerts_client_never_fails() -> None:
 def test_project_calls_md_is_compact() -> None:
     """B-027: las llamadas en el resumen del proyecto, con lo esencial."""
     records = [
-        {"timestamp": "2026-10-24T22:48:19.123Z", "role": "PROMPT_ENGINEER", "status": "ok",
+        {"timestamp": "2026-10-24T22:48:19.123Z", "role": "PROMPT_ARCHITECT", "status": "ok",
          "simulated": True, "cost_eur": 0.00107},
-        {"timestamp": "2026-10-24T09:13:19Z", "role": "PHOTOREALISTIC_RENDERER",
+        {"timestamp": "2026-10-24T09:13:19Z", "role": "REALISTIC_RENDERER",
          "status": "error", "simulated": False, "cost_eur": None},
     ]  # fmt: skip
     lines = project_calls_md(records).splitlines()
     assert lines[0] == "| Fecha (UTC) | Rol | Estado | Coste (€) |"
-    assert lines[2] == "| 24/10/26 22:48 | PROMPT_ENGINEER | ✓ | 0.0011 |"
-    assert lines[3] == "| 24/10/26 09:13 | PHOTOREALISTIC_RENDERER | error | — |"
+    assert lines[2] == "| 24/10/26 22:48 | PROMPT_ARCHITECT | ✓ | 0.0011 |"
+    assert lines[3] == "| 24/10/26 09:13 | REALISTIC_RENDERER | error | — |"
     assert project_calls_md([]) == "_Sin llamadas reales de IA._"

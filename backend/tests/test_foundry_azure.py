@@ -135,7 +135,7 @@ def body_of(request: httpx.Request) -> dict:
 async def test_text_request_shape_and_usage(make_client) -> None:
     client, seen = make_client(lambda r: httpx.Response(200, json=responses_body("Prompt")))
     result = await client.complete_text(
-        Role.PROMPT_ENGINEER,
+        Role.PROMPT_ARCHITECT,
         TextRequest(
             input="Notas",
             instructions="Sistema",
@@ -147,7 +147,7 @@ async def test_text_request_shape_and_usage(make_client) -> None:
     assert str(request.url) == f"{ENDPOINT}/openai/v1/responses"
     assert request.headers["authorization"] == f"Bearer {FAKE_KEY}"
     body = body_of(request)
-    assert body["model"] == "dep-prompt_engineer"
+    assert body["model"] == "dep-prompt_architect"
     assert body["store"] is False
     assert body["instructions"] == "Sistema"
     assert body["max_output_tokens"] == 200
@@ -159,15 +159,15 @@ async def test_text_request_shape_and_usage(make_client) -> None:
     assert result.text == "Prompt"
     assert result.response_id == "resp_123"
     assert (result.usage.input_tokens, result.usage.output_tokens) == (120, 300)
-    assert result.deployment == "dep-prompt_engineer"
+    assert result.deployment == "dep-prompt_architect"
 
 
 async def test_auditor_sends_reasoning_effort_and_reads_reasoning_tokens(make_client) -> None:
     client, seen = make_client(
         lambda r: httpx.Response(200, json=responses_body(reasoning=250)),
-        GEOMETRIC_AUDITOR_REASONING_EFFORT="max",
+        GEOMETRY_AUDITOR_REASONING_EFFORT="max",
     )
-    result = await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="Audita"))
+    result = await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="Audita"))
     assert body_of(seen[0])["reasoning"] == {"effort": "max"}
     assert result.usage.reasoning_tokens == 250
 
@@ -175,10 +175,10 @@ async def test_auditor_sends_reasoning_effort_and_reads_reasoning_tokens(make_cl
 async def test_reasoning_effort_is_configured_per_role(make_client) -> None:
     client, seen = make_client(
         lambda r: httpx.Response(200, json=responses_body("{}")),
-        PROMPT_ENGINEER_REASONING_EFFORT="low",
+        PROMPT_ARCHITECT_REASONING_EFFORT="low",
         REFERENCE_ANALYST_REASONING_EFFORT="high",
     )
-    await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
     await client.complete_text(Role.REFERENCE_ANALYST, TextRequest(input="x"))
     assert [body_of(r)["reasoning"] for r in seen] == [{"effort": "low"}, {"effort": "high"}]
 
@@ -202,7 +202,7 @@ async def test_json_schema_is_sent_and_parsed(make_client) -> None:
 async def test_incomplete_response_keeps_usage_for_billing(make_client) -> None:
     client, _ = make_client(lambda r: httpx.Response(200, json=responses_body(status="incomplete")))
     with pytest.raises(FoundryIncompleteError, match="max_output_tokens") as exc:
-        await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
+        await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="x"))
     assert exc.value.usage is not None
     assert exc.value.usage.output_tokens == 300
 
@@ -228,8 +228,8 @@ async def test_incomplete_response_keeps_usage_for_billing(make_client) -> None:
 async def test_openai_errors_are_translated(make_client, status, payload, error) -> None:
     client, _ = make_client(lambda r: httpx.Response(status, json=payload))
     with pytest.raises(error) as exc:
-        await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
-    assert exc.value.role is Role.PROMPT_ENGINEER
+        await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
+    assert exc.value.role is Role.PROMPT_ARCHITECT
     assert FAKE_KEY not in str(exc.value)
 
 
@@ -249,11 +249,15 @@ async def test_generate_image_request_and_decoding(make_client) -> None:
     }
     client, seen = make_client(lambda r: httpx.Response(200, json=payload))
     result = await client.generate_image(
-        Role.FAST_DRAFT, ImageRequest(prompt="Salón", size="1024x1024", quality="low")
+        Role.FAST_DRAFT_MAKER, ImageRequest(prompt="Salón", size="1024x1024", quality="low")
     )
     assert str(seen[0].url) == f"{ENDPOINT}/openai/v1/images/generations"
     body = body_of(seen[0])
-    assert (body["model"], body["size"], body["quality"]) == ("dep-fast_draft", "1024x1024", "low")
+    assert (body["model"], body["size"], body["quality"]) == (
+        "dep-fast_draft_maker",
+        "1024x1024",
+        "low",
+    )
     assert result.images[0].data == png()
     assert (result.images[0].width, result.images[0].height) == (32, 32)
     assert (result.usage.input_tokens, result.usage.output_tokens) == (12, 272)
@@ -264,7 +268,7 @@ async def test_edit_image_sends_multipart_with_mask(make_client) -> None:
         lambda r: httpx.Response(200, json={"created": 0, "data": [{"b64_json": PNG_B64}]})
     )
     await client.edit_image(
-        Role.STRUCTURAL_COMPOSER,
+        Role.COMPOSITION_BUILDER,
         ImageEditRequest(
             prompt="Sofá", images=[InputImage(data=png())], mask=InputImage(data=png())
         ),
@@ -273,7 +277,7 @@ async def test_edit_image_sends_multipart_with_mask(make_client) -> None:
     assert str(request.url) == f"{ENDPOINT}/openai/v1/images/edits"
     assert request.headers["content-type"].startswith("multipart/form-data")
     assert b'name="mask"' in request.content
-    assert b"dep-structural_composer" in request.content
+    assert b"dep-composition_builder" in request.content
     assert b"input_fidelity" not in request.content  # el despliegue lo rechaza (B-041)
 
 
@@ -285,7 +289,7 @@ async def test_renderer_generation_request(make_client) -> None:
         lambda r: httpx.Response(200, json={"data": [{"b64_json": PNG_B64}]})
     )
     result = await client.generate_image(
-        Role.PHOTOREALISTIC_RENDERER,
+        Role.REALISTIC_RENDERER,
         ImageRequest(prompt="Render", size="1024x768", output_format="jpeg", seed=7, n=2),
     )
     assert len(seen) == 2  # una petición por imagen
@@ -295,7 +299,7 @@ async def test_renderer_generation_request(make_client) -> None:
     assert request.headers["authorization"] == f"Bearer {FAKE_KEY}"
     body = body_of(request)
     assert body == {
-        "model": "dep-photorealistic_renderer",
+        "model": "dep-realistic_renderer",
         "prompt": "Render",
         "width": 1024,
         "height": 768,
@@ -312,7 +316,7 @@ async def test_renderer_edit_sends_reference_images(make_client) -> None:
         lambda r: httpx.Response(200, json={"data": [{"b64_json": PNG_B64}]})
     )
     await client.edit_image(
-        Role.PHOTOREALISTIC_RENDERER,
+        Role.REALISTIC_RENDERER,
         ImageEditRequest(
             prompt="Luz cálida", images=[InputImage(data=png()), InputImage(data=png())]
         ),
@@ -330,7 +334,7 @@ async def test_renderer_accepts_url_responses(make_client) -> None:
         return httpx.Response(200, json={"result": {"sample": "https://example.com/img.png"}})
 
     client, _ = make_client(handler)
-    result = await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    result = await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert result.images[0].width == 48
 
 
@@ -342,7 +346,7 @@ async def test_renderer_retries_on_429_with_retry_after(make_client) -> None:
         ]
     )
     client, seen = make_client(lambda r: next(responses), AZURE_FOUNDRY_MAX_RETRIES="2")
-    result = await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    result = await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert len(seen) == 2
     assert len(result.images) == 1
 
@@ -363,7 +367,7 @@ async def test_renderer_retries_on_429_with_retry_after(make_client) -> None:
 async def test_renderer_errors_are_translated(make_client, status, payload, error) -> None:
     client, _ = make_client(lambda r: httpx.Response(status, json=payload))
     with pytest.raises(error):
-        await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+        await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
 
 
 async def test_renderer_api_version_is_configurable(make_client) -> None:
@@ -371,7 +375,7 @@ async def test_renderer_api_version_is_configurable(make_client) -> None:
         lambda r: httpx.Response(200, json={"data": [{"b64_json": PNG_B64}]}),
         AZURE_FOUNDRY_RENDERER_API_VERSION="2026-01-01",
     )
-    await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert seen[0].url.params["api-version"] == "2026-01-01"
 
 
@@ -399,7 +403,7 @@ async def test_openai_timeout_is_never_retried(
 
     client = openai_only_client(tmp_path, monkeypatch, timeout, AZURE_FOUNDRY_MAX_RETRIES="3")
     with pytest.raises(FoundryTimeoutError):
-        await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
+        await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="x"))
     assert len(calls) == 1  # un único intento aunque MAX_RETRIES=3
 
 
@@ -411,7 +415,7 @@ async def test_openai_429_is_retried(make_client) -> None:
         ]
     )
     client, seen = make_client(lambda r: next(responses), AZURE_FOUNDRY_MAX_RETRIES="2")
-    result = await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    result = await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
     assert result.text == "ok"
     assert len(seen) == 2
 
@@ -422,7 +426,7 @@ async def test_openai_500_is_not_retried(make_client) -> None:
         AZURE_FOUNDRY_MAX_RETRIES="3",
     )
     with pytest.raises(FoundryError):
-        await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+        await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
     assert len(seen) == 1
 
 
@@ -438,11 +442,11 @@ async def test_auditor_uses_its_own_timeout(
 
     client = openai_only_client(
         tmp_path, monkeypatch, handler,
-        AZURE_FOUNDRY_TIMEOUT_S="120", GEOMETRIC_AUDITOR_TIMEOUT_S="900",
+        AZURE_FOUNDRY_TIMEOUT_S="120", GEOMETRY_AUDITOR_TIMEOUT_S="900",
     )  # fmt: skip
-    await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
-    await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
-    assert timeouts == {"dep-geometric_auditor": 900, "dep-prompt_engineer": 120}
+    await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="x"))
+    await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
+    assert timeouts == {"dep-geometry_auditor": 900, "dep-prompt_architect": 120}
 
 
 async def test_renderer_timeout_is_never_retried(make_client) -> None:
@@ -454,7 +458,7 @@ async def test_renderer_timeout_is_never_retried(make_client) -> None:
 
     client, _ = make_client(timeout, AZURE_FOUNDRY_MAX_RETRIES="3")
     with pytest.raises(FoundryTimeoutError):
-        await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+        await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert len(calls) == 1
 
 
@@ -466,10 +470,10 @@ async def test_renderer_503_is_retried_but_500_is_not(make_client) -> None:
         ]
     )
     client, seen = make_client(lambda r: next(responses), AZURE_FOUNDRY_MAX_RETRIES="2")
-    await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+    await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert len(seen) == 2
 
     client, seen = make_client(lambda r: httpx.Response(500), AZURE_FOUNDRY_MAX_RETRIES="2")
     with pytest.raises(FoundryError):
-        await client.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x"))
+        await client.generate_image(Role.REALISTIC_RENDERER, ImageRequest(prompt="x"))
     assert len(seen) == 1

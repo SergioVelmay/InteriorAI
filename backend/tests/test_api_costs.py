@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -51,10 +52,10 @@ def test_request_id_on_error_responses(make_api: Callable[..., TestClient]) -> N
 async def _simulate_calls(api: TestClient, project_id: str) -> None:
     client = api.app.state.foundry
     with telemetry_scope(project_id):
-        await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="Salón nórdico"))
-        await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="Audita"))
+        await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="Salón nórdico"))
+        await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="Audita"))
         await client.generate_image(
-            Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x", size="1024x1024")
+            Role.REALISTIC_RENDERER, ImageRequest(prompt="x", size="1024x1024")
         )
 
 
@@ -75,19 +76,28 @@ def test_costs_summary_aggregates(api: TestClient) -> None:
         sum(g["cost_eur"] for g in summary["by_role"]), abs=1e-6
     )
     assert [g["key"] for g in summary["by_role"]] == [
-        "GEOMETRIC_AUDITOR",
-        "PHOTOREALISTIC_RENDERER",
-        "PROMPT_ENGINEER",
+        "GEOMETRY_AUDITOR",
+        "PROMPT_ARCHITECT",
+        "REALISTIC_RENDERER",
     ]
     assert len(summary["by_day"]) == 1
     assert {g["key"] for g in summary["by_deployment"]} == {
-        "mock-geometric_auditor",
-        "mock-photorealistic_renderer",
-        "mock-prompt_engineer",
+        "mock-geometry_auditor",
+        "mock-realistic_renderer",
+        "mock-prompt_architect",
     }  # sin DEPLOYMENT_ROLE_* configurados en el test → sin precio
-    by_pair = {g["key"]: g["label"] for g in summary["by_role_deployment"]}  # B-032
-    assert by_pair["PROMPT_ENGINEER (mock-prompt_engineer)"] == "PROMPT_ENGINEER"
-    assert len(by_pair) == 3
+    # Sin despliegues configurados, cada llamada en su rol guardado y sin despliegue actual
+    assert {g["key"]: g["label"] for g in summary["by_role"]} == {
+        "GEOMETRY_AUDITOR": None, "PROMPT_ARCHITECT": None, "REALISTIC_RENDERER": None,
+    }  # fmt: skip
+    [day] = {g["key"] for g in summary["by_day"]}
+    assert [(g["key"], g["role"]) for g in summary["by_day_role"]] == [
+        (day, "GEOMETRY_AUDITOR"), (day, "PROMPT_ARCHITECT"), (day, "REALISTIC_RENDERER"),
+    ]  # fmt: skip
+    assert [g["role"] for g in summary["by_project_role"]] == [
+        "GEOMETRY_AUDITOR", "PROMPT_ARCHITECT", "REALISTIC_RENDERER",
+    ]  # fmt: skip
+    assert all(r["call_role"] == r["role"] for r in summary["records"])
     assert totals["unpriced_calls"] == 3
     assert len(summary["records"]) == 3
 
@@ -107,7 +117,7 @@ def test_costs_limit_and_empty_project(api: TestClient) -> None:
 def test_costs_with_configured_deployments_are_priced(
     make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ENGINEER", "gpt-6.1-sol")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ARCHITECT", "gpt-6.1-sol")
     api = make_api()
     project_id = create_project(api)
     api.portal.call(_simulate_calls, api, project_id)
@@ -118,11 +128,71 @@ def test_costs_with_configured_deployments_are_priced(
     assert by_deployment["gpt-6.1-sol"]["cost_eur"] > 0
 
 
+def _stored(role: str, deployment: str, cost: float) -> str:
+    """Una línea de telemetría tal como la guardaba la 2.x (rol con el nombre anterior)."""
+    return json.dumps({
+        "id": str(uuid4()), "timestamp": "2026-10-20T10:00:00Z", "role": role,
+        "deployment": deployment, "operation": "complete_text", "status": "ok",
+        "latency_s": 1.0, "cost_eur": cost, "simulated": False,
+    })  # fmt: skip
+
+
+def test_costs_go_to_the_current_role_of_each_deployment(
+    make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Paso 26 (B-057): cada llamada cuenta en el rol que hoy tiene su despliegue; una serie
+    por rol. Las llamadas antiguas con nombres anteriores se leen sin reescribirse."""
+    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ARCHITECT", "gpt-6-luna")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_REFERENCE_ANALYST", "gpt-6.1-sol")
+    api = make_api()
+    project_id = create_project(api)
+    log = tmp_path / "data" / project_id / "costes_telemetria.jsonl"
+    lines = [
+        _stored("PROMPT_ENGINEER", "gpt-6.1-sol", 0.04),  # sol es hoy de REFERENCE_ANALYST
+        _stored("REFERENCE_ANALYST", "gpt-6-luna", 0.001),  # luna es hoy de PROMPT_ARCHITECT
+        _stored("CONTEXT_MANAGER", "gpt-6.1-sol", 0.03),
+        _stored("GEOMETRIC_AUDITOR", "gpt-5-viejo", 0.2),  # despliegue ya no asignado
+    ]
+    log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    url = f"/api/v1/projects/{project_id}/costs"
+    summary = api.get(url, params={"include_simulated": False}).json()
+    by_role = {
+        g["key"]: (g["label"], g["calls"], round(g["cost_eur"], 4)) for g in summary["by_role"]
+    }
+    assert by_role == {
+        "REFERENCE_ANALYST": ("gpt-6.1-sol", 2, 0.07),
+        "PROMPT_ARCHITECT": ("gpt-6-luna", 1, 0.001),
+        "GEOMETRY_AUDITOR": (None, 1, 0.2),  # en su rol guardado, con el nombre actual
+    }
+    assert summary["role_deployments"]["PROMPT_ARCHITECT"] == "gpt-6-luna"
+    assert summary["role_deployments"]["FAST_DRAFT_MAKER"] is None  # sin configurar en el test
+    assert len(summary["role_deployments"]) == 6
+    calls = {(r["role"], r["call_role"]) for r in summary["records"]}
+    assert ("REFERENCE_ANALYST", "PROMPT_ARCHITECT") in calls  # el original, renombrado
+    assert ("PROMPT_ARCHITECT", "REFERENCE_ANALYST") in calls
+    assert ("GEOMETRY_AUDITOR", "GEOMETRY_AUDITOR") in calls
+    all_projects = api.get("/api/v1/costs", params={"include_simulated": False}).json()
+    assert {g["key"] for g in all_projects["by_role"]} == set(by_role)
+
+
+def test_shared_deployments_keep_the_stored_role(
+    make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("DEPLOYMENT_ROLE_PROMPT_ARCHITECT", "gpt-6-luna")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_REFERENCE_ANALYST", "gpt-6-luna")  # compartido
+    api = make_api()
+    project_id = create_project(api)
+    log = tmp_path / "data" / project_id / "costes_telemetria.jsonl"
+    log.write_text(_stored("REFERENCE_ANALYST", "gpt-6-luna", 0.01) + "\n", encoding="utf-8")
+    summary = api.get(f"/api/v1/projects/{project_id}/costs").json()
+    assert [g["key"] for g in summary["by_role"]] == ["REFERENCE_ANALYST"]
+
+
 def test_costs_for_missing_project(api: TestClient) -> None:
     assert api.get(f"/api/v1/projects/{uuid4()}/costs").status_code == 404
 
 
-def _real_record(cost: float, role: Role = Role.FAST_DRAFT, **extra) -> TelemetryRecord:
+def _real_record(cost: float, role: Role = Role.FAST_DRAFT_MAKER, **extra) -> TelemetryRecord:
     return TelemetryRecord(
         role=role, deployment="d", operation="generate_image", status="ok", latency_s=1.0,
         cost_eur=cost, simulated=False, **extra,
@@ -218,7 +288,7 @@ def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
     # Anterior al Paso 14: sin request_id
     brief = DesignBrief(version=1, content=content, reference_asset_ids=[reference.id])
     draft = RenderRecord(
-        id=uuid4(), stage="boceto", role=Role.FAST_DRAFT, deployment="d", brief_id=brief.id,
+        id=uuid4(), stage="boceto", role=Role.FAST_DRAFT_MAKER, deployment="d", brief_id=brief.id,
         brief_version=1, prompt="p", input_asset_ids=[], batch_id=uuid4(), size="1536x1024",
         request_id="r-draft",
     )  # fmt: skip
@@ -231,9 +301,9 @@ def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
     records = [
         _real_record(0.0004, Role.REFERENCE_ANALYST, request_id="r-ficha",
                      timestamp=analyzed - timedelta(seconds=2)),
-        _real_record(0.02, Role.PROMPT_ENGINEER, request_id="r-brief",
+        _real_record(0.02, Role.PROMPT_ARCHITECT, request_id="r-brief",
                      timestamp=brief.created_at - timedelta(seconds=1)),
-        _real_record(0.5, Role.PROMPT_ENGINEER, request_id="r-other",
+        _real_record(0.5, Role.PROMPT_ARCHITECT, request_id="r-other",
                      timestamp=brief.created_at - timedelta(hours=1)),  # otro brief
         _real_record(0.03, request_id="r-draft"),
         _real_record(0.03, request_id="r-sibling"),  # otra llamada: fuera de la cadena
@@ -270,7 +340,7 @@ async def test_concurrent_telemetry_appends_are_not_lost(tmp_path: Path) -> None
     project = await repo.create(ProjectCreate(name="x"))
     records = [
         TelemetryRecord(
-            role=Role.FAST_DRAFT,
+            role=Role.FAST_DRAFT_MAKER,
             deployment="d",
             operation="generate_image",
             status="ok",
@@ -293,7 +363,7 @@ def test_cli_simulate_records_calls(
     project_id = create_project(api)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PRICING_FILE", str(PRICING_FILE))
-    monkeypatch.setenv("DEPLOYMENT_ROLE_GEOMETRIC_AUDITOR", "gpt-6-astra")
+    monkeypatch.setenv("DEPLOYMENT_ROLE_GEOMETRY_AUDITOR", "gpt-6-astra")
     assert telemetry_cli(["simular", project_id, "--llamadas", "6"]) == 0
     assert "Registros en el proyecto: 6" in capsys.readouterr().out
 

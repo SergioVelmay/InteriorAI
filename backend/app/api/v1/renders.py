@@ -40,7 +40,7 @@ class _RenderRequest(BaseModel):
 
 class DraftRequest(_RenderRequest):
     """Bocetos (B-036, B-040, B-043): de 1 a 8 variantes (4 por defecto), calidad media y
-    formato 1536x1024 (3:2) por defecto. El prompt lo escribe el PROMPT_ENGINEER."""
+    formato 1536x1024 (3:2) por defecto. El prompt lo escribe el PROMPT_ARCHITECT."""
 
     n: int = Field(default=4, ge=1, le=8)
     quality: Literal["low", "medium", "high", "auto"] = "medium"
@@ -49,7 +49,7 @@ class DraftRequest(_RenderRequest):
 class CompositionRequest(_RenderRequest):
     """Composición (B-045, B-046, B-055): a partir del boceto seleccionado o de la composición
     actual (la seleccionada), con las referencias activas como apoyo y, si se pide, las
-    correcciones de la auditoría del boceto. El prompt lo escribe el PROMPT_ENGINEER."""
+    correcciones de la auditoría del boceto. El prompt lo escribe el PROMPT_ARCHITECT."""
 
     draft_id: UUID | None = Field(default=None, description="Por defecto, el boceto seleccionado")
     source: Literal["boceto", "composicion"] = Field(
@@ -129,7 +129,8 @@ async def create_drafts(
     foundry: FoundryDep,
     body: Annotated[DraftRequest, Body()] = DraftRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 1 (FAST_DRAFT): bocetos a partir de las referencias activas, con prompt automático."""
+    """Etapa 1 (FAST_DRAFT_MAKER): bocetos a partir de las referencias activas, con prompt
+    automático."""
     with telemetry_scope(project_id):
         renders = await generate_drafts(
             repo, foundry, project_id, _options(body, quality=body.quality)
@@ -144,7 +145,7 @@ async def create_composition(
     foundry: FoundryDep,
     body: Annotated[CompositionRequest, Body()] = CompositionRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 2 (STRUCTURAL_COMPOSER): composición a partir del boceto seleccionado o de la
+    """Etapa 2 (COMPOSITION_BUILDER): composición a partir del boceto seleccionado o de la
     composición actual, con las referencias activas como apoyo (hasta 12)."""
     with telemetry_scope(project_id):
         renders = await generate_composition(
@@ -161,7 +162,7 @@ async def create_final(
     foundry: FoundryDep,
     body: Annotated[FinalRequest, Body()] = FinalRequest(),  # noqa: B008
 ) -> RenderRunResponse:
-    """Etapa 3 (PHOTOREALISTIC_RENDERER): fotografía realista de la composición seleccionada o
+    """Etapa 3 (REALISTIC_RENDERER): fotografía realista de la composición seleccionada o
     del render final actual; o «Otra versión» de un render final (`variant_of`)."""
     with telemetry_scope(project_id):
         renders = await generate_final(
@@ -201,7 +202,7 @@ async def audit(
     settings: SettingsDep,
     body: Annotated[AuditRequest, Body()] = AuditRequest(),  # noqa: B008
 ) -> AuditResponse:
-    """GEOMETRIC_AUDITOR a demanda (rol más caro): compara la imagen (normalmente el boceto
+    """GEOMETRY_AUDITOR a demanda (rol más caro): compara la imagen (normalmente el boceto
     seleccionado) con las referencias activas de perspectiva o geometría y guarda el informe.
 
     No bloquea la selección: se puede seleccionar un render sin auditar.
@@ -242,7 +243,7 @@ async def inpaint(
 
     Lo pintado en la máscara (opaco, o claro si no tiene transparencia) se edita con la
     instrucción mediante la máscara nativa del modelo, que devuelve la imagen completa (B-038).
-    El prompt lo escribe el PROMPT_ENGINEER con la zona, las indicaciones y, si se pide, la
+    El prompt lo escribe el PROMPT_ARCHITECT con la zona, las indicaciones y, si se pide, la
     auditoría del boceto. Crea una imagen nueva de la misma etapa, sin seleccionar.
     """
     content = await read_upload(mask, settings.storage.max_upload_bytes)

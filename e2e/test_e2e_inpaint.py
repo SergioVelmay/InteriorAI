@@ -1,4 +1,4 @@
-"""Retoque de la composición seleccionada (Paso 23): máscara nativa, prompt del PROMPT_ENGINEER y
+"""Retoque de la composición seleccionada (Paso 23): máscara nativa, prompt del PROMPT_ARCHITECT y
 la imagen completa del modelo (B-038), al generar con la composición actual y «Usar el retoque»."""
 
 import io
@@ -57,6 +57,6 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     assert retouch["inpaint"]["method"] == "mascara"
     assert retouch["inpaint"]["instruction"] == "Una planta en la esquina"
     assert 0 < retouch["inpaint"]["coverage"] < 0.2
-    assert retouch["prompt_info"] is not None  # el prompt lo escribe el PROMPT_ENGINEER
+    assert retouch["prompt_info"] is not None  # el prompt lo escribe el PROMPT_ARCHITECT
     original, edited = image(api, url, composition["id"]), image(api, url, retouch["id"])
     assert edited.size == original.size and edited.tobytes() != original.tobytes()

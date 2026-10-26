@@ -79,7 +79,7 @@ def _brief_request_ids(
         if brief.request_id:
             ids.add(brief.request_id)
         else:
-            ids |= _legacy_ids(records, Role.PROMPT_ENGINEER, brief.created_at)
+            ids |= _legacy_ids(records, Role.PROMPT_ARCHITECT, brief.created_at)
     return ids, list(briefs.values())
 
 
@@ -102,7 +102,10 @@ def _reference_request_ids(
 
 
 def chain_cost(
-    project: ProjectMetadata, records: list[TelemetryRecord], render_id: UUID
+    project: ProjectMetadata,
+    records: list[TelemetryRecord],
+    render_id: UUID,
+    deployment_roles: dict[str, Role] | None = None,
 ) -> RenderChainCost | None:
     """Suma las llamadas de la cadena por `request_id`: lotes completos (todas las variantes
     generadas a la vez), auditorías, retoques, regeneraciones y el brief (con sus versiones)."""
@@ -125,7 +128,11 @@ def chain_cost(
         briefs=len(briefs),
         references=references,
         totals=_rounded(totals),
-        by_role=_group(real, lambda r: r.role.value),  # type: ignore[arg-type]
+        # Rol actual de cada despliegue, como en Costes IA (Paso 26)
+        by_role=_group(
+            real,  # type: ignore[arg-type]
+            lambda r: (deployment_roles or {}).get(r.deployment, r.role).value,
+        ),
         simulated_calls=len(simulated),
         simulated_cost_eur=round(sum(r.cost_eur or 0 for r in simulated), 6),
     )

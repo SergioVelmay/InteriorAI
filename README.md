@@ -15,12 +15,12 @@ Construido con FastAPI, Gradio y Azure AI Foundry. Versión **2.0.0** ([CHANGELO
 
 ```mermaid
 flowchart LR
-    R[Referencias<br/>receta y ficha<br/>REFERENCE_ANALYST] -->|lo marcado| B[Bocetos<br/>FAST_DRAFT]
-    B -->|eliges uno| A{{Auditoría opcional<br/>GEOMETRIC_AUDITOR}}
-    B -->|eliges uno| C[Composición<br/>STRUCTURAL_COMPOSER]
+    R[Referencias<br/>receta y ficha<br/>REFERENCE_ANALYST] -->|lo marcado| B[Bocetos<br/>FAST_DRAFT_MAKER]
+    B -->|eliges uno| A{{Auditoría opcional<br/>GEOMETRY_AUDITOR}}
+    B -->|eliges uno| C[Composición<br/>COMPOSITION_BUILDER]
     A -.->|correcciones| C
     C -.->|retoque con máscara| C
-    C -->|eliges una| F[Render final<br/>PHOTOREALISTIC_RENDERER]
+    C -->|eliges una| F[Render final<br/>REALISTIC_RENDERER]
     F -.->|otra versión o cambios globales| F
 ```
 
@@ -36,7 +36,7 @@ flowchart LR
 4. **Render final:** la fotografía realista, con cambios globales en texto libre (noche,
    iluminación, ambiente, personas), proporción y resolución hasta 4 MP, y «otra versión» con el
    mismo prompt.
-5. **Prompts automáticos:** en cada generación, el PROMPT_ENGINEER escribe el prompt con las
+5. **Prompts automáticos:** en cada generación, el PROMPT_ARCHITECT escribe el prompt con las
    entradas reales y te explica lo que ha entendido y sus dudas.
 6. **Costes IA:** cada llamada queda registrada con su coste; la pestaña muestra el gasto por rol,
    día y proyecto, y cada imagen indica cuánto ha costado llegar a ella.
@@ -49,11 +49,11 @@ El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegu
 | Rol | Tarea |
 |-----|-------|
 | `REFERENCE_ANALYST` | Receta de cada referencia (una vez por imagen) |
-| `PROMPT_ENGINEER` | Prompt de cada generación, con lo que ha entendido y sus dudas |
-| `FAST_DRAFT` | Bocetos en lote a partir de las referencias activas |
-| `STRUCTURAL_COMPOSER` | Composición fiel y retoques con máscara (el único con máscara) |
-| `PHOTOREALISTIC_RENDERER` | Fotografía realista y cambios globales, sin máscara |
-| `GEOMETRIC_AUDITOR` | Auditoría del boceto frente a las referencias del espacio |
+| `PROMPT_ARCHITECT` | Prompt de cada generación, con lo que ha entendido y sus dudas |
+| `FAST_DRAFT_MAKER` | Bocetos en lote a partir de las referencias activas |
+| `COMPOSITION_BUILDER` | Composición fiel y retoques con máscara (el único con máscara) |
+| `REALISTIC_RENDERER` | Fotografía realista y cambios globales, sin máscara |
+| `GEOMETRY_AUDITOR` | Auditoría del boceto frente a las referencias del espacio |
 
 ### Costes orientativos
 
@@ -113,6 +113,19 @@ docker compose up --build -d
 Para usar Azure, rellena en `.env` el endpoint, la clave, los despliegues de cada rol y pon
 `AI_PROVIDER_MODE=azure`; después, `docker compose up -d backend`. En Linux, si tu usuario no es
 el 1000, ajusta `APP_UID`/`APP_GID` (`id -u`, `id -g`).
+
+**Desde la 2.x:** la 3.0.0 renombra los roles y sus variables del `.env`
+(`DEPLOYMENT_ROLE_*`, `*_REASONING_EFFORT`, `GEOMETRY_AUDITOR_TIMEOUT_S`). Renómbralas según esta
+tabla; si queda alguna con el nombre anterior, la aplicación avisa al arrancar y no la usa:
+
+| Antes (hasta la 2.0.0) | Desde la 3.0.0 |
+|------------------------|----------------|
+| `PROMPT_ENGINEER` | `PROMPT_ARCHITECT` |
+| `FAST_DRAFT` | `FAST_DRAFT_MAKER` |
+| `STRUCTURAL_COMPOSER` | `COMPOSITION_BUILDER` |
+| `PHOTOREALISTIC_RENDERER` | `REALISTIC_RENDERER` |
+| `GEOMETRIC_AUDITOR` | `GEOMETRY_AUDITOR` |
+| `REFERENCE_ANALYST` | (sin cambios) |
 
 **Desde la 1.0.0:** los datos se migran solos al esquema v2 al arrancar (cada proyecto conserva
 una copia en `metadatos.v1.json`). Las imágenes y los briefs de la v1 siguen visibles como

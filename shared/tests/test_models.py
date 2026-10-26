@@ -9,6 +9,7 @@ from shared.models import (
     ProjectIndex,
     ProjectMetadata,
     ProjectUpdate,
+    RenderRecord,
     TelemetryRecord,
     utc_now,
 )
@@ -52,3 +53,28 @@ def test_telemetry_reads_the_previous_role_name() -> None:
          "status": "ok", "latency_s": 1.0}
     )  # fmt: skip
     assert record.role is Role.REFERENCE_ANALYST
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("PROMPT_ENGINEER", Role.PROMPT_ARCHITECT),
+        ("GEOMETRIC_AUDITOR", Role.GEOMETRY_AUDITOR),
+        ("FAST_DRAFT", Role.FAST_DRAFT_MAKER),
+        ("STRUCTURAL_COMPOSER", Role.COMPOSITION_BUILDER),
+        ("PHOTOREALISTIC_RENDERER", Role.REALISTIC_RENDERER),
+    ],
+)
+def test_saved_data_reads_the_renamed_roles(old: str, new: Role) -> None:
+    """Paso 26 (B-057): la telemetría y las imágenes de la 2.x se leen con el nombre actual."""
+    record = TelemetryRecord.model_validate(
+        {"role": old, "deployment": "d", "operation": "complete_text", "status": "ok",
+         "latency_s": 1.0}
+    )  # fmt: skip
+    assert record.role is new
+    render = RenderRecord.model_validate(
+        {"id": str(uuid4()), "stage": "boceto", "role": old, "deployment": "d", "prompt": "p",
+         "input_asset_ids": [], "batch_id": str(uuid4()), "size": "1024x1024"}
+    )  # fmt: skip
+    assert render.role is new
+    assert render.model_dump(mode="json")["role"] == new.value  # se guarda con el nombre nuevo

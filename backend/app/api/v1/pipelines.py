@@ -1,5 +1,5 @@
 """Pipelines de texto: recetas y fichas de las referencias (REFERENCE_ANALYST) y briefs
-(PROMPT_ENGINEER).
+(PROMPT_ARCHITECT).
 
 Los briefs siguen el ciclo HITL: propuesto → (editado) → aprobado | rechazado (→ nueva versión).
 """
@@ -145,7 +145,7 @@ async def generate_brief(
     foundry: FoundryDep,
     body: Annotated[BriefCreate, Body()] = BriefCreate(),  # noqa: B008
 ) -> BriefRunResponse:
-    """Genera una nueva versión del brief (estado `propuesto`) con el PROMPT_ENGINEER."""
+    """Genera una nueva versión del brief (estado `propuesto`) con el PROMPT_ARCHITECT."""
     with telemetry_scope(project_id):
         brief = await create_brief(repo, foundry, project_id, body.instructions)
     return BriefRunResponse(brief=brief, **await _cost(repo, project_id))

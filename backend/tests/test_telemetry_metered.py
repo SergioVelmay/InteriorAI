@@ -24,12 +24,12 @@ from shared.roles import Role
 
 PRICING = load_pricing(Path(__file__).resolve().parents[2] / "config" / "pricing.yaml")
 REAL_NAMES = {
-    Role.PROMPT_ENGINEER: "gpt-6.1-sol",
-    Role.GEOMETRIC_AUDITOR: "gpt-6-astra",
+    Role.PROMPT_ARCHITECT: "gpt-6.1-sol",
+    Role.GEOMETRY_AUDITOR: "gpt-6-astra",
     Role.REFERENCE_ANALYST: "gpt-6-luna",
-    Role.FAST_DRAFT: "gpt-image-2.5-flare",
-    Role.STRUCTURAL_COMPOSER: "gpt-image-2.5-sunburst",
-    Role.PHOTOREALISTIC_RENDERER: "FLUX.2-pro",
+    Role.FAST_DRAFT_MAKER: "gpt-image-2.5-flare",
+    Role.COMPOSITION_BUILDER: "gpt-image-2.5-sunburst",
+    Role.REALISTIC_RENDERER: "FLUX.2-pro",
 }
 
 
@@ -66,12 +66,12 @@ async def test_text_call_is_recorded_with_cost_and_context() -> None:
     client, sink = metered()
     project = uuid4()
     with request_scope("req-123"), telemetry_scope(project):
-        result = await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="Audita"))
+        result = await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="Audita"))
 
     [(project_id, record)] = sink.records
     assert project_id == project
     assert record.request_id == "req-123"
-    assert record.role is Role.GEOMETRIC_AUDITOR
+    assert record.role is Role.GEOMETRY_AUDITOR
     assert record.deployment == "gpt-6-astra"  # nombre real aunque el cliente sea mock
     assert record.operation == "complete_text"
     assert record.status == "ok"
@@ -88,10 +88,10 @@ async def test_image_calls_record_megapixels() -> None:
     client, sink = metered()
     with telemetry_scope(uuid4()):
         await client.generate_image(
-            Role.PHOTOREALISTIC_RENDERER, ImageRequest(prompt="x", size="1024x1024")
+            Role.REALISTIC_RENDERER, ImageRequest(prompt="x", size="1024x1024")
         )
         await client.edit_image(
-            Role.PHOTOREALISTIC_RENDERER,
+            Role.REALISTIC_RENDERER,
             ImageEditRequest(
                 prompt="x", size="512x512", images=[InputImage(data=png((1000, 500)))]
             ),
@@ -115,7 +115,7 @@ async def test_errors_with_usage_are_recorded_and_reraised() -> None:
 
     client, sink = metered(inner=Incomplete())
     with telemetry_scope(uuid4()), pytest.raises(FoundryIncompleteError):
-        await client.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(input="x"))
+        await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="x"))
     [(_, record)] = sink.records
     assert record.status == "error"
     assert record.error_type == "FoundryIncompleteError"
@@ -125,20 +125,20 @@ async def test_errors_with_usage_are_recorded_and_reraised() -> None:
 async def test_invalid_role_is_rejected_before_any_record() -> None:
     client, sink = metered()
     with telemetry_scope(uuid4()), pytest.raises(FoundryUnsupportedError):
-        await client.complete_text(Role.FAST_DRAFT, TextRequest(input="x"))
+        await client.complete_text(Role.FAST_DRAFT_MAKER, TextRequest(input="x"))
     assert sink.records == []
 
 
 async def test_without_project_scope_nothing_is_persisted() -> None:
     client, sink = metered()
-    await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+    await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
     assert sink.records == []
 
 
 async def test_sink_failure_does_not_break_the_call() -> None:
     client, _ = metered(sink=MemorySink(fail=True))
     with telemetry_scope(uuid4()):
-        result = await client.complete_text(Role.PROMPT_ENGINEER, TextRequest(input="x"))
+        result = await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
     assert result.text
 
 

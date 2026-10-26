@@ -4,6 +4,34 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 [SemVer](https://semver.org/lang/es/). El detalle de cada paso está en
 [docs/pasos/](docs/pasos/README.md).
 
+## [Sin publicar]
+
+### Cambiado (incompatible: variables del `.env`)
+
+- **Roles renombrados** (Paso 26, B-057). Solo valen los nombres nuevos, también en las
+  variables `DEPLOYMENT_ROLE_*`, `*_REASONING_EFFORT` y `GEOMETRY_AUDITOR_TIMEOUT_S` del `.env`:
+  renómbralas al actualizar. Si encuentra alguna con el nombre anterior, la aplicación avisa al
+  arrancar (registro y `python -m shared`) y no la usa. Los datos guardados (telemetría e
+  imágenes) se leen con los nombres nuevos, sin reescribirse.
+
+| Antes (hasta la 2.0.0) | Desde la 3.0.0 |
+|------------------------|----------------|
+| `PROMPT_ENGINEER` | `PROMPT_ARCHITECT` |
+| `FAST_DRAFT` | `FAST_DRAFT_MAKER` |
+| `STRUCTURAL_COMPOSER` | `COMPOSITION_BUILDER` |
+| `PHOTOREALISTIC_RENDERER` | `REALISTIC_RENDERER` |
+| `GEOMETRIC_AUDITOR` | `GEOMETRY_AUDITOR` |
+| `REFERENCE_ANALYST` | (sin cambios) |
+
+- **Costes IA por el rol actual de cada despliegue** (B-057): una serie por rol; las llamadas
+  antiguas de un modelo suman en el rol que lo usa hoy. El registro y el CSV muestran el rol
+  actual; el CSV añade «Rol en la llamada» con el original. La API de costes sustituye
+  `by_role_deployment` por `role_deployments`, `by_day_role` y `by_project_role`, y cada
+  registro lleva `call_role`.
+- **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
+  leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
+  ancho completo.
+
 ## [2.0.0] — 2026-10-25
 
 Rediseño del flujo: sin brief, con referencias analizadas (receta y ficha) y tres pestañas de

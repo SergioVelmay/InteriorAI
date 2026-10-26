@@ -31,14 +31,14 @@ class SpyClient(MockFoundryClient):
 
     async def _complete_text(self, role: Role, request: TextRequest) -> TextResult:
         self.texts.append((role, request))
-        if role is Role.GEOMETRIC_AUDITOR and self.fail_audit:
+        if role is Role.GEOMETRY_AUDITOR and self.fail_audit:
             raise FoundryIncompleteError(
                 "Respuesta incompleta (motivo: max_output_tokens)",
                 role=role,
                 usage=Usage(input_tokens=3_000, output_tokens=12_000, reasoning_tokens=11_800),
             )
         result = await super()._complete_text(role, request)
-        if role is Role.GEOMETRIC_AUDITOR:
+        if role is Role.GEOMETRY_AUDITOR:
             data = dict(result.data or {})
             data["suggested_prompt_adjustments"] = self.audit_suggestions
             return result.model_copy(update={"data": data})
@@ -52,13 +52,13 @@ class SpyClient(MockFoundryClient):
 @pytest.fixture
 def api(make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch) -> TestClient:
     for role, name in {
-        "GEOMETRIC_AUDITOR": "gpt-6-astra",
-        "FAST_DRAFT": "gpt-image-2.5-flare",
-        "STRUCTURAL_COMPOSER": "gpt-image-2.5-sunburst",
-        "PHOTOREALISTIC_RENDERER": "FLUX.2-pro",
+        "GEOMETRY_AUDITOR": "gpt-6-astra",
+        "FAST_DRAFT_MAKER": "gpt-image-2.5-flare",
+        "COMPOSITION_BUILDER": "gpt-image-2.5-sunburst",
+        "REALISTIC_RENDERER": "FLUX.2-pro",
     }.items():
         monkeypatch.setenv(f"DEPLOYMENT_ROLE_{role}", name)
-    monkeypatch.setenv("GEOMETRIC_AUDITOR_REASONING_EFFORT", "max")
+    monkeypatch.setenv("GEOMETRY_AUDITOR_REASONING_EFFORT", "max")
     return make_api()
 
 
@@ -111,7 +111,7 @@ def test_audit_draft_against_space_references(api: TestClient, spy: SpyClient, c
     assert body["render"]["status"] == "seleccionado"  # auditar no cambia el estado
 
     [(role, request)] = spy.texts
-    assert role is Role.GEOMETRIC_AUDITOR
+    assert role is Role.GEOMETRY_AUDITOR
     assert request.schema_name == "auditoria"
     assert request.max_output_tokens == 12_000
     assert len(request.images) == 2  # la vista y el boceto, en ese orden
@@ -175,7 +175,7 @@ def test_incomplete_audit_is_502_but_billed(api: TestClient, spy: SpyClient, cha
     assert response.status_code == 502
     assert "incompleta" in response.json()["detail"]
     costs = api.get(f"{chain['url']}/costs").json()
-    auditor = next(g for g in costs["by_role"] if g["key"] == "GEOMETRIC_AUDITOR")
+    auditor = next(g for g in costs["by_role"] if g["key"] == "GEOMETRY_AUDITOR")
     assert auditor["errors"] == 1
     # Precios de lista por el billing_factor de config/pricing.yaml
     assert auditor["cost_eur"] == pytest.approx((3_000 * 8.80 + 12_000 * 44.0) / 1e6 * 0.98463)

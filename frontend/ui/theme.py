@@ -95,6 +95,13 @@ CSS = f"""
     background: rgba(10, 10, 10, 0.78) !important; color: {TEXT} !important;
     font-size: 0.85rem !important; text-align: left !important;
 }}
+/* Leyenda común de Costes IA (B-081): un rol por línea, con aire. */
+.iai-legend {{ padding: 0.5rem 0.75rem; }}
+.iai-legend h4 {{ color: #a1a1aa; font-size: 0.9rem; font-weight: 500; margin: 0 0 0.75rem; }}
+.iai-legend ul {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }}
+.iai-legend li {{ display: flex; align-items: center; gap: 0.6rem; font-size: 0.95rem; }}
+.iai-legend li span:not(.iai-swatch) {{ color: #a1a1aa; }}
+.iai-swatch {{ width: 1rem; height: 1rem; border-radius: 3px; flex: none; }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
 /* Editor de máscaras (B-039): rojo fijo sin control de paleta y el tamaño del pincel como dos
    circunferencias concéntricas (controles internos del ImageEditor: lo comprueba el E2E). */

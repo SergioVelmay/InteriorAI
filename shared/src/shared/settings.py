@@ -10,6 +10,7 @@ Comprobar el `.env` local (la clave se muestra enmascarada):
 
 from __future__ import annotations
 
+import os
 import sys
 from enum import StrEnum
 from functools import lru_cache
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
+from dotenv import dotenv_values
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -28,9 +30,37 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from shared.roles import Role
+from shared.roles import RENAMED_ROLES, Role
 
 DEFAULT_ENV_FILE = Path(".env")
+
+
+def _legacy_names() -> dict[str, str]:
+    """Variables con el nombre anterior de un rol → nombre actual (Pasos 18 y 26)."""
+    names = {f"DEPLOYMENT_ROLE_{old}": role.env_var for old, role in RENAMED_ROLES.items()}
+    names["PROMPT_ENGINEER_REASONING_EFFORT"] = "PROMPT_ARCHITECT_REASONING_EFFORT"
+    names["GEOMETRIC_AUDITOR_REASONING_EFFORT"] = "GEOMETRY_AUDITOR_REASONING_EFFORT"
+    names["GEOMETRIC_AUDITOR_TIMEOUT_S"] = "GEOMETRY_AUDITOR_TIMEOUT_S"
+    return names
+
+
+LEGACY_ENV_VARS = _legacy_names()
+
+
+def legacy_env_vars(env_file: Path | None = DEFAULT_ENV_FILE) -> dict[str, str]:
+    """Variables con un nombre anterior presentes en el entorno o en `env_file` → su nombre
+    actual. Desde la 3.0.0 no se usan (decisión del usuario): solo se avisa."""
+    present = {name.upper() for name in os.environ}
+    if env_file is not None and env_file.is_file():
+        present |= {name.upper() for name in dotenv_values(env_file)}
+    return {old: new for old, new in LEGACY_ENV_VARS.items() if old in present}
+
+
+def legacy_env_warning(legacy: dict[str, str]) -> str | None:
+    if not legacy:
+        return None
+    pairs = ", ".join(f"{old} → {new}" for old, new in legacy.items())
+    return f"Variables con el nombre anterior de un rol, que ya no se usan: renómbralas ({pairs})"
 
 
 class ProviderMode(StrEnum):
@@ -138,12 +168,12 @@ class DeploymentSettings(BaseSettings):
 
     model_config = _config("DEPLOYMENT_ROLE_")
 
-    prompt_engineer: str | None = None
-    geometric_auditor: str | None = None
+    prompt_architect: str | None = None
+    geometry_auditor: str | None = None
     reference_analyst: str | None = None
-    fast_draft: str | None = None
-    structural_composer: str | None = None
-    photorealistic_renderer: str | None = None
+    fast_draft_maker: str | None = None
+    composition_builder: str | None = None
+    realistic_renderer: str | None = None
 
     @field_validator("*", mode="before")
     @classmethod
@@ -156,7 +186,7 @@ class DeploymentSettings(BaseSettings):
 
 
 class AuditorSettings(BaseSettings):
-    model_config = _config("GEOMETRIC_AUDITOR_")
+    model_config = _config("GEOMETRY_AUDITOR_")
 
     # `max` verificado en el Paso 6 (B-001); el usuario lo fija en `medium` (Paso 10): la
     # auditoría es opcional y `max` dispara latencia y coste.
@@ -176,7 +206,7 @@ class ReasoningSettings(BaseSettings):
 
     model_config = _config()
 
-    prompt_engineer_reasoning_effort: str = Field(default="medium", min_length=1)
+    prompt_architect_reasoning_effort: str = Field(default="medium", min_length=1)
     reference_analyst_reasoning_effort: str = Field(default="medium", min_length=1)
 
     @field_validator("*", mode="before")
@@ -236,12 +266,15 @@ class Settings(BaseModel):
     cost_alerts: CostAlertSettings
     storage: StorageSettings
     network: NetworkSettings
+    # Variables con el nombre anterior de un rol (no se usan; ver `legacy_env_vars`)
+    legacy_env: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, env_file: Path | None = DEFAULT_ENV_FILE) -> Settings:
         """Carga desde entorno + `env_file` (None = solo variables de entorno)."""
         kwargs: dict[str, Any] = {"_env_file": env_file}
         return cls(
+            legacy_env=legacy_env_vars(env_file),
             app=AppSettings(**kwargs),
             foundry=FoundrySettings(**kwargs),
             deployments=DeploymentSettings(**kwargs),
@@ -273,15 +306,18 @@ class Settings(BaseModel):
     @model_validator(mode="after")
     def _require_azure_config(self) -> Settings:
         if not self.is_mock and (missing := self.azure_missing()):
-            raise ValueError("AI_PROVIDER_MODE=azure requiere: " + ", ".join(missing))
+            message = "AI_PROVIDER_MODE=azure requiere: " + ", ".join(missing)
+            if warning := legacy_env_warning(self.legacy_env):
+                message += f". {warning}"
+            raise ValueError(message)
         return self
 
     def reasoning_effort(self, role: Role) -> str | None:
         """Esfuerzo de razonamiento de un rol de texto; None en los roles de imagen."""
         return {
-            Role.PROMPT_ENGINEER: self.reasoning.prompt_engineer_reasoning_effort,
+            Role.PROMPT_ARCHITECT: self.reasoning.prompt_architect_reasoning_effort,
             Role.REFERENCE_ANALYST: self.reasoning.reference_analyst_reasoning_effort,
-            Role.GEOMETRIC_AUDITOR: self.auditor.reasoning_effort,
+            Role.GEOMETRY_AUDITOR: self.auditor.reasoning_effort,
         }.get(role)
 
     def deployment_for(self, role: Role) -> str:
@@ -356,6 +392,8 @@ def render_report(s: Settings) -> str:
         f"| URL interna: {s.network.backend_url} | frontend: {s.network.frontend_port}",
         "",
     ]
+    if warning := legacy_env_warning(s.legacy_env):
+        lines += [f"  [!!] {warning}", ""]
     missing = s.azure_missing()
     if missing:
         lines.append("  Listo para modo azure: NO - faltan " + ", ".join(missing))

@@ -1,7 +1,7 @@
 """Verificación de los despliegues reales de Azure AI Foundry. CADA LLAMADA TIENE COSTE.
 
     python -m app.foundry.smoke                         # plan completo, confirmando cada llamada
-    python -m app.foundry.smoke --role FAST_DRAFT       # solo un rol
+    python -m app.foundry.smoke --role FAST_DRAFT_MAKER       # solo un rol
 
 Doble seguro: se niega a ejecutarse si `AI_PROVIDER_MODE` no es `azure` y pide confirmación
 (`s`) antes de cada llamada. Las imágenes se guardan en `--out` (nunca en `data/`).
@@ -83,8 +83,8 @@ def build_plan() -> list[Check]:
     base, mask = _room_sketch()
     return [
         Check(
-            "1", Role.PROMPT_ENGINEER, "1 texto corto con su reasoning_effort (B-053)",
-            lambda c: c.complete_text(Role.PROMPT_ENGINEER, TextRequest(
+            "1", Role.PROMPT_ARCHITECT, "1 texto corto con su reasoning_effort (B-053)",
+            lambda c: c.complete_text(Role.PROMPT_ARCHITECT, TextRequest(
                 instructions=(
                     "Eres un asistente de interiorismo. Responde en español, en una frase."
                 ),
@@ -105,8 +105,8 @@ def build_plan() -> list[Check]:
             )),
         ),
         Check(
-            "3", Role.GEOMETRIC_AUDITOR, "1 texto con reasoning_effort configurado (B-001)",
-            lambda c: c.complete_text(Role.GEOMETRIC_AUDITOR, TextRequest(
+            "3", Role.GEOMETRY_AUDITOR, "1 texto con reasoning_effort configurado (B-001)",
+            lambda c: c.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(
                 instructions="Eres un auditor de espacios interiores. Responde en dos frases.",
                 input=(
                     "Un salón mide 4 x 6 m. Un sofá de 2,30 m de largo se coloca en la pared de "
@@ -116,17 +116,17 @@ def build_plan() -> list[Check]:
             )),
         ),
         Check(
-            "4", Role.FAST_DRAFT, "1 imagen 1024x1024, calidad baja",
-            lambda c: c.generate_image(Role.FAST_DRAFT, ImageRequest(
+            "4", Role.FAST_DRAFT_MAKER, "1 imagen 1024x1024, calidad baja",
+            lambda c: c.generate_image(Role.FAST_DRAFT_MAKER, ImageRequest(
                 prompt="Boceto rápido en acuarela de un salón nórdico luminoso, vista frontal",
                 size="1024x1024",
                 quality="low",
             )),
         ),
         Check(
-            "5", Role.STRUCTURAL_COMPOSER,
+            "5", Role.COMPOSITION_BUILDER,
             "1 edición 1024x1024 con máscara, calidad baja",
-            lambda c: c.edit_image(Role.STRUCTURAL_COMPOSER, ImageEditRequest(
+            lambda c: c.edit_image(Role.COMPOSITION_BUILDER, ImageEditRequest(
                 prompt="Añade un sofá gris de tres plazas en la zona inferior marcada",
                 size="1024x1024",
                 quality="low",
@@ -135,8 +135,8 @@ def build_plan() -> list[Check]:
             )),
         ),
         Check(
-            "6", Role.PHOTOREALISTIC_RENDERER, "1 imagen 1024x1024 (B-003)",
-            lambda c: c.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(
+            "6", Role.REALISTIC_RENDERER, "1 imagen 1024x1024 (B-003)",
+            lambda c: c.generate_image(Role.REALISTIC_RENDERER, ImageRequest(
                 prompt=(
                     "Fotografía realista de un salón nórdico con sofá gris, suelo de roble y "
                     "luz natural de tarde, 35 mm"
@@ -147,8 +147,8 @@ def build_plan() -> list[Check]:
         ),
         *(
             Check(
-                key, Role.PHOTOREALISTIC_RENDERER, "1 imagen 512x512 con semilla 7 (B-041)",
-                lambda c: c.generate_image(Role.PHOTOREALISTIC_RENDERER, ImageRequest(
+                key, Role.REALISTIC_RENDERER, "1 imagen 512x512 con semilla 7 (B-041)",
+                lambda c: c.generate_image(Role.REALISTIC_RENDERER, ImageRequest(
                     prompt="Fotografía realista de un sillón de terciopelo verde junto a una "
                     "ventana, luz de mañana",
                     size="512x512",
@@ -163,7 +163,7 @@ def build_plan() -> list[Check]:
 
 def _auditor_fallback(effort: str) -> Check:
     plan = {c.role: c for c in build_plan()}
-    original = plan[Role.GEOMETRIC_AUDITOR]
+    original = plan[Role.GEOMETRY_AUDITOR]
     return Check("3b", original.role, f"repetición con reasoning_effort={effort}", original.run)
 
 
@@ -271,7 +271,7 @@ async def run(
 
             effort = settings.auditor.reasoning_effort
             rejected_effort = (
-                check.role is Role.GEOMETRIC_AUDITOR
+                check.role is Role.GEOMETRY_AUDITOR
                 and outcome["status"] == "error"
                 and outcome["error"] == FoundryBadRequestError.__name__
                 and effort != "high"

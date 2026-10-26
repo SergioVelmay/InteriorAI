@@ -43,7 +43,7 @@ def log_call(role: Role, deployment: str, latency_s: float, usage: Usage, extra:
 
 
 # Único rol con máscara (B-037): bocetos sin máscara y fotorrealismo sin retoques de zona.
-MASK_ROLE = Role.STRUCTURAL_COMPOSER
+MASK_ROLE = Role.COMPOSITION_BUILDER
 
 
 class FoundryClient(ABC):

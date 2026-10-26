@@ -14,6 +14,8 @@ from app.telemetry.summary import (
     CostRecord,
     CostSummary,
     cost_alerts,
+    current_deployments,
+    current_roles,
     summarize,
     with_project,
 )
@@ -38,22 +40,26 @@ async def project_costs(
     project_id: UUID,
     repo: RepositoryDep,
     request: Request,
+    settings: SettingsDep,
     limit: Limit = 50,
     include_simulated: IncludeSimulated = True,
 ) -> CostSummary:
-    """Totales y desgloses por rol, día y despliegue. Coste **estimado** con precios de lista."""
+    """Totales y desgloses por rol, día y despliegue. Coste **estimado** con precios de lista.
+    Cada llamada cuenta en el rol que hoy tiene su despliegue (el original, en `call_role`)."""
     project = await repo.get(project_id)
     log = await repo.read_telemetry(project_id)
     records = with_project(log.records, project.id, project.name)
     return summarize(
-        project_id, records, _currency(request), limit, include_simulated, project.name
-    )
+        project_id, records, _currency(request), limit, include_simulated, project.name,
+        current_roles(settings), current_deployments(settings),
+    )  # fmt: skip
 
 
 @router.get("/costs", response_model=CostSummary)
 async def all_costs(
     repo: RepositoryDep,
     request: Request,
+    settings: SettingsDep,
     limit: Limit = 50,
     include_simulated: IncludeSimulated = True,
 ) -> CostSummary:
@@ -63,7 +69,11 @@ async def all_costs(
     for project in await repo.list_projects():
         log = await repo.read_telemetry(project.id)
         records += with_project(log.records, project.id, project.name)
-    return summarize(None, records, _currency(request), limit, include_simulated)
+    return summarize(
+        None, records, _currency(request), limit, include_simulated,
+        deployment_roles=current_roles(settings),
+        role_deployments=current_deployments(settings),
+    )  # fmt: skip
 
 
 @router.get("/costs/alerts", response_model=CostAlerts)
@@ -81,13 +91,15 @@ async def alerts(repo: RepositoryDep, request: Request, settings: SettingsDep) -
 
 
 @router.get("/projects/{project_id}/renders/{render_id}/cost", response_model=RenderChainCost)
-async def render_cost(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderChainCost:
+async def render_cost(
+    project_id: UUID, render_id: UUID, repo: RepositoryDep, settings: SettingsDep
+) -> RenderChainCost:
     """Coste acumulado para llegar a esta imagen: brief (y sus versiones), lotes de cada etapa,
     intentos rechazados, retoques y auditorías de la cadena. Sin las llamadas simuladas en el
     total (van aparte)."""
     project = await repo.get(project_id)
     log = await repo.read_telemetry(project_id)
-    result = chain_cost(project, log.records, render_id)
+    result = chain_cost(project, log.records, render_id, current_roles(settings))
     if result is None:
         raise RenderNotFoundError(str(render_id))
     return result

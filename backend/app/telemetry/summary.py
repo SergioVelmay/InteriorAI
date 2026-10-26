@@ -1,5 +1,12 @@
 """Agregados de telemetría para el dashboard de costes: totales y desgloses por rol, día,
-despliegue y proyecto, de un proyecto o de todos, con o sin las llamadas simuladas."""
+despliegue y proyecto, de un proyecto o de todos, con o sin las llamadas simuladas.
+
+Paso 26 (B-057): el coste va por el modelo, así que cada llamada se asigna al rol que **hoy**
+tiene su despliegue en la configuración (`current_roles`), no al rol guardado en la llamada:
+las llamadas antiguas de un modelo suman en el rol que lo usa ahora y hay una serie por rol.
+Casos límite (decisión del usuario): un despliegue que ya no está asignado suma en el rol
+guardado (con su nombre actual); si dos roles comparten despliegue, manda el rol guardado. El
+rol original queda en `call_role`. La telemetría en disco no se reescribe."""
 
 from __future__ import annotations
 
@@ -9,6 +16,8 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from shared.models import TelemetryRecord
+from shared.roles import Role
+from shared.settings import Settings
 
 
 class CostTotals(BaseModel):
@@ -27,7 +36,8 @@ class CostTotals(BaseModel):
 
 class GroupTotals(CostTotals):
     key: str
-    label: str | None = None  # nombre legible (p. ej. del proyecto)
+    label: str | None = None  # nombre legible (p. ej. del proyecto o despliegue actual del rol)
+    role: str | None = None  # en los desgloses cruzados (día o proyecto, por rol)
 
 
 class CostRecord(TelemetryRecord):
@@ -35,6 +45,7 @@ class CostRecord(TelemetryRecord):
 
     project_id: UUID | None = None
     project_name: str | None = None
+    call_role: Role | None = None  # rol guardado en la llamada (el de `role` es el actual)
 
 
 class CostSummary(BaseModel):
@@ -45,13 +56,15 @@ class CostSummary(BaseModel):
     includes_simulated: bool  # hay llamadas simuladas en los totales
     simulated_excluded: int = 0  # llamadas simuladas que se han dejado fuera
     totals: CostTotals
-    by_role: list[GroupTotals]
+    by_role: list[GroupTotals]  # rol actual; `label` = su despliegue actual
+    # Despliegue actual de cada rol (para la leyenda única de Costes IA, B-081)
+    role_deployments: dict[str, str | None] = {}
     by_day: list[GroupTotals]
     by_deployment: list[GroupTotals]
-    # Rol y despliegue juntos (B-032): clave «ROL (despliegue)», `label` = rol. Un rol puede
-    # haber usado varios despliegues (p. ej. tras cambiar su asignación en `.env`).
-    by_role_deployment: list[GroupTotals] = []
     by_project: list[GroupTotals] = []
+    # Desgloses cruzados para las columnas apiladas (B-081): `key` = día o proyecto, `role`.
+    by_day_role: list[GroupTotals] = []
+    by_project_role: list[GroupTotals] = []
     records: list[CostRecord]
 
 
@@ -82,16 +95,42 @@ def _group(
     records: Iterable[CostRecord],
     key: Callable[[CostRecord], str],
     label: Callable[[CostRecord], str | None] = lambda r: None,
+    by_role: bool = False,
 ) -> list[GroupTotals]:
-    groups: dict[str, GroupTotals] = {}
+    """Agrupa por `key` (y por rol si `by_role`); ordenado por clave y rol."""
+    groups: dict[tuple[str, str | None], GroupTotals] = {}
     for record in records:
-        k = key(record)
-        _accumulate(groups.setdefault(k, GroupTotals(key=k, label=label(record))), record)
-    return sorted((_rounded(g) for g in groups.values()), key=lambda g: g.key)  # type: ignore[misc]
+        k, role = key(record), record.role.value if by_role else None
+        group = groups.setdefault((k, role), GroupTotals(key=k, label=label(record), role=role))
+        _accumulate(group, record)
+    return [_rounded(groups[k]) for k in sorted(groups, key=lambda k: (k[0], k[1] or ""))]  # type: ignore[misc]
 
 
-def role_deployment(record: TelemetryRecord) -> str:
-    return f"{record.role.value} ({record.deployment})"
+def current_deployments(settings: Settings) -> dict[str, str | None]:
+    """Rol → despliegue configurado hoy (None si no lo tiene; en mock, sin configurar)."""
+    return {role.value: settings.deployments.get(role) for role in Role}
+
+
+def current_roles(settings: Settings) -> dict[str, Role]:
+    """Despliegue → rol que lo tiene asignado hoy (solo los configurados; un despliegue que
+    comparten dos roles no entra: manda el rol guardado en la llamada)."""
+    owners: dict[str, list[Role]] = {}
+    for role in Role:
+        if name := settings.deployments.get(role):
+            owners.setdefault(name, []).append(role)
+    return {name: roles[0] for name, roles in owners.items() if len(roles) == 1}
+
+
+def assign_current_roles(
+    records: Iterable[CostRecord], deployment_roles: dict[str, Role]
+) -> list[CostRecord]:
+    """Cada llamada con el rol actual de su despliegue; el original, en `call_role`."""
+    return [
+        r.model_copy(
+            update={"role": deployment_roles.get(r.deployment, r.role), "call_role": r.role}
+        )
+        for r in records
+    ]
 
 
 def summarize(
@@ -101,7 +140,12 @@ def summarize(
     limit: int,
     include_simulated: bool = True,
     project_name: str | None = None,
+    deployment_roles: dict[str, Role] | None = None,
+    role_deployments: dict[str, str | None] | None = None,
 ) -> CostSummary:
+    deployment_roles = deployment_roles or {}
+    records = assign_current_roles(records, deployment_roles)
+    role_labels = {role.value: name for name, role in deployment_roles.items()}
     kept = [r for r in records if include_simulated or not r.simulated]
     totals = CostTotals()
     for record in kept:
@@ -114,13 +158,21 @@ def summarize(
         includes_simulated=any(r.simulated for r in kept),
         simulated_excluded=len(records) - len(kept),
         totals=_rounded(totals),
-        by_role=_group(kept, lambda r: r.role.value),
-        by_day=_group(kept, lambda r: r.timestamp.date().isoformat()),
+        by_role=_group(kept, lambda r: r.role.value, lambda r: role_labels.get(r.role.value)),
+        role_deployments=role_deployments or {},
+        by_day=_group(kept, _day),
         by_deployment=_group(kept, lambda r: r.deployment),
-        by_role_deployment=_group(kept, role_deployment, lambda r: r.role.value),
         by_project=_group(kept, lambda r: str(r.project_id), lambda r: r.project_name),
+        by_day_role=_group(kept, _day, by_role=True),
+        by_project_role=_group(
+            kept, lambda r: str(r.project_id), lambda r: r.project_name, by_role=True
+        ),
         records=latest,
     )
+
+
+def _day(record: TelemetryRecord) -> str:
+    return record.timestamp.date().isoformat()
 
 
 def with_project(

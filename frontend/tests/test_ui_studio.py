@@ -56,9 +56,9 @@ from ui.studio_views import (
 from ui.tabs.studio import build_studio_tabs, layers_only
 
 ROLES = {
-    RenderStage.DRAFT: Role.FAST_DRAFT,
-    RenderStage.COMPOSITION: Role.STRUCTURAL_COMPOSER,
-    RenderStage.FINAL: Role.PHOTOREALISTIC_RENDERER,
+    RenderStage.DRAFT: Role.FAST_DRAFT_MAKER,
+    RenderStage.COMPOSITION: Role.COMPOSITION_BUILDER,
+    RenderStage.FINAL: Role.REALISTIC_RENDERER,
 }
 SHA = "0" * 64
 

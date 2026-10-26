@@ -41,9 +41,9 @@ from shared.supports import (
 # pesa) y cada imagen generada según su calidad, más el prompt.
 COST_DRAFT_INPUT = 0.042
 COST_DRAFT_OUTPUT = {"low": 0.003, "medium": 0.009, "high": 0.035}
-COST_PROMPT = 0.002  # el PROMPT_ENGINEER escribe el prompt de cada generación (luna)
+COST_PROMPT = 0.002  # el PROMPT_ARCHITECT escribe el prompt de cada generación (luna)
 # Composición y retoque (Paso 23, medido: 4 imágenes de entrada en calidad media = 0,047 € cada
-# uno): el STRUCTURAL_COMPOSER factura mucho menos por imagen de entrada que el de bocetos.
+# uno): el COMPOSITION_BUILDER factura mucho menos por imagen de entrada que el de bocetos.
 COST_COMPOSITION_INPUT = 0.010
 # Render final (FLUX, precios de config/pricing.yaml): el primer MP de la imagen generada, el
 # resto de MP y la imagen de partida (1 MP por imagen de entrada); el MP de la factura es binario.
@@ -282,7 +282,7 @@ def render_title_md(render: RenderRecord | None) -> str:
 
 
 def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> str:
-    """«Ver más» (B-036, B-047): lo que entendió el PROMPT_ENGINEER, el prompt enviado y el
+    """«Ver más» (B-036, B-047): lo que entendió el PROMPT_ARCHITECT, el prompt enviado y el
     resto de la trazabilidad. Las imágenes de la v1 muestran su brief en lugar del prompt
     automático."""
     if render is None:

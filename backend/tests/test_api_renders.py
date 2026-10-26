@@ -38,9 +38,9 @@ class SpyClient(MockFoundryClient):
 @pytest.fixture
 def api(make_api: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch) -> TestClient:
     for role, name in {
-        "FAST_DRAFT": "gpt-image-2.5-flare",
-        "STRUCTURAL_COMPOSER": "gpt-image-2.5-sunburst",
-        "PHOTOREALISTIC_RENDERER": "FLUX.2-pro",
+        "FAST_DRAFT_MAKER": "gpt-image-2.5-flare",
+        "COMPOSITION_BUILDER": "gpt-image-2.5-sunburst",
+        "REALISTIC_RENDERER": "FLUX.2-pro",
     }.items():
         monkeypatch.setenv(f"DEPLOYMENT_ROLE_{role}", name)
     return make_api()
@@ -111,7 +111,7 @@ def test_drafts_from_active_references_with_an_automatic_prompt(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
     """B-036 y Paso 22: la vista con perspectiva es la base; las demás activas, apoyos; el
-    PROMPT_ENGINEER escribe el prompt de esta generación (sin brief)."""
+    PROMPT_ARCHITECT escribe el prompt de esta generación (sin brief)."""
     body = run(api, project, "drafts", n=2, extra_instructions="Luz de tarde")
     renders = body["renders"]
     assert len(renders) == 2
@@ -119,7 +119,7 @@ def test_drafts_from_active_references_with_an_automatic_prompt(
     for render in renders:
         assert render["stage"] == "boceto"
         assert render["status"] == "generado"
-        assert render["role"] == "FAST_DRAFT"
+        assert render["role"] == "FAST_DRAFT_MAKER"
         assert render["deployment"] == "gpt-image-2.5-flare"
         assert render["size"] == "1536x1024"
         assert render["quality"] == "medium"  # por defecto (B-040)
@@ -136,7 +136,7 @@ def test_drafts_from_active_references_with_an_automatic_prompt(
     assert sum(r["cost_eur"] for r in renders) == pytest.approx(body["cost_eur"], abs=2e-6)
 
     [(role, request)] = spy.edits
-    assert role is Role.FAST_DRAFT
+    assert role is Role.FAST_DRAFT_MAKER
     assert (request.n, request.size, request.quality, request.mask) == (
         2, "1536x1024", "medium", None,
     )  # fmt: skip
@@ -215,7 +215,7 @@ def test_composition_with_and_without_selected_draft(
     assert alone["input_asset_ids"] == [project["capture"]]
     assert alone["parent_render_id"] is None
     assert alone["quality"] == "medium"
-    assert alone["role"] == "STRUCTURAL_COMPOSER"
+    assert alone["role"] == "COMPOSITION_BUILDER"
 
     draft = run(api, project, "drafts", n=1)["renders"][0]
     response = api.post(f"{project['url']}/renders/compositions", json={"draft_id": draft["id"]})
@@ -232,9 +232,9 @@ def test_composition_with_and_without_selected_draft(
     assert composed["prompt_version"].startswith("prompt_composicion@")
     assert composed["size"] == "1536x1024"  # 3:2 por defecto
     role, request = spy.edits[-1]
-    assert role is Role.STRUCTURAL_COMPOSER
+    assert role is Role.COMPOSITION_BUILDER
     assert len(request.images) == 4
-    assert request.prompt == "mock"  # el del PROMPT_ENGINEER
+    assert request.prompt == "mock"  # el del PROMPT_ARCHITECT
     context = spy.texts[-1][1].input
     assert "Imagen 1: imagen de partida: el boceto seleccionado" in context
     assert "Correcciones de la auditoría" not in context
@@ -260,7 +260,7 @@ def test_composition_from_the_current_composition(
 
 
 def test_composition_uses_the_draft_audit(api: TestClient, spy: SpyClient, project: dict) -> None:
-    """B-046: «Usar la auditoría» pasa al PROMPT_ENGINEER la última auditoría del boceto y las
+    """B-046: «Usar la auditoría» pasa al PROMPT_ARCHITECT la última auditoría del boceto y las
     notas del usuario (auditoría manual)."""
     draft = run(api, project, "drafts", n=1)["renders"][0]
     select(api, project, draft["id"])
@@ -324,7 +324,7 @@ def test_final_render_uses_composition_and_references(
 
     final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
     assert final["stage"] == "render_final"
-    assert final["role"] == "PHOTOREALISTIC_RENDERER"
+    assert final["role"] == "REALISTIC_RENDERER"
     assert final["deployment"] == "FLUX.2-pro"
     assert final["size"] == "1920x1080"  # proporción exacta de la captura (16:9)
     assert final["quality"] is None
@@ -336,7 +336,7 @@ def test_final_render_uses_composition_and_references(
     ]
     assert final["cost_eur"] > 0
     role, request = spy.edits[-1]
-    assert role is Role.PHOTOREALISTIC_RENDERER
+    assert role is Role.REALISTIC_RENDERER
     assert request.output_format == "png"
     assert len(request.images) == 3
     assert request.size == "1920x1088"  # el renderizador trabaja en múltiplos de 16 px
@@ -367,7 +367,7 @@ def test_final_render_from_the_selected_composition(api: TestClient, spy: SpyCli
     assert final["prompt_version"].startswith("prompt_render_final@")
     assert final["variant_of_id"] is None
     role, request = spy.edits[-1]
-    assert role is Role.PHOTOREALISTIC_RENDERER
+    assert role is Role.REALISTIC_RENDERER
     assert len(request.images) == 1 and request.size == "2448x1632" and request.seed is None
     context = spy.texts[-1][1].input
     assert "Imagen 1: imagen de partida: la composición seleccionada" in context
@@ -396,7 +396,7 @@ def test_final_render_from_the_current_render(api: TestClient, spy: SpyClient) -
 
 def test_another_version_repeats_prompt_start_and_size(api: TestClient, spy: SpyClient) -> None:
     """B-051: «Otra versión» repite tal cual el prompt, la partida y el tamaño (la semilla de
-    Azure no es reproducible); no vuelve a llamar al PROMPT_ENGINEER."""
+    Azure no es reproducible); no vuelve a llamar al PROMPT_ARCHITECT."""
     project, composition = v2_composition(api)
     original = run(api, project, "final", size="2016x1344")["renders"][0]
     texts = len(spy.texts)
@@ -501,8 +501,8 @@ def test_render_calls_are_in_project_telemetry(
     run(api, project, "drafts")
     selected_composition(api, project)
     by_role = {g["key"]: g for g in api.get(f"{project['url']}/costs").json()["by_role"]}
-    assert by_role["FAST_DRAFT"]["images_out"] == 4  # 4 variantes por defecto (B-043)
-    assert by_role["STRUCTURAL_COMPOSER"]["calls"] == 1
+    assert by_role["FAST_DRAFT_MAKER"]["images_out"] == 4  # 4 variantes por defecto (B-043)
+    assert by_role["COMPOSITION_BUILDER"]["calls"] == 1
 
 
 def test_final_size_follows_the_capture(api: TestClient, spy: SpyClient) -> None:
@@ -552,7 +552,7 @@ def test_inpaint_composition_uses_the_native_mask(
     [retouch] = body["renders"]
     assert body["cost_eur"] > 0
     assert retouch["stage"] == "composicion" and retouch["status"] == "generado"
-    assert retouch["role"] == "STRUCTURAL_COMPOSER" and retouch["quality"] == "medium"
+    assert retouch["role"] == "COMPOSITION_BUILDER" and retouch["quality"] == "medium"
     # La composición que se retoca y los apoyos (Paso 23)
     assert retouch["input_asset_ids"] == [
         composition["id"], project["capture"], project["product"], project["inspiration"],
@@ -566,10 +566,10 @@ def test_inpaint_composition_uses_the_native_mask(
     assert info["coverage"] == pytest.approx(200 * 200 / (768 * 512), abs=1e-3)
 
     role, request = spy.edits[-1]
-    assert role is Role.STRUCTURAL_COMPOSER and request.mask is not None
+    assert role is Role.COMPOSITION_BUILDER and request.mask is not None
     assert len(request.images) == 4
     assert request.prompt.startswith("mock\n\nThe area spans")  # el prompt escrito + la zona
-    context = spy.texts[-1][1].input  # el PROMPT_ENGINEER escribe el cambio
+    context = spy.texts[-1][1].input  # el PROMPT_ARCHITECT escribe el cambio
     assert "## Modo retoque" in context and "Cojines en mostaza" in context
     assert "Imagen 1: imagen que se retoca" in context
     with Image.open(io.BytesIO(request.mask.data)) as mask:  # transparente = editar

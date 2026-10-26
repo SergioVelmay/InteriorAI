@@ -35,11 +35,11 @@ def _png(size: tuple[int, int], mode: str = "RGB", color: object = "#d4d4d8") ->
 
 
 async def _call(client: MeteredFoundryClient, role: Role) -> None:
-    if role in {Role.PROMPT_ENGINEER, Role.REFERENCE_ANALYST, Role.GEOMETRIC_AUDITOR}:
+    if role in {Role.PROMPT_ARCHITECT, Role.REFERENCE_ANALYST, Role.GEOMETRY_AUDITOR}:
         await client.complete_text(
             role, TextRequest(input="Salón nórdico de 20 m² con mucha luz natural.")
         )
-    elif role is Role.STRUCTURAL_COMPOSER:
+    elif role is Role.COMPOSITION_BUILDER:
         mask = Image.new("RGBA", (1024, 1024), (0, 0, 0, 255))
         mask.paste((0, 0, 0, 0), (200, 560, 824, 900))
         buffer = io.BytesIO()

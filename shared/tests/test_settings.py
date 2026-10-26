@@ -19,9 +19,9 @@ AZURE_ENV = {
 }
 
 _PREFIXES = (
-    "APP_", "LOG_", "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRIC_AUDITOR_",
+    "APP_", "LOG_", "AI_", "AZURE_", "DEPLOYMENT_ROLE_", "GEOMETRY_AUDITOR_",
     "DATA_DIR", "PRICING_", "MAX_UPLOAD", "BACKEND_", "FRONTEND_", "COST_ALERT_",
-    "PROMPT_ENGINEER_", "REFERENCE_ANALYST_",
+    "PROMPT_ARCHITECT_", "REFERENCE_ANALYST_", "GEOMETRIC_AUDITOR_", "PROMPT_ENGINEER_",
 )  # fmt: skip
 
 
@@ -80,14 +80,14 @@ def test_blank_values_are_treated_as_unset(tmp_path: Path) -> None:
             "AZURE_FOUNDRY_API_KEY": "",
             "AZURE_FOUNDRY_API_VERSION": "",
             "AZURE_FOUNDRY_RENDERER_ENDPOINT": "",
-            "DEPLOYMENT_ROLE_FAST_DRAFT": "",
+            "DEPLOYMENT_ROLE_FAST_DRAFT_MAKER": "",
         },
     )
     assert s.foundry.endpoint is None
     assert s.foundry.api_key is None
     assert s.foundry.api_version is None
     assert s.foundry.renderer_endpoint is None
-    assert s.deployments.get(Role.FAST_DRAFT) is None
+    assert s.deployments.get(Role.FAST_DRAFT_MAKER) is None
 
 
 # --- Modo azure ------------------------------------------------------------------------
@@ -197,13 +197,13 @@ def test_each_role_resolves_to_its_deployment(tmp_path: Path, role: Role) -> Non
 
 def test_mock_mode_has_placeholder_deployments() -> None:
     s = Settings.load(env_file=None)
-    assert s.deployment_for(Role.FAST_DRAFT) == "mock-fast_draft"
+    assert s.deployment_for(Role.FAST_DRAFT_MAKER) == "mock-fast_draft_maker"
 
 
 def test_every_role_has_an_api_kind() -> None:
     assert {role.api_kind for role in Role} == set(ApiKind)
-    assert Role.GEOMETRIC_AUDITOR.api_kind is ApiKind.RESPONSES
-    assert Role.PHOTOREALISTIC_RENDERER.api_kind is ApiKind.PROVIDER_IMAGES
+    assert Role.GEOMETRY_AUDITOR.api_kind is ApiKind.RESPONSES
+    assert Role.REALISTIC_RENDERER.api_kind is ApiKind.PROVIDER_IMAGES
 
 
 def test_settings_are_immutable() -> None:
@@ -221,14 +221,14 @@ def test_auditor_defaults_medium_effort_and_own_timeout() -> None:
 def test_reasoning_effort_per_text_role(tmp_path: Path) -> None:
     defaults = Settings.load(env_file=None)
     assert {r: defaults.reasoning_effort(r) for r in Role if r.api_kind is ApiKind.RESPONSES} == {
-        Role.PROMPT_ENGINEER: "medium",
+        Role.PROMPT_ARCHITECT: "medium",
         Role.REFERENCE_ANALYST: "medium",
-        Role.GEOMETRIC_AUDITOR: "medium",
+        Role.GEOMETRY_AUDITOR: "medium",
     }
-    assert defaults.reasoning_effort(Role.FAST_DRAFT) is None  # roles de imagen: no razonan
-    custom = load(tmp_path, {"PROMPT_ENGINEER_REASONING_EFFORT": " Low ",
+    assert defaults.reasoning_effort(Role.FAST_DRAFT_MAKER) is None  # roles de imagen: no razonan
+    custom = load(tmp_path, {"PROMPT_ARCHITECT_REASONING_EFFORT": " Low ",
                              "REFERENCE_ANALYST_REASONING_EFFORT": "high"})  # fmt: skip
-    assert custom.reasoning_effort(Role.PROMPT_ENGINEER) == "low"
+    assert custom.reasoning_effort(Role.PROMPT_ARCHITECT) == "low"
     assert custom.reasoning_effort(Role.REFERENCE_ANALYST) == "high"
 
 
@@ -239,3 +239,42 @@ def test_cost_alert_thresholds(tmp_path: Path) -> None:
     assert (custom.cost_alerts.project_eur, custom.cost_alerts.total_eur) == (1.5, 20.0)
     with pytest.raises(ValidationError):
         load(tmp_path, {"COST_ALERT_PROJECT_EUR": "0"})
+
+
+def test_old_role_variables_are_not_used_but_reported(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Paso 26 (B-057, versión 3.0.0): solo valen los nombres actuales; los anteriores se
+    detectan (entorno o `.env`) para avisar, sin usarse."""
+    old = {
+        "DEPLOYMENT_ROLE_PROMPT_ENGINEER": "gpt-6-luna",
+        "GEOMETRIC_AUDITOR_REASONING_EFFORT": "max",
+    }
+    s = load(tmp_path, old)
+    assert s.deployments.get(Role.PROMPT_ARCHITECT) is None
+    assert s.auditor.reasoning_effort == "medium"  # el valor antiguo no se usa
+    assert s.legacy_env == {
+        "DEPLOYMENT_ROLE_PROMPT_ENGINEER": "DEPLOYMENT_ROLE_PROMPT_ARCHITECT",
+        "GEOMETRIC_AUDITOR_REASONING_EFFORT": "GEOMETRY_AUDITOR_REASONING_EFFORT",
+    }
+    assert "DEPLOYMENT_ROLE_PROMPT_ENGINEER → DEPLOYMENT_ROLE_PROMPT_ARCHITECT" in (
+        settings_module.render_report(s)
+    )
+    monkeypatch.setenv("DEPLOYMENT_ROLE_FAST_DRAFT", "x")  # también desde el entorno
+    assert "DEPLOYMENT_ROLE_FAST_DRAFT" in load(tmp_path, {}).legacy_env
+    assert (
+        load(tmp_path, {"DEPLOYMENT_ROLE_PROMPT_ARCHITECT": "y"}).deployments.get(
+            Role.PROMPT_ARCHITECT
+        )
+        == "y"
+    )
+
+
+def test_azure_error_mentions_renamed_variables(tmp_path: Path) -> None:
+    env = {**AZURE_ENV, "DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER": "sunburst"}
+    del env[Role.COMPOSITION_BUILDER.env_var]
+    with pytest.raises(ValidationError) as exc:
+        load(tmp_path, env)
+    message = str(exc.value)
+    assert "DEPLOYMENT_ROLE_COMPOSITION_BUILDER" in message
+    assert "DEPLOYMENT_ROLE_STRUCTURAL_COMPOSER → DEPLOYMENT_ROLE_COMPOSITION_BUILDER" in message
