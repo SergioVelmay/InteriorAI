@@ -95,11 +95,11 @@ def test_summary_counts_and_costs() -> None:
     }  # fmt: skip
     md = project_summary_md(p, costs)
     assert "Imágenes de referencia: **2**" in md
-    assert "Referencias activas: **0**" in md  # sin ficha (B-060)
+    assert "Referencias activas: **0 de 2**" in md  # sin ficha (B-060)
     assert "Bocetos generados: **0**" in md and "Composiciones generadas: **0**" in md
     assert "Renders finales generados: **1**" in md
     assert "Brief" not in md
-    assert "Render final elegido: **sí**" in md
+    assert "Render final elegido: **SÍ**" in md
     assert "Gasto real estimado en IA: **0.2700 €** en 9 llamadas" in md
     # Desglose por rol, del más caro al más barato (B-027).
     assert md.index("REALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT_MAKER: 0.0200 €")

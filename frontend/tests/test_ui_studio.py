@@ -374,7 +374,7 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     galleries = [by_id(result, f"iai-{s}") for s in ("drafts", "compositions", "finals")]
     assert [len(g["value"]) for g in galleries] == [1, 0, 1]
     assert by_id(result, "iai-select-drafts")["value"] == "Seleccionada ●"
-    assert "**Coste acumulado de la cadena:** 0.2969 €" in by_id(result, "iai-more-drafts")
+    assert "**Coste acumulado de la cadena:** 0.2969 €" in by_id(result, "iai-chain-drafts")
     assert "82/100" in by_id(result, "iai-audit-report")  # auditoría del boceto seleccionado
     assert by_id(result, "iai-gen-compositions")["interactive"] is True
     assert by_id(result, "iai-gen-compositions-current")["interactive"] is False  # sin composición

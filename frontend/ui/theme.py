@@ -45,6 +45,16 @@ FORCE_DARK_JS = """() => {
             event.stopImmediatePropagation();  // sin el zoom de Gradio: la página se desplaza
         }
     }, {capture: true, passive: true});
+    document.addEventListener('click', (event) => {
+        // Al pasar a la mano, se cierra el deslizador del tamaño (si no, Gradio lo vuelve a
+        // abrir al elegir de nuevo el pincel o la goma).
+        const hand = event.target.closest && event.target.closest(
+            '#iai-inpaint-editor button[aria-label="Desplazar"]');
+        const editor = hand && hand.closest('#iai-inpaint-editor');
+        if (editor && editor.querySelector('input[type="range"]')) {
+            editor.querySelector('.toolbar-wrap button[aria-label^="Tamaño"]')?.click();
+        }
+    }, {capture: true});
     new MutationObserver((mutations) => {
         apply();
         mutations.forEach((m) => { progress(m.target); m.addedNodes.forEach(progress); });
@@ -71,11 +81,15 @@ GRADIO_TEXTS = {
     "image_editor.zoom_in": "Acercar",
     "image_editor.zoom_out": "Alejar",
     "image_editor.redo": "Rehacer",
+    "common.undo": "Deshacer",
+    "image_editor.fit_to_screen": "Ajustar a la pantalla",
     "image_editor.clear_canvas": "Borrar todo",
 }
 
 CSS = f"""
-.gradio-container {{ max-width: 1440px !important; margin: 0 auto; }}
+/* Siempre el mismo ancho: sin `width: 100%` la página se ajustaba a su contenido (Costes IA de un
+   proyecto, con un solo día, quedaba más estrecha que las demás pestañas). */
+.gradio-container {{ width: 100% !important; max-width: 1440px !important; margin: 0 auto; }}
 .iai-header {{
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
     gap: 1rem; padding: 0.25rem 0 0.5rem;
@@ -180,21 +194,31 @@ CSS = f"""
 #iai-inpaint-editor button[aria-label="Color"] {{ display: none !important; }}
 /* B-071: la herramienta activa en blanco y las demás en gris (Gradio lo hace al revés); lápiz
    y goma algo más grandes; el tamaño, dos circunferencias de trazo fino, también dentro de su
-   deslizador (donde Gradio repetía el icono de «prohibido»). */
-#iai-inpaint-editor .toolbar-wrap button.quite-round {{ color: #71717a !important; }}
-#iai-inpaint-editor .toolbar-wrap button.quite-round.highlight {{ color: {TEXT} !important; }}
+   deslizador (donde Gradio repetía el icono de «prohibido»). La mano (desplazar) también es una
+   herramienta (solo con la imagen ampliada): blanca cuando está activa (entonces ni pincel ni
+   goma, ni su tamaño). El botón del tamaño no es una herramienta: color fijo. */
+#iai-inpaint-editor .toolbar-wrap button.quite-round,
+#iai-inpaint-editor button[aria-label="Desplazar"] {{ color: #71717a !important; }}
+#iai-inpaint-editor .toolbar-wrap button.quite-round.highlight,
+#iai-inpaint-editor button[aria-label="Desplazar"].highlight {{
+    color: {TEXT} !important;
+}}
+#iai-inpaint-editor button[aria-label="Desplazar"].highlight:not(:disabled) {{
+    opacity: 1 !important;
+}}
+#iai-inpaint-editor .toolbar-wrap button[aria-label^="Tamaño"] {{ color: #d4d4d8 !important; }}
 #iai-inpaint-editor button[aria-label="Pincel"] > div,
 #iai-inpaint-editor button[aria-label="Goma"] > div {{
     width: 20px !important; height: 20px !important;
 }}
 #iai-inpaint-editor button[aria-label^="Tamaño"] svg,
-#iai-inpaint-editor .size_picker span svg {{ display: none !important; }}
+#iai-inpaint-editor span:has(+ input[type="range"]) svg {{ display: none !important; }}
 #iai-inpaint-editor button[aria-label^="Tamaño"] > div,
-#iai-inpaint-editor .size_picker span {{
+#iai-inpaint-editor span:has(+ input[type="range"]) {{
     display: flex !important; align-items: center; justify-content: center;
 }}
 #iai-inpaint-editor button[aria-label^="Tamaño"] > div::after,
-#iai-inpaint-editor .size_picker span::after {{
+#iai-inpaint-editor span:has(+ input[type="range"])::after {{
     content: ""; width: 15px; height: 15px; border-radius: 50%;
     border: 1.25px solid currentColor; box-sizing: border-box;
     background: radial-gradient(circle, transparent 0 2px, currentColor 2px 3px,
@@ -216,11 +240,12 @@ CSS = f"""
 #iai-sheet-tips {{ display: none !important; }}
 [id^="iai-sheet-"] label[title]:not([title=""]) {{ cursor: help; }}
 /* Miniaturas de lo que recibe cada generación (Paso 23): las que no caben, con el pie en rojo.
-   Escala 1/6 (B-079): 6 por fila a ancho completo y 3 en una columna del 50 % (`iai-half`). */
+   Escala 1/6 (B-079): 6 por fila a ancho completo; las imágenes de partida, a 1/4 (dos por fila
+   en su columna del 50 %, `iai-half`). */
 .iai-thumbs {{
     display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.5rem;
 }}
-.iai-half .iai-thumbs {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+.iai-half .iai-thumbs {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
 .iai-thumb {{
     position: relative; aspect-ratio: 3 / 2; margin: 0; overflow: hidden;
     border: 1px solid {BORDER}; border-radius: 8px; background: {SURFACE};

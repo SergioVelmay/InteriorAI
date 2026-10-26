@@ -87,11 +87,11 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
         f"Actualizado el {project.updated_at:%d/%m/%Y %H:%M} UTC",
         "",
         f"- Imágenes de referencia: **{len(references)}**",
-        f"- Referencias activas: **{active}**",
+        f"- Referencias activas: **{active} de {len(references)}**",
         f"- Bocetos generados: **{stages[RenderStage.DRAFT]}**",
         f"- Composiciones generadas: **{stages[RenderStage.COMPOSITION]}**",
         f"- Renders finales generados: **{stages[RenderStage.FINAL]}**",
-        f"- Render final elegido: **{'sí' if selected_final else 'no'}**",
+        f"- Render final elegido: **{'SÍ' if selected_final else 'NO'}**",
     ]
     if costs is not None:
         totals = costs.get("totals", {})

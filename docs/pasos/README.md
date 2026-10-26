@@ -38,13 +38,14 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 27 | [Estilo común, Proyectos y Referencias](paso-27-estilo-proyectos-referencias.md) | `feat/paso-27` | ✅ Cerrado |
 | 28 | [Bocetos](paso-28-bocetos.md) | `feat/paso-28` | ✅ Cerrado |
 | 29 | [Composición y Render Final](paso-29-composicion-render.md) | `feat/paso-29` | ✅ Cerrado |
+| 30 | [Detalles finales](paso-30-detalles-finales.md) | `feat/paso-30` | ⏳ En revisión |
 
 Versión 2.0.0 (publicada el 2026-10-25): [plan de acción](plan-version-2.md), Pasos 17 a 25,
 entradas B-023 a B-055
 del [backlog](BACKLOG.md).
 
-Versión 3.0.0 (propuesta): [plan de acción](plan-version-3.md), Pasos 26 a 30, entradas
-B-057 a B-081 (observaciones O-1 a O-25 del usuario) y B-023 del [backlog](BACKLOG.md).
+Versión 3.0.0 (propuesta): [plan de acción](plan-version-3.md), Pasos 26 a 31, entradas
+B-057 a B-089 (observaciones O-1 a O-33 del usuario) y B-023 del [backlog](BACKLOG.md).
 
 Mantenimiento posterior a la 1.0.0:
 

@@ -43,6 +43,10 @@
 - Etiquetas del editor de máscara fijadas en español (`image_editor.*` en `GRADIO_TEXTS`): Gradio
   las traduce según el navegador y el CSS de sus iconos (B-071) y los E2E dependen de ellas. La
   rueda sobre el lienzo se intercepta en `FORCE_DARK_JS` para desplazar la página (B-072).
+  La mano solo se activa con la imagen ampliada; activa, en blanco, y sin pincel, goma ni
+  tamaño. Al elegirla, `FORCE_DARK_JS` cierra el deslizador del tamaño (B-087).
+- `.gradio-container` con `width: 100%` y `max-width: 1440px`: sin el ancho, la página se
+  ajustaba a su contenido (Costes IA más estrecha con un solo proyecto, B-089).
 - Secciones plegables de Composición (`gr.Accordion`, B-074): sus hijos no se montan hasta
   desplegarlas; en los E2E, `UI.expand` espera a que la carga de la pestaña fije su estado.
 - Analytics de Gradio desactivados (`GRADIO_ANALYTICS_ENABLED=False`, `analytics_enabled=False`).
