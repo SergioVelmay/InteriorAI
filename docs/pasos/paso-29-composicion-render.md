@@ -37,6 +37,7 @@ B-071 a B-078. Sin llamadas reales: todo es de interfaz.
 | Postman en local (mock) | ✅ 53 peticiones, 96 comprobaciones |
 | Playwright en local (mock), Chromium y Edge | ✅ 6/6. Ahora despliegan ① y ② (`UI.expand`, que espera a que termine la carga de la pestaña) y comprueban la rueda sobre el lienzo, el aviso del retoque y la etiqueta «Tamaño del pincel» |
 | Revisión visual (mock, copia de «Personalización Cocina Los Molinos») | ✅ Iconos del editor y del deslizador, ① abierta por tener auditoría, tabla sin palabras partidas, aviso, prompt ajustado y títulos de las tres pestañas |
+| CI de la PR #41 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0 €.
 
