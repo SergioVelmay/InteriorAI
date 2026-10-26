@@ -50,6 +50,7 @@ from ui.studio_views import (
     renders_of,
     resolution_choices,
     selected_render,
+    size_label,
     support_thumbs,
     thumbs_html,
 )
@@ -189,6 +190,18 @@ def test_render_title_detail_and_inputs(tmp_path: Path) -> None:
         (str(tmp_path / str(p.id) / "referencias" / view.stored_name), "1. vista.png")
     ]
     assert render_title_md(None).startswith("_Genera")
+
+
+def test_size_label_and_final_title_without_quality() -> None:
+    assert size_label("2448x1632") == "2448×1632 (3:2)"  # noqa: RUF001
+    assert size_label("1536x1024") == "1536×1024 (3:2)"  # noqa: RUF001
+    assert size_label("1024x1024") == "1024×1024 (1:1)"  # noqa: RUF001
+    assert size_label("1920x1088") == "1920×1088"  # noqa: RUF001  (proporción no sencilla)
+    draft = render(RenderStage.DRAFT)
+    assert "1536×1024 (3:2) · calidad medium" in render_title_md(draft)  # noqa: RUF001
+    final = render(RenderStage.FINAL).model_copy(update={"size": "2448x1632", "quality": None})
+    title = render_title_md(final)
+    assert "2448×1632 (3:2)" in title and "calidad" not in title  # noqa: RUF001
 
 
 def test_v1_images_show_their_brief_and_audit() -> None:

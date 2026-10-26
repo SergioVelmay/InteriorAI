@@ -40,6 +40,11 @@
 - Pruebas de Playwright con el editor: desplazar el lienzo a la vista antes de pintar (los
   eventos de ratón fuera de la ventana se pierden). En Windows sin Docker, la caché de subidas de
   Gradio puede leer a medias un fondo idéntico subido varias veces: probar el editor en Docker.
+- Etiquetas del editor de máscara fijadas en español (`image_editor.*` en `GRADIO_TEXTS`): Gradio
+  las traduce según el navegador y el CSS de sus iconos (B-071) y los E2E dependen de ellas. La
+  rueda sobre el lienzo se intercepta en `FORCE_DARK_JS` para desplazar la página (B-072).
+- Secciones plegables de Composición (`gr.Accordion`, B-074): sus hijos no se montan hasta
+  desplegarlas; en los E2E, `UI.expand` espera a que la carga de la pestaña fije su estado.
 - Analytics de Gradio desactivados (`GRADIO_ANALYTICS_ENABLED=False`, `analytics_enabled=False`).
 
 ## Tema (decisión D5)

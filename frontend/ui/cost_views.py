@@ -374,8 +374,8 @@ def chain_cost_md(cost: dict[str, Any] | None) -> str:
     totals = cost["totals"]
     text = (
         f"**Coste acumulado de la cadena:** {money(totals['cost_eur'])} · "
-        f"{totals['calls']} llamada(s) (fichas de referencias, brief, etapas, retoques y "
-        "auditorías que llevan a esta imagen; sin ramas descartadas)"
+        f"{totals['calls']} llamada(s) (fichas de referencias, etapas, retoques y auditorías "
+        "que llevan a esta imagen; sin ramas descartadas)"
     )
     if cost["simulated_calls"]:
         text += f" · simulación: {cost['simulated_calls']} llamada(s) sin coste real"

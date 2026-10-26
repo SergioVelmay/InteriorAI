@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 import io
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -269,14 +270,25 @@ def _bullets(items: list[str]) -> str:
     return "\n".join(f"- {html.escape(i)}" for i in items)
 
 
+def size_label(size: str) -> str:
+    """«2448x1632 (3:2)» (B-078); sin proporción si no es sencilla (p. ej. 1920x1088)."""
+    width, height = (int(v) for v in size.split("x"))
+    divisor = math.gcd(width, height)
+    ratio = f"{width // divisor}:{height // divisor}"
+    simple = width // divisor <= 21 and height // divisor <= 21
+    return f"{width}×{height}" + (f" ({ratio})" if simple else "")  # noqa: RUF001
+
+
 def render_title_md(render: RenderRecord | None) -> str:
-    """Línea bajo la imagen grande: etapa, estado, tamaño y coste."""
+    """Línea bajo la imagen grande: etapa, estado, tamaño con su proporción, calidad (los
+    modelos que la tienen; el renderizador no) y coste."""
     if render is None:
         return "_Genera o elige una imagen para verla aquí._"
     state = "seleccionado" if render.status is RenderStatus.SELECTED else "sin seleccionar"
+    quality = f" · calidad {render.quality}" if render.quality else ""
     return (
         f"**{render.stage.label} `{render.id.hex[:8]}`** · {STATUS_ICONS[render.status]} {state}"
-        f" · {render.size} · calidad {render.quality or '—'} · {euros(render.cost_eur)} · "
+        f" · {size_label(render.size)}{quality} · {euros(render.cost_eur)} · "
         f"{render.created_at:%d/%m/%Y %H:%M} UTC"
     )
 

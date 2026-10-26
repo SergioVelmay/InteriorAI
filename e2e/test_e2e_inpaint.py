@@ -32,15 +32,25 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     url = project["url"]
     ui.activate(project["name"])
     ui.tab("Composición")
+    # ② plegada (B-074): el editor se monta al desplegarla.
+    ui.expand("iai-retouch-section")
     expect(page.locator("#iai-inpaint-editor canvas").first).to_be_visible()
     page.wait_for_timeout(2500)  # editor nuevo con la composición (gr.render)
-    # B-039: pincel rojo fijo, sin paleta de colores.
+    # B-039: pincel rojo fijo, sin paleta de colores; etiquetas en español (B-071).
     editor = page.locator("#iai-inpaint-editor")
     expect(editor.get_by_role("button", name="Color")).to_be_hidden()
-    size = editor.get_by_role("button", name="Brush Size")
+    size = editor.get_by_role("button", name="Tamaño del pincel")
     expect(size).to_be_visible()  # icono de tamaño: circunferencias (CSS), no la señal de prohibido
     expect(size.locator("svg")).to_be_hidden()
+    # B-072: la rueda sobre el lienzo desplaza la página, sin zoom.
+    editor.locator("canvas").first.hover()
+    before = page.evaluate("window.scrollY")
+    page.mouse.wheel(0, 300)
+    page.wait_for_function(f"window.scrollY > {before}")
+    # B-073: aviso de que las indicaciones solo actúan en la zona pintada.
+    expect(page.locator("#iai-retouch-hint")).to_be_hidden()
     page.locator("#iai-use-retouch input").check()
+    expect(page.locator("#iai-retouch-hint")).to_contain_text("solo actúan dentro de la zona")
     page.locator("#iai-gen-compositions-current").click()
     ui.toast("Pinta en la imagen la zona")  # sin trazos no hay llamada
 

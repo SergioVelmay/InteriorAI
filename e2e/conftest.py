@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 from collections.abc import Iterator
 from uuid import uuid4
 
@@ -116,6 +117,15 @@ class UI:
 
     def tab(self, title: str) -> None:
         self.page.get_by_role("tab", name=title).click()
+
+    def expand(self, section: str) -> None:
+        """Despliega una sección plegable (B-074) después de que la carga de la pestaña, que decide
+        si empieza abierta, haya terminado (si no, la cerraría de nuevo)."""
+        label = self.page.locator(f"#{section} .label-wrap").first
+        self.page.wait_for_timeout(1500)
+        if "open" not in (label.get_attribute("class") or "").split():
+            label.click()
+        expect(label).to_have_class(re.compile(r"\bopen\b"))
 
     def toast(self, text: str, timeout: int = TIMEOUT_MS) -> None:
         expect(self.page.get_by_text(text).first).to_be_visible(timeout=timeout)

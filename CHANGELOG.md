@@ -40,6 +40,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   minimalistas, con solo lo marcado en las fichas (el prompt dice qué no tomar de cada imagen)
   y sin reproducir rótulos ni cotas de las referencias, también en la composición y el render
   final (B-067 a B-070).
+- **Composición y Render Final** (Paso 29): ① Auditoría y ② Retoque plegables (① abierta si
+  el boceto ya tiene auditoría); editor de máscara con la herramienta activa resaltada, iconos
+  más claros y la rueda del ratón para desplazar la página; aviso de que, con el retoque, las
+  indicaciones solo actúan en la zona pintada; tabla de la auditoría sin palabras partidas;
+  prompt con ajuste de línea; tamaño con su proporción («2448×1632 (3:2)») y sin «calidad» en
+  el render final (B-071 a B-078).
 - **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
   leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
   ancho completo.
