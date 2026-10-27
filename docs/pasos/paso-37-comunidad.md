@@ -41,9 +41,11 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-37`.
+✅ Cerrado — rama `feat/paso-37`, PR #52 revisada y mergeada por el usuario (2026-10-27). El perfil
+de comunidad de GitHub pasa del 57 % al **100 %**; los dos formularios de issue se muestran como
+formularios y los enlaces de contacto aparecen al abrir una issue. «Contribuir» responde en la web.
 
 ## 6. Pendiente / futuro
 
-- Tras el merge: comprobar el perfil de comunidad (`/community`) y las plantillas en «New issue».
-- Paso 38: precios y costes con la factura real (B-098), con B-104 y B-105.
+- Paso 38: arreglos de la interfaz (B-104 a B-106); Paso 39: precios y costes con la factura real
+  (B-098).

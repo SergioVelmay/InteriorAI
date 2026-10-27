@@ -37,14 +37,17 @@ from ui.studio_views import (
     audit_markdown,
     audit_thumbs,
     composition_cost,
+    composition_hint,
     composition_inputs,
     cost_hint,
     draft_cost,
+    draft_hint,
     draft_inputs,
     draft_thumbs,
     editor_mask,
     euros,
     final_cost,
+    final_hint,
     needs_confirmation,
     render_caption,
     render_detail_md,
@@ -223,6 +226,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         # Estado común, dentro de una pestaña: un hijo del `gr.Tabs` que no es pestaña duplica en
         # la barra la pestaña que se selecciona (Gradio 6).
         mode = gr.State(None)
+        # Modo e imágenes de entrada de bocetos y composición: con las opciones de cada
+        # formulario dan la estimación junto a los botones (B-104).
+        hint_context = gr.State(None)
         selected_draft = gr.State(None)  # id del boceto seleccionado
         selected_composition = gr.State(None)  # composición seleccionada (la que se retoca)
         editor_nonce = gr.State(0)
@@ -427,8 +433,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         return str(path) if path.is_file() else placeholder(asset.original_name)
 
     def empty_view() -> dict:
-        updates: dict = {mode: None, refs: "", refs_md: "", selected_draft: None,
-                         selected_composition: None, audit_images: "", audit_md: "",
+        updates: dict = {mode: None, hint_context: None, refs: "", refs_md: "",
+                         selected_draft: None, selected_composition: None, audit_images: "",
+                         audit_md: "",
                          retouch_md: "", supports_md: "", supports: "", start_draft: "",
                          start_composition: "", use_retouch: gr.update(value=False),
                          composition_tab: gr.update(interactive=False),
@@ -518,10 +525,12 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             (r for r in project.renders if str(r.id) == updates[panels[RenderStage.FINAL].shown]),
             None,
         )
-        n_comp = composition_inputs(project)
-        quality_note = " (1 en calidad media)"
-        comp_cost = cost_hint(composition_cost("medium", n_comp), current_mode) + quality_note
         updates |= {
+            hint_context: {
+                "mode": current_mode,
+                "drafts": n_drafts,
+                "compositions": composition_inputs(project),
+            },
             selected_draft: str(draft.id) if draft else None,
             selected_composition: str(composition.id) if composition else None,
             composition_tab: gr.update(interactive=draft is not None),
@@ -568,22 +577,42 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             "render_final_actual": final is not None,
             "otra_version": shown_final is not None and shown_final.prompt_info is not None,
         }
-        final_hint = cost_hint(final_cost(DEFAULT_RENDERER_SIZE), current_mode) + " (a 4 MP)"
+        # El resto de estimaciones dependen de las opciones elegidas: `hints` (B-104).
         costs = {
-            "boceto": cost_hint(draft_cost(4, "medium", n_drafts), current_mode)
-            + " (4 en calidad media)",
             "auditoria": cost_hint(COST_AUDIT, current_mode),
-            "composicion": comp_cost,
-            "composicion_actual": comp_cost,
-            "render_final": final_hint,
-            "render_final_actual": final_hint,
             "otra_version": cost_hint(final_cost(shown_final.size, prompt=False), current_mode)
             if shown_final
             else "",
         }
         for key, action in actions.items():
-            updates |= {action.button: gr.update(interactive=enabled[key]), action.cost: costs[key]}
+            updates[action.button] = gr.update(interactive=enabled[key])
+        updates |= {actions[key].cost: cost for key, cost in costs.items()}
         return updates
+
+    def hints(
+        context: dict[str, Any] | None,
+        n: float,
+        draft_quality_value: str,
+        comp_quality_value: str,
+        size: str | None,
+    ) -> dict:
+        """Estimaciones con las opciones de cada formulario (B-104): al cargar el proyecto y al
+        cambiar las variantes, la calidad o la resolución."""
+        context = context or {}
+        current_mode = context.get("mode")
+        comp_hint = composition_hint(
+            comp_quality_value, context.get("compositions", 1), current_mode
+        )
+        final = final_hint(size or DEFAULT_RENDERER_SIZE, current_mode)
+        return {
+            actions["boceto"].cost: draft_hint(
+                int(n), draft_quality_value, context.get("drafts", 0), current_mode
+            ),
+            actions["composicion"].cost: comp_hint,
+            actions["composicion_actual"].cost: comp_hint,
+            actions["render_final"].cost: final,
+            actions["render_final_actual"].cost: final,
+        }
 
     # --- Acciones de IA (confirmación junto al botón en Azure, B-049) ---------------------------
 
@@ -766,8 +795,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     # --- Salidas y eventos -----------------------------------------------------------------------
 
     outputs: list[gr.components.Component] = [
-        *notices, mode, refs, refs_md, selected_draft, selected_composition, composition_tab,
-        audit_box,
+        *notices, mode, hint_context, refs, refs_md, selected_draft, selected_composition,
+        composition_tab, audit_box,
         final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
         start_draft, start_composition, selected_final, start_final_composition,
         start_final_current,
@@ -884,6 +913,17 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         inputs=final_ratio,
         outputs=final_size,
     )
+
+    hint_inputs = [hint_context, draft_n, draft_quality, comp_quality, final_size]
+    hint_outputs = [
+        actions[key].cost
+        for key in ("boceto", "composicion", "composicion_actual", "render_final",
+                    "render_final_actual")
+    ]  # fmt: skip
+    for component in hint_inputs:
+        component.change(
+            hints, inputs=hint_inputs, outputs=hint_outputs, queue=False, show_progress="hidden"
+        )
 
     for key, action in actions.items():
         # El cuadro de confirmación se oculta al pulsar (B-090): el «procesando» queda junto al

@@ -81,8 +81,8 @@ def notes_md(summary: dict[str, Any]) -> str:
         parts.append(f"{summary['totals']['unpriced_calls']} llamada(s) sin precio configurado.")
     if summary["totals"]["errors"]:
         parts.append(
-            "Las llamadas con error figuran a 0 €, aunque el proveedor pudo facturarlas "
-            "(p. ej. un timeout)."
+            "Las llamadas con error figuran solo con lo que se conoce (p. ej. las imágenes "
+            "enviadas al renderizador); el proveedor pudo facturar más (p. ej. un timeout)."
         )
     return " ".join(parts)
 

@@ -28,7 +28,7 @@ from shared.models import (
     RenderStage,
     RenderStatus,
 )
-from shared.sizes import RENDERER_SIZES
+from shared.sizes import RENDERER_SIZES, megapixels
 from shared.supports import (
     MAX_SUPPORTS,
     draft_base,
@@ -72,6 +72,7 @@ DRAFT_SIZES = [  # formato de los bocetos: tamaño con su proporción (B-040)
     ("1024 x 1536 (2:3)", "1024x1536"),
 ]
 QUALITIES = [("Baja", "low"), ("Media", "medium"), ("Alta", "high")]
+QUALITY_NAMES = {value: label.lower() for label, value in QUALITIES}
 
 
 def euros(value: float | None) -> str:
@@ -86,6 +87,29 @@ def cost_hint(estimated_eur: float, mode: str | None) -> str:
     if mode != "azure":
         return "Simulación: sin coste"
     return f"Azure: ≈ {estimated_eur:.3f} €"
+
+
+def draft_hint(n: int, quality: str, inputs: int, mode: str | None) -> str:
+    """Estimación junto a «Generar bocetos», con las variantes y la calidad elegidas (B-104)."""
+    if mode is None:
+        return ""
+    name = QUALITY_NAMES.get(quality, quality)
+    return f"{cost_hint(draft_cost(n, quality, inputs), mode)} ({n} en calidad {name})"
+
+
+def composition_hint(quality: str, inputs: int, mode: str | None) -> str:
+    """Estimación junto a los botones de composición, con la calidad elegida (B-104)."""
+    if mode is None:
+        return ""
+    name = QUALITY_NAMES.get(quality, quality)
+    return f"{cost_hint(composition_cost(quality, inputs), mode)} (1 en calidad {name})"
+
+
+def final_hint(size: str, mode: str | None) -> str:
+    """Estimación junto a los botones del render final, con la resolución elegida (B-104)."""
+    if mode is None:
+        return ""
+    return f"{cost_hint(final_cost(size), mode)} (a {megapixels(size):.1f} MP)"
 
 
 def inpaint_hint(stage: RenderStage | None, mode: str | None) -> str | None:

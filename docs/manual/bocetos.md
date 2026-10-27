@@ -25,8 +25,8 @@ sobrantes aparecerían con el pie en rojo.
 | **Variantes** | De 1 a 8 imágenes por tanda (4 por defecto): todas con el mismo prompt, el modelo varía el resultado |
 | **Indicaciones** | Lo que quieres en esta tanda, en texto libre (opcional) |
 
-Junto al botón se ve la **estimación del coste**. En modo Azure, si pasa de 0,20 €, el botón pide
-una **confirmación** en rojo antes de llamar a la IA:
+Junto al botón se ve la **estimación del coste**, que cambia con las variantes y la calidad. En
+modo Azure, si pasa de 0,20 €, el botón pide una **confirmación** en rojo antes de llamar a la IA:
 
 ![Confirmación de coste](img/bocetos-confirmacion.jpg)
 

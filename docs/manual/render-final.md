@@ -24,7 +24,8 @@ día, la iluminación, el ambiente o personas en la escena.
 | **Generar con la composición seleccionada** | Parte de la composición elegida |
 | **Generar con el render final actual** | Parte del render seleccionado, para cambiarle algo conservando lo demás |
 
-Junto a cada botón se ve la estimación del coste (unos 0,08 € a 4 MP).
+Junto a cada botón se ve la estimación del coste, que cambia con la resolución (unos 0,08 € a
+4 MP).
 
 ## Día, atardecer y noche
 
