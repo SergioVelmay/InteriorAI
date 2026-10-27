@@ -4,6 +4,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 [SemVer](https://semver.org/lang/es/). El detalle de cada paso está en
 [docs/pasos/](docs/pasos/README.md).
 
+## [Sin publicar]
+
+### Cambiado
+
+- **Prompts más precisos** (Paso 32, B-054, B-094 a B-097). El PROMPT_ARCHITECT recibe más
+  contexto: el resumen del análisis de cada referencia, el historial de la imagen de partida
+  (también sus retoques) y las generaciones anteriores de la etapa. Ve las imágenes con más
+  detalle y sigue unos criterios comunes:
+  - medidas estándar de mercado cuando faltan o no cuadran, siempre como aproximadas;
+  - dudas resueltas como un interiorista;
+  - distribución de izquierda a derecha;
+  - prompts más largos en frases completas;
+  - un repaso final antes de responder.
+- **`PROMPT_ARCHITECT_TIMEOUT_S`** (nuevo, 300 s por defecto) y tope de salida de 32 000 tokens:
+  con razonamiento `high`, el prompt de bocetos superaba el tope anterior y rozaba el timeout
+  general.
+
 ## [3.0.0] — 2026-10-27
 
 Pulido completo de la interfaz tras un caso real guiado («Personalización Cocina Los Molinos»)

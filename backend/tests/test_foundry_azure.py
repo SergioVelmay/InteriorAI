@@ -139,7 +139,7 @@ async def test_text_request_shape_and_usage(make_client) -> None:
         TextRequest(
             input="Notas",
             instructions="Sistema",
-            images=[InputImage(data=png())],
+            images=[InputImage(data=png()), InputImage(data=png(), detail="high")],
             max_output_tokens=200,
         ),
     )
@@ -155,6 +155,8 @@ async def test_text_request_shape_and_usage(make_client) -> None:
     content = body["input"][0]["content"]
     assert content[0] == {"type": "input_text", "text": "Notas"}
     assert content[1]["image_url"].startswith("data:image/png;base64,")
+    assert "detail" not in content[1]  # el del proveedor por defecto
+    assert content[2]["detail"] == "high"  # Paso 32: el escritor lee cotas y rótulos
 
     assert result.text == "Prompt"
     assert result.response_id == "resp_123"
@@ -430,9 +432,10 @@ async def test_openai_500_is_not_retried(make_client) -> None:
     assert len(seen) == 1
 
 
-async def test_auditor_uses_its_own_timeout(
+async def test_slow_text_roles_use_their_own_timeout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """El auditor y el PROMPT_ARCHITECT (Paso 32) tienen timeout propio; el resto, el general."""
     timeouts = {}
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -443,10 +446,13 @@ async def test_auditor_uses_its_own_timeout(
     client = openai_only_client(
         tmp_path, monkeypatch, handler,
         AZURE_FOUNDRY_TIMEOUT_S="120", GEOMETRY_AUDITOR_TIMEOUT_S="900",
+        PROMPT_ARCHITECT_TIMEOUT_S="300",
     )  # fmt: skip
-    await client.complete_text(Role.GEOMETRY_AUDITOR, TextRequest(input="x"))
-    await client.complete_text(Role.PROMPT_ARCHITECT, TextRequest(input="x"))
-    assert timeouts == {"dep-geometry_auditor": 900, "dep-prompt_architect": 120}
+    for role in (Role.GEOMETRY_AUDITOR, Role.PROMPT_ARCHITECT, Role.REFERENCE_ANALYST):
+        await client.complete_text(role, TextRequest(input="x"))
+    assert timeouts == {
+        "dep-geometry_auditor": 900, "dep-prompt_architect": 300, "dep-reference_analyst": 120,
+    }  # fmt: skip
 
 
 async def test_renderer_timeout_is_never_retried(make_client) -> None:

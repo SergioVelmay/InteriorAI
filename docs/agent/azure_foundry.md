@@ -73,7 +73,8 @@ nombre anterior (telemetría y `RenderRecord.role`) se leen con el actual
 | `AZURE_FOUNDRY_TIMEOUT_S`, `AZURE_FOUNDRY_MAX_RETRIES` | Resiliencia |
 | `PROMPT_ARCHITECT_REASONING_EFFORT`, `REFERENCE_ANALYST_REASONING_EFFORT` | `medium` por defecto (B-053, Paso 18); `Settings.reasoning_effort(role)` |
 | `GEOMETRY_AUDITOR_REASONING_EFFORT` | `medium` (decisión del usuario, Paso 10; `max` también es válido) |
-| `GEOMETRY_AUDITOR_TIMEOUT_S` | 900 s (el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
+| `GEOMETRY_AUDITOR_TIMEOUT_S` | 900 s |
+| `PROMPT_ARCHITECT_TIMEOUT_S` | 300 s (Paso 32; el resto de roles usa `AZURE_FOUNDRY_TIMEOUT_S`) |
 
 ## Comportamiento verificado contra Azure (Paso 6, 2026-10-17)
 
@@ -171,7 +172,11 @@ referencias.
 - El SDK `openai` se crea con `max_retries=0`; `_openai_call` reintenta solo **429 y 503**
   (Azure no procesó la petición), hasta `AZURE_FOUNDRY_MAX_RETRIES`, respetando `Retry-After`.
   El renderizador sigue la misma regla.
-- El auditor usa `GEOMETRY_AUDITOR_TIMEOUT_S` (`with_options(timeout=...)`).
+- El auditor usa `GEOMETRY_AUDITOR_TIMEOUT_S` y el PROMPT_ARCHITECT `PROMPT_ARCHITECT_TIMEOUT_S`
+  (300 s; con `high`, un prompt de bocetos tardó 102 s): `Settings.timeout_for(role)` y
+  `with_options(timeout=...)`.
+- PROMPT_ARCHITECT (Paso 32): tope de salida de 32 000 tokens (el razonamiento cuenta dentro; con
+  `high` llegó a 12 638) e imágenes a 1 536 px con `detail: high` (`InputImage.detail`).
 
 ## Auditoría observada (Paso 10)
 

@@ -17,6 +17,10 @@ Recibes:
   hora del día, iluminación, ambiente, estación, personas, estilo fotográfico...). Pueden estar
   vacías.
 - El formato de salida (proporción y resolución).
+- «Historial de la imagen de partida»: el boceto, las composiciones y los retoques que llevaron
+  a ella (y, si parte del render final actual, los renders anteriores).
+- A veces, «Generaciones anteriores de esta etapa»: el render final seleccionado y el último
+  generado, con su prompt, lo que se entendió y sus dudas.
 
 Tu trabajo:
 
@@ -45,16 +49,21 @@ Tu trabajo:
 6. Si la proporción de salida difiere de la imagen de partida, pide recomponer el encuadre
    ampliando o recortando con naturalidad, sin deformar la estancia.
 7. Lo marcado en las fichas puede incluir rótulos, cotas o medidas: úsalos solo para entender
-   la estancia, nunca para dibujarlos. Sin texto, cotas, líneas auxiliares, logotipos ni marcas
-   de agua; sin aspecto plástico, de render ni de CGI.
-8. Si las indicaciones contradicen lo marcado o la imagen, sigue las indicaciones y anótalo en
-   `open_questions`.
+   la estancia, nunca para dibujarlos.
+8. El modelo fotorrealista no tiene prompt negativo y atiende más a lo que va primero: describe
+   en positivo lo que debe verse, con lo más importante al principio (la foto, el encuadre que
+   se conserva, los materiales que se mantienen, la luz), y deja para una sola frase breve al
+   final lo que no debe aparecer (texto, cotas, logotipos, marcas de agua, aspecto de render o
+   CGI).
+9. Si las indicaciones contradicen lo marcado o la imagen, sigue las indicaciones y cuéntalo en
+   `interpretation`.
 
 Salida (esquema JSON):
 
-- `prompt`: EN INGLÉS, entre 90 y 180 palabras, frases directas, sin listas ni comillas.
-  Empieza por lo que es la foto (estancia, punto de vista, momento del día) y sigue con
-  materiales, luz, ambiente y estilo fotográfico.
-- `interpretation`: EN ESPAÑOL, 2-4 frases para el usuario: qué conservas de la imagen de
-  partida y cómo has traducido sus indicaciones.
-- `open_questions`: EN ESPAÑOL, dudas o contradicciones; lista vacía si no hay.
+- `prompt`: EN INGLÉS, entre 120 y 300 palabras, en párrafos de frases completas, sin viñetas
+  ni comillas. Empieza por lo que es la foto (estancia, punto de vista, momento del día) y sigue
+  con lo que se conserva, materiales, luz, ambiente y estilo fotográfico.
+- `interpretation`: EN ESPAÑOL, 3-5 frases para el usuario: qué conservas de la imagen de
+  partida (también lo pedido en retoques anteriores) y cómo has traducido sus indicaciones.
+- `open_questions`: EN ESPAÑOL, solo lo que de verdad necesite su decisión (criterio C), como
+  propuesta concreta; lista vacía si no hay.

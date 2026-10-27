@@ -218,6 +218,17 @@ def test_auditor_defaults_medium_effort_and_own_timeout() -> None:
     assert s.auditor.timeout_s == 900
 
 
+def test_own_timeouts_for_the_slow_text_roles(tmp_path: Path) -> None:
+    """Paso 32: el PROMPT_ARCHITECT con `high` puede pasar de 120 s; los demás, el del cliente."""
+    s = Settings.load(env_file=None)
+    assert s.timeout_for(Role.GEOMETRY_AUDITOR) == 900
+    assert s.timeout_for(Role.PROMPT_ARCHITECT) == 300
+    assert s.timeout_for(Role.REFERENCE_ANALYST) is None
+    env = tmp_path / ".env"
+    env.write_text("PROMPT_ARCHITECT_TIMEOUT_S=450\n", encoding="utf-8")
+    assert Settings.load(env_file=env).timeout_for(Role.PROMPT_ARCHITECT) == 450
+
+
 def test_reasoning_effort_per_text_role(tmp_path: Path) -> None:
     defaults = Settings.load(env_file=None)
     assert {r: defaults.reasoning_effort(r) for r in Role if r.api_kind is ApiKind.RESPONSES} == {

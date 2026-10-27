@@ -56,6 +56,12 @@ Mantenimiento posterior a la 1.0.0:
 | 2026-10-23 | [Contraste con la factura real de octubre](mantenimiento-2026-10-factura.md) | `fix/precios-facturados` | ✅ Cerrado |
 | 2026-10-23 | Dependencias con alertas de seguridad: Pillow 13 forzado, certifi y brotli (PR #22; B-024) | `fix/seguridad-dependencias` | ✅ Cerrado |
 
+Después de la 3.0.0:
+
+| Paso | Documento | Rama | Estado |
+|------|-----------|------|--------|
+| 32 | [Prompts del PROMPT_ARCHITECT más precisos](paso-32-prompts.md) (B-054, B-094 a B-097) | `feat/paso-32` | ⏳ En revisión |
+
 ## Plantilla de documento de paso
 
 ```markdown
