@@ -35,6 +35,7 @@ para la v1 (B-056), con una migración automática que conserva los datos reales
 | `uv run ruff check .` / `ruff format --check` / pre-commit | ✅ |
 | Postman en local (mock, sobre la copia migrada) | ✅ 49 peticiones, 89 comprobaciones |
 | Playwright en local (mock), Chromium y Edge | ✅ 6/6 |
+| CI de la PR #47 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0 €.
 
