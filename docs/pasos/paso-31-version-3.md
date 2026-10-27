@@ -40,6 +40,7 @@ B-093) y la publicación de la 3.0.0.
 | Postman en local (mock) | ✅ 53 peticiones, 96 comprobaciones; `/health` con la versión 3.0.0 |
 | Playwright en local (mock), Chromium y Edge | ✅ 6/6 |
 | Capturas | ✅ Seis, completas y sin nada cargando, revisadas una a una |
+| CI de la PR #43 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0 €.
 
