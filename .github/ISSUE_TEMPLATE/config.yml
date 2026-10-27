@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentación y manual de usuario
+    url: https://sergiovelmay.github.io/InteriorAI/
+    about: Instalación, configuración, manual con un caso completo y referencia técnica.
+  - name: Avisar de una vulnerabilidad (en privado)
+    url: https://github.com/SergioVelmay/InteriorAI/security/advisories/new
+    about: No abras una issue pública; usa el aviso privado de GitHub.
