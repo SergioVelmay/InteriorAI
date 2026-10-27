@@ -31,17 +31,16 @@ data/
 ├── .locks/                           # filelocks (index.lock, {uuid}.lock)
 └── {id_proyecto}/                    # id = UUID (protección path traversal)
     ├── metadatos.json
+    ├── metadatos.v2.json             # copia previa a la migración al esquema 3 (Paso 33)
     ├── costes_telemetria.jsonl       # una línea por llamada a la IA (Paso 16)
-    ├── planos/
     ├── referencias/
-    ├── capturas_sketchup/
-    └── renders_historico/            # cada render: imagen + JSON sidecar
+    └── renders_historico/            # cada render: imagen + JSON sidecar (+ máscara si es retoque)
 ```
 
-- Modelos en `shared/models.py`: `SpaceType`, `AssetKind` (`.folder`), `Asset`, `ProjectCreate`,
-  `ProjectUpdate` (`changes()` = campos enviados), `ProjectSummary`, `ProjectMetadata`,
-  `ProjectIndex`, `TelemetryLog`. Campos en inglés, valores y carpetas en español,
-  `schema_version: 1` en cada JSON, `extra="forbid"`.
+- Modelos en `shared/models.py`: `AssetKind` (`.folder`), `Asset`, `ReferenceSheet`,
+  `RenderRecord`, `ProjectCreate`, `ProjectUpdate` (`changes()` = campos enviados),
+  `ProjectSummary`, `ProjectMetadata` (esquema 3), `ProjectIndex` (esquema 2), `TelemetryLog`.
+  Campos en inglés, valores y carpetas en español, `extra="forbid"`.
 - `ProjectRepository(data_dir)` (dependencia `RepositoryDep`): `init`, `list_projects`, `create`,
   `get`, `update`, `delete` (→ `.papelera/{id}-{ts}`), `add_asset`, `list_assets`, `get_asset`, `asset_path`,
   `remove_asset` (→ `.papelera/{id}/`), `reindex`.
@@ -85,7 +84,8 @@ data/
 | POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{notes?}` → `{render, audit, cost_eur, request_id}` (boceto, composición o final; las imágenes nuevas, frente a todas las referencias del espacio) | 10 · 23 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`, `extra_instructions`, `use_audit`, `audit_notes`] → 201 `{renders, cost_eur}` (solo composiciones, B-038; prompt del PROMPT_ARCHITECT, Paso 23) | 13b · 17 ✅ |
-| GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque (los archivos bruto/guía de la v1 quedan en disco) | 13b · 17 ✅ |
+| GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque | 13b · 17 ✅ |
+| — | `docs/referencia/openapi.json` | Esquema publicado en la web (`python -m app.openapi`; un test vigila que esté al día) | 35 ✅ |
 
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
 
@@ -178,8 +178,7 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
 - Auditoría (`app/pipelines/auditor.py`): a demanda y opcional; historial en
   `RenderRecord.audits`. Desde el Paso 23 (B-046) audita sobre todo el boceto seleccionado,
   frente a todas las referencias activas con perspectiva o geometría (`reference_asset_ids`,
-  prompt `auditor_espacio`) y con las observaciones del usuario (`notes`); las imágenes de la v1
-  se comparan con su captura de origen (`reference_asset_id`, siguiendo la cadena de renders).
+  prompt `auditor_espacio`) y con las observaciones del usuario (`notes`).
 - Contexto del PROMPT_ARCHITECT (`prompt_writer.references_section`): de cada referencia, lo
   marcado (`seleccion`) y, de las que se envían como imagen, lo no marcado (`ignorar`), para que
   el prompt diga qué no tomar (Paso 28, B-068).

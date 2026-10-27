@@ -16,6 +16,7 @@ dev = [
 docs = [
     "mkdocs-glightbox>=0.4",
     "mkdocs-material>=9.6",
+    "mkdocs-swagger-ui-tag>=0.7",
 ]
 # Pruebas de extremo a extremo (e2e/): uv run --group e2e pytest e2e
 e2e = [

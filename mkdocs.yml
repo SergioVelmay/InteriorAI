@@ -64,6 +64,12 @@ plugins:
   - glightbox:
       zoomable: true
       draggable: false
+  # Swagger de la referencia de la API, solo de consulta (sin «Try it out»: no hay backend)
+  - swagger-ui-tag:
+      docExpansion: none
+      filter: true
+      supportedSubmitMethods: []
+      syntaxHighlightTheme: monokai
 
 markdown_extensions:
   - admonition
@@ -104,6 +110,15 @@ nav:
       - manual/index.md
   - Referencia técnica:
       - referencia/index.md
+      - Arquitectura: referencia/arquitectura.md
+      - API REST: referencia/api.md
+      - Datos y almacenamiento: referencia/datos.md
+      - IA y costes: referencia/ia-y-costes.md
+      - Interfaz: referencia/interfaz.md
+  - Desarrollo:
+      - desarrollo/index.md
+      - Pruebas y CI: desarrollo/pruebas.md
+      - Operación y herramientas: desarrollo/operacion.md
   - Proyecto:
       - proyecto/index.md
       - Versiones: proyecto/versiones.md

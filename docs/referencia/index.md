@@ -1,17 +1,47 @@
 # Referencia técnica
 
-!!! note "En preparación"
-    Esta sección se completa en el siguiente paso de la documentación.
+Cómo está hecho InteriorAI por dentro, para quien quiera integrarlo, auditarlo o entender sus
+decisiones.
 
-Contenido previsto:
+<div class="grid cards" markdown>
 
-- **Arquitectura:** backend (FastAPI), frontend (Gradio), almacenamiento y Azure AI Foundry.
-- **API REST:** todos los endpoints con el Swagger interactivo, generado del esquema OpenAPI.
-- **Modelo de datos y almacenamiento:** proyectos, referencias, renders, auditorías, telemetría,
-  escritura atómica, papelera y migraciones.
-- **IA y costes:** roles, prompts, telemetría y estimación de costes.
-- **Desarrollo:** entorno, tests, CI y cómo contribuir.
+-   :material-sitemap: **[Arquitectura](arquitectura.md)**
 
-Mientras tanto, con la aplicación en marcha, el Swagger está en <http://127.0.0.1:8000/docs>, y
-el contexto técnico, en la carpeta
-[`docs/agent/`](https://github.com/SergioVelmay/InteriorAI/tree/main/docs/agent) del repositorio.
+    ---
+
+    Contenedores, flujo de una generación y principios de diseño.
+
+-   :material-api: **[API REST](api.md)**
+
+    ---
+
+    Convenciones, endpoints por grupos y el Swagger completo.
+
+-   :material-database: **[Datos y almacenamiento](datos.md)**
+
+    ---
+
+    Modelo de datos, carpeta `data/`, escritura atómica, papelera y migraciones.
+
+-   :material-robot: **[IA y costes](ia-y-costes.md)**
+
+    ---
+
+    Roles, Azure AI Foundry, prompts automáticos, telemetría y cálculo del coste.
+
+-   :material-monitor-dashboard: **[Interfaz](interfaz.md)**
+
+    ---
+
+    La aplicación de Gradio: pestañas, tema, editor de máscara y previsiones.
+
+</div>
+
+Para contribuir al código, ver [Desarrollo](../desarrollo/index.md).
+
+## En una frase
+
+Un **backend FastAPI** es el único que escribe en `data/` y el único que llama a la IA (por
+roles, nunca por nombre de modelo, y siempre midiendo el coste); una **interfaz Gradio** sin
+credenciales lee las imágenes del volumen y escribe a través de la API; cada etapa del diseño
+parte de la imagen que **el usuario** eligió en la anterior.
