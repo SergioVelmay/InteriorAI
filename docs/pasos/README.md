@@ -62,9 +62,10 @@ Después de la 3.0.0:
 |------|-----------|------|--------|
 | 32 | [Prompts del PROMPT_ARCHITECT más precisos](paso-32-prompts.md) (B-054, B-094 a B-097) | `feat/paso-32` | ✅ Cerrado |
 | 33 | [Retirar la compatibilidad con la v1](paso-33-sin-v1.md) (B-056) | `feat/paso-33` | ✅ Cerrado |
+| 34 | Web de documentación (B-099) | `feat/paso-34` | 🚧 En curso |
 
-Versión 4.0.0 (en curso): [plan de acción](plan-version-4.md), Pasos 32 a 35, entradas B-054,
-B-056 y B-094 a B-098 del [backlog](BACKLOG.md).
+Versión 4.0.0 (en curso): [plan de acción](plan-version-4.md), Pasos 32 a 39, entradas B-054,
+B-056 y B-094 a B-102 del [backlog](BACKLOG.md).
 
 ## Plantilla de documento de paso
 
