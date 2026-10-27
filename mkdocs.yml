@@ -108,6 +108,13 @@ nav:
       - Configuración: primeros-pasos/configuracion.md
   - Manual de usuario:
       - manual/index.md
+      - 1. Proyectos: manual/proyectos.md
+      - 2. Referencias: manual/referencias.md
+      - 3. Bocetos: manual/bocetos.md
+      - 4. Composición: manual/composicion.md
+      - 5. Render final: manual/render-final.md
+      - 6. Costes IA: manual/costes.md
+      - Consejos: manual/consejos.md
   - Referencia técnica:
       - referencia/index.md
       - Arquitectura: referencia/arquitectura.md

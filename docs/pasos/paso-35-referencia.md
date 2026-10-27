@@ -38,7 +38,8 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-35`.
+✅ Cerrado — rama `feat/paso-35`, PR #50 revisada y mergeada por el usuario (2026-10-27). Publicada
+al integrar en `main`: todas las páginas nuevas y `openapi.json` responden en la web.
 
 ## 6. Pendiente / futuro
 
