@@ -94,9 +94,9 @@ async def alerts(repo: RepositoryDep, request: Request, settings: SettingsDep) -
 async def render_cost(
     project_id: UUID, render_id: UUID, repo: RepositoryDep, settings: SettingsDep
 ) -> RenderChainCost:
-    """Coste acumulado para llegar a esta imagen: brief (y sus versiones), lotes de cada etapa,
-    intentos rechazados, retoques y auditorías de la cadena. Sin las llamadas simuladas en el
-    total (van aparte)."""
+    """Coste acumulado para llegar a esta imagen: recetas de las referencias usadas, lotes de
+    cada etapa (con su prompt automático), retoques y auditorías de la cadena. Sin las llamadas
+    simuladas en el total (van aparte)."""
     project = await repo.get(project_id)
     log = await repo.read_telemetry(project_id)
     result = chain_cost(project, log.records, render_id, current_roles(settings))

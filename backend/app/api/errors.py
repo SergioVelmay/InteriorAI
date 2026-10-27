@@ -17,7 +17,6 @@ from app.foundry import (
     FoundryUnsupportedError,
 )
 from app.hitl import TransitionError
-from app.hitl.briefs import BriefNotFoundError
 from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.renders import RenderNotFoundError
 from app.storage import (
@@ -78,7 +77,6 @@ def _message_handler(
 
 
 _MESSAGE_ERRORS: dict[type[Exception], int] = {
-    BriefNotFoundError: status.HTTP_404_NOT_FOUND,
     RenderNotFoundError: status.HTTP_404_NOT_FOUND,
     TransitionError: status.HTTP_409_CONFLICT,
     PipelineInputError: status.HTTP_422_UNPROCESSABLE_CONTENT,

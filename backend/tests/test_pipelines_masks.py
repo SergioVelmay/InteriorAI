@@ -1,15 +1,13 @@
 """Máscaras de retoque y recomposición local exacta (B-009), tamaño del render final (B-018)."""
 
 import io
-from uuid import uuid4
 
 import pytest
 from PIL import Image
 
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
-from app.pipelines.renders import generation_size, renderer_size
-from shared.models import Asset, AssetKind
+from app.pipelines.renders import generation_size
 from shared.roles import Role
 
 
@@ -59,27 +57,6 @@ def test_model_mask_is_transparent_where_to_edit() -> None:
     with Image.open(io.BytesIO(masks.model_mask(zone, (300, 200)))) as mask:
         assert mask.size == (300, 200) and mask.mode == "RGBA"
         assert mask.getpixel((10, 10))[3] == 0 and mask.getpixel((290, 10))[3] == 255
-
-
-def asset(width: int | None, height: int | None) -> Asset:
-    return Asset(
-        id=uuid4(), kind=AssetKind.REFERENCIA, stored_name="x.png", original_name="x.png",
-        mime_type="image/png", size_bytes=1, sha256="0" * 64, width_px=width, height_px=height,
-    )  # fmt: skip
-
-
-@pytest.mark.parametrize(
-    ("size", "expected"),
-    [
-        ((1600, 900), "1920x1080"),  # 16:9 exacto
-        ((3000, 2000), "1920x1280"),  # 3:2
-        ((900, 1200), "1440x1920"),  # 3:4 vertical
-        ((1000, 1000), "1536x1536"),
-        ((None, None), None),
-    ],
-)
-def test_renderer_size_follows_the_capture(size: tuple, expected: str | None) -> None:
-    assert renderer_size(asset(*size)) == expected
 
 
 @pytest.mark.parametrize(

@@ -32,7 +32,7 @@ def test_create_returns_201_with_location(api: TestClient) -> None:
     project = response.json()
     assert response.headers["location"].endswith(f"{BASE}/{project['id']}")
     assert project["assets"] == []
-    assert project["schema_version"] == 2
+    assert project["schema_version"] == 3
 
 
 def test_full_project_lifecycle(api: TestClient) -> None:

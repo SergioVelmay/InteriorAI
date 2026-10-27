@@ -7,7 +7,7 @@ import pytest
 from conftest import mark_active
 from fastapi.testclient import TestClient
 from PIL import Image
-from test_api_renders import approve_brief, new_project, run, select
+from test_api_renders import new_project, run, select
 
 from app.foundry import (
     FoundryIncompleteError,
@@ -71,9 +71,8 @@ def spy(api: TestClient) -> SpyClient:
 
 @pytest.fixture
 def chain(api: TestClient, spy: SpyClient) -> dict:
-    """Proyecto con brief aprobado, boceto, composición y render final (todos seleccionados)."""
+    """Proyecto con boceto, composición y render final (todos seleccionados)."""
     project = new_project(api)
-    project["brief"] = approve_brief(api, project)
     draft = run(api, project, "drafts", n=1)["renders"][0]
     select(api, project, draft["id"])
     composition = run(api, project, "compositions", draft_id=draft["id"])["renders"][0]
@@ -99,7 +98,7 @@ def test_audit_draft_against_space_references(api: TestClient, spy: SpyClient, c
     body = response.json()
     report = body["audit"]
     assert report["reference_asset_ids"] == [chain["capture"]]
-    assert report["reference_asset_id"] is None  # solo en las imágenes de la v1
+    assert "reference_asset_id" not in report  # sin la v1 (Paso 33)
     assert report["notes"] == "La ventana está desplazada"
     assert report["deployment"] == "gpt-6-astra"
     assert report["reasoning_effort"] == "max"
@@ -144,16 +143,6 @@ def test_audit_composition_and_history(api: TestClient, spy: SpyClient, chain: d
     second = audit(api, chain, chain["composition"]["id"]).json()
     assert len(second["render"]["audits"]) == 2
     assert second["audit"]["reference_asset_ids"] == [chain["capture"]]
-
-
-def test_v1_images_are_audited_against_their_capture(api: TestClient, spy: SpyClient) -> None:
-    project = new_project(api)
-    brief = approve_brief(api, project)
-    composition = run(api, project, "compositions", brief_id=brief["id"])["renders"][0]
-    assert composition["brief_id"] == brief["id"]
-    report = audit(api, project, composition["id"]).json()["audit"]
-    assert report["reference_asset_id"] == project["capture"]  # la de origen, no la composición
-    assert report["prompt_version"].startswith("auditor_captura_v1@")
 
 
 def test_audit_validation(api: TestClient, spy: SpyClient, chain: dict) -> None:

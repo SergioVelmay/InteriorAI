@@ -6,6 +6,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado (incompatible: API y esquema de datos)
+
+- **Sin la compatibilidad con la v1** (Paso 33, B-056). Fuera los briefs (`/briefs`, su
+  pipeline y sus prompts), las cadenas de la v1 en composición y render final, la auditoría
+  frente a la captura y `brief_id` en las peticiones de render.
+- **Esquema v3 de `metadatos.json`**, con migración automática al arrancar (copia en
+  `metadatos.v2.json`). Las imágenes de la v1 se conservan como imágenes sueltas, con su prompt
+  y su coste, sin la cadena de la v1 (brief, rechazos, salidas en bruto ni sus retoques). Los
+  datos de la 1.0.0 ya no se leen: actualiza antes con la 3.0.0.
+- **Coste de la cadena:** sin `briefs`. Ahora suma las recetas de las referencias enviadas como
+  imagen, como ya decía la interfaz.
+
 ### Cambiado
 
 - **Prompts más precisos** (Paso 32, B-054, B-094 a B-097). El PROMPT_ARCHITECT recibe más

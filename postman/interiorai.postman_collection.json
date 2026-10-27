@@ -79,7 +79,7 @@
                   "pm.test(\"estructura inicial\", () => {",
                   "  pm.expect(b).to.not.have.property(\"space_type\");",
                   "  pm.expect(b.assets).to.eql([]);",
-                  "  pm.expect(b.schema_version).to.eql(2);",
+                  "  pm.expect(b.schema_version).to.eql(3);",
                   "});"
                 ]
               }
@@ -659,117 +659,6 @@
           }
         },
         {
-          "name": "Generar brief",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-                  "const b = pm.response.json().brief;",
-                  "pm.collectionVariables.set(\"briefId\", b.id);",
-                  "pm.test(\"v1 propuesto\", () => {",
-                  "  pm.expect(b.version).to.eql(1);",
-                  "  pm.expect(b.status).to.eql(\"propuesto\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"instructions\": \"Prueba de Postman\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Editar prompt del brief",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"editado por el usuario\", () => pm.expect(pm.response.json().edited_by_user).to.be.true);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"image_prompts\": {\n    \"fast_draft\": \"Olive green corduroy modular sofa\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Aprobar brief",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"aprobado\", () => pm.expect(pm.response.json().status).to.eql(\"aprobado\"));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}/approve"
-          }
-        },
-        {
-          "name": "Editar brief aprobado (no permitido)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/briefs/{{briefId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Otro\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
           "name": "Generar boceto",
           "event": [
             {
@@ -783,7 +672,7 @@
                   "pm.test(\"boceto con prompt automático, sin brief (Paso 22)\", () => {",
                   "  pm.expect(r.stage).to.eql(\"boceto\");",
                   "  pm.expect(r.status).to.eql(\"generado\");",
-                  "  pm.expect(r.brief_id).to.be.null;",
+                  "  pm.expect(r).to.not.have.property(\"brief_id\");",
                   "  pm.expect(r.prompt_info.interpretation).to.be.a(\"string\");",
                   "  pm.expect(r.prompt_version).to.match(/^prompt_bocetos@/);",
                   "  // imagen base (perspectiva marcada) + la otra referencia activa como apoyo",
@@ -840,7 +729,7 @@
                   "const a = pm.response.json().audit;",
                   "pm.test(\"boceto frente a las referencias del espacio, con las observaciones (B-046)\", () => {",
                   "  pm.expect(a.reference_asset_ids).to.be.an(\"array\");",
-                  "  pm.expect(a.reference_asset_id).to.be.null;",
+                  "  pm.expect(a).to.not.have.property(\"reference_asset_id\");",
                   "  pm.expect(a.notes).to.eql(\"La ventana está más a la izquierda\");",
                   "  pm.expect(a.prompt_version).to.match(/^auditor_espacio@/);",
                   "});"
@@ -1229,16 +1118,15 @@
                   "  pm.expect(r.stage).to.eql(\"composicion\");",
                   "  pm.expect(r.status).to.eql(\"generado\");",
                   "  pm.expect(r.inpaint.source_render_id).to.eql(pm.collectionVariables.get(\"compositionId\"));",
-                  "  pm.expect(r.inpaint.method).to.eql(\"mascara\");",
+                  "  pm.expect(r.inpaint).to.not.have.property(\"method\");",
                   "  pm.expect(r.inpaint.coverage).to.be.within(0.05, 0.1);",
                   "});",
                   "pm.test(\"prompt del PROMPT_ARCHITECT, con la composición y los apoyos (Paso 23)\", () => {",
                   "  pm.expect(r.prompt_version).to.match(/^prompt_composicion@/);",
                   "  pm.expect(r.input_asset_ids[0]).to.eql(pm.collectionVariables.get(\"compositionId\"));",
                   "});",
-                  "pm.test(\"imagen completa del modelo: sin salida en bruto ni guía (B-038)\", () => {",
-                  "  pm.expect(r.inpaint.raw_file).to.be.null;",
-                  "  pm.expect(r.inpaint.guide_file).to.be.null;",
+                  "pm.test(\"imagen completa del modelo: solo la máscara, sin salida en bruto ni guía (B-038)\", () => {",
+                  "  pm.expect(Object.keys(r.inpaint).sort()).to.eql([\"coverage\", \"instruction\", \"mask_file\", \"source_render_id\"]);",
                   "});"
                 ]
               }
@@ -1486,9 +1374,11 @@
                   "pm.test(\"cadena sin brief: prompts automáticos, boceto, composición, final y auditorías\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b.renders).to.eql(3);",
-                  "  pm.expect(b.briefs).to.eql(0);",
-                  "  // (prompt + imagen) x 3 etapas + auditorías del boceto y del final, todo simulado",
-                  "  pm.expect(b.simulated_calls).to.eql(8);",
+                  "  pm.expect(b).to.not.have.property(\"briefs\");",
+                  "  // (prompt + imagen) x 3 etapas + auditorías del boceto y del final + recetas de las 2",
+                  "  // referencias enviadas (Paso 33), todo simulado",
+                  "  pm.expect(b.references).to.eql(2);",
+                  "  pm.expect(b.simulated_calls).to.eql(10);",
                   "});"
                 ]
               }
@@ -1592,10 +1482,6 @@
     },
     {
       "key": "pipelineRefId",
-      "value": ""
-    },
-    {
-      "key": "briefId",
       "value": ""
     },
     {

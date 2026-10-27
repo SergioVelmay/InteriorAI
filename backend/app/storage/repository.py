@@ -112,7 +112,7 @@ class ProjectRepository:
             await self.reindex()
 
     def _migrate_sync(self, project_id: UUID) -> None:
-        """Pone al día un proyecto: esquema de `metadatos.json` (Paso 17) y telemetría en
+        """Pone al día un proyecto: esquema de `metadatos.json` (Paso 33) y telemetría en
         JSONL (B-012). Un proyecto que no se puede migrar se registra y se deja como está."""
         root = self._paths(project_id).root
         try:
@@ -383,7 +383,7 @@ class ProjectRepository:
             sha256=hashlib.sha256(content).hexdigest(),
             width_px=width_px,
             height_px=height_px,
-            description=f"{record.stage.label} (brief v{record.brief_version})",
+            description=record.stage.label,
         )
         async with self._locks.hold(str(paths.project_id)):
             metadata = await self._run(self._read_metadata, paths)

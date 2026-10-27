@@ -1,27 +1,15 @@
-"""Pipelines de texto: recetas y fichas de las referencias (REFERENCE_ANALYST) y briefs
-(PROMPT_ARCHITECT).
-
-Los briefs siguen el ciclo HITL: propuesto → (editado) → aprobado | rechazado (→ nueva versión).
-"""
+"""Pipelines de texto: recetas y fichas de las referencias (REFERENCE_ANALYST)."""
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, status
+from fastapi import APIRouter, Body
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import FoundryDep, RepositoryDep
-from app.hitl.briefs import (
-    BriefContentUpdate,
-    approve_brief,
-    edit_brief,
-    find_brief,
-    reject_brief,
-)
-from app.pipelines.brief_v1 import create_brief
 from app.pipelines.reference_analyst import analyze_asset, index_references, save_sheet
 from app.telemetry import current_request_id, request_cost, telemetry_scope
-from shared.models import Asset, DesignBrief
+from shared.models import Asset
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["pipelines"])
 
@@ -67,24 +55,6 @@ class IndexResponse(RunCost):
     indexed: list[Asset]
     skipped: list[UUID]
     failed: list[IndexFailure]
-
-
-class BriefCreate(_Body):
-    instructions: str = Field(default="", max_length=4_000)
-
-
-class BriefRunResponse(RunCost):
-    brief: DesignBrief
-
-
-class BriefReject(_Body):
-    feedback: str = Field(min_length=1, max_length=4_000)
-    regenerate: bool = Field(default=True, description="Generar a continuación una nueva versión")
-
-
-class BriefRejectResponse(RunCost):
-    rejected: DesignBrief
-    new_brief: DesignBrief | None
 
 
 async def _cost(repo: RepositoryDep, project_id: UUID) -> dict:
@@ -133,64 +103,3 @@ async def update_reference_sheet(
 ) -> Asset:
     """«Guardar ficha»: los elementos que el usuario marca. Activa si hay alguno."""
     return await save_sheet(repo, project_id, asset_id, body.selected)
-
-
-# --- Briefs -------------------------------------------------------------------------------
-
-
-@router.post("/briefs", status_code=status.HTTP_201_CREATED, response_model=BriefRunResponse)
-async def generate_brief(
-    project_id: UUID,
-    repo: RepositoryDep,
-    foundry: FoundryDep,
-    body: Annotated[BriefCreate, Body()] = BriefCreate(),  # noqa: B008
-) -> BriefRunResponse:
-    """Genera una nueva versión del brief (estado `propuesto`) con el PROMPT_ARCHITECT."""
-    with telemetry_scope(project_id):
-        brief = await create_brief(repo, foundry, project_id, body.instructions)
-    return BriefRunResponse(brief=brief, **await _cost(repo, project_id))
-
-
-@router.get("/briefs", response_model=list[DesignBrief])
-async def list_briefs(project_id: UUID, repo: RepositoryDep) -> list[DesignBrief]:
-    return sorted((await repo.get(project_id)).briefs, key=lambda b: b.version, reverse=True)
-
-
-@router.get("/briefs/{brief_id}", response_model=DesignBrief)
-async def get_brief(project_id: UUID, brief_id: UUID, repo: RepositoryDep) -> DesignBrief:
-    return find_brief(await repo.get(project_id), brief_id)
-
-
-@router.patch("/briefs/{brief_id}", response_model=DesignBrief)
-async def update_brief(
-    project_id: UUID, brief_id: UUID, update: BriefContentUpdate, repo: RepositoryDep
-) -> DesignBrief:
-    """Edita un brief `propuesto` (incluidos los prompts de imagen). 409 en otro estado."""
-    return await edit_brief(repo, project_id, brief_id, update)
-
-
-@router.post("/briefs/{brief_id}/approve", response_model=DesignBrief)
-async def approve(project_id: UUID, brief_id: UUID, repo: RepositoryDep) -> DesignBrief:
-    """Aprueba el brief: solo un brief aprobado puede alimentar la generación de imágenes."""
-    return await approve_brief(repo, project_id, brief_id)
-
-
-@router.post("/briefs/{brief_id}/reject", response_model=BriefRejectResponse)
-async def reject(
-    project_id: UUID,
-    brief_id: UUID,
-    body: BriefReject,
-    repo: RepositoryDep,
-    foundry: FoundryDep,
-) -> BriefRejectResponse:
-    """Rechaza el brief con comentarios y, por defecto, genera la siguiente versión."""
-    rejected = await reject_brief(repo, project_id, brief_id, body.feedback)
-    new_brief = None
-    if body.regenerate:
-        with telemetry_scope(project_id):
-            new_brief = await create_brief(
-                repo, foundry, project_id, rejected.instructions, parent=rejected
-            )
-    return BriefRejectResponse(
-        rejected=rejected, new_brief=new_brief, **await _cost(repo, project_id)
-    )

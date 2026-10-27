@@ -39,14 +39,6 @@ MAX_OUTPUT_TOKENS = 8_000  # la receta es larga y el despliegue puede razonar
 SCHEMA = strict_schema(ReferenceRecipe)
 
 
-# Primer análisis de las capturas y planos de la v1 (Paso 21, decisión del usuario): se añade a
-# sus notas lo que aportaban, para que su papel anterior quede marcado en la ficha.
-LEGACY_NOTES = {
-    "captura_sketchup": "Quédate con el punto de vista, la perspectiva y la geometría del espacio.",
-    "plano": "Quédate con las medidas y la distribución.",
-}
-
-
 @dataclass
 class IndexResult:
     indexed: list[Asset] = field(default_factory=list)
@@ -185,7 +177,6 @@ async def index_references(
         else:
             pending.append(asset)
 
-    pending = [await _with_legacy_notes(repo, project_id, a) for a in pending]
     semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
     async def run(asset: Asset) -> None:
@@ -199,24 +190,6 @@ async def index_references(
 
     await asyncio.gather(*(run(asset) for asset in pending))
     return result
-
-
-async def _with_legacy_notes(repo: ProjectRepository, project_id: UUID, asset: Asset) -> Asset:
-    """Captura o plano de la v1 sin receta: añade a sus notas el papel que tenía."""
-    hint = LEGACY_NOTES.get(asset.legacy_kind or "")
-    if asset.sheet is not None or hint is None or hint in asset.description:
-        return asset
-    notes = f"{asset.description}\n{hint}".strip()
-
-    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, Asset]:
-        assets = list(metadata.assets)
-        for i, item in enumerate(assets):
-            if item.id == asset.id:
-                assets[i] = item.model_copy(update={"description": notes})
-                return metadata.model_copy(update={"assets": assets}), assets[i]
-        raise AssetNotFoundError(str(asset.id))
-
-    return await repo.mutate(project_id, change)
 
 
 async def save_sheet(

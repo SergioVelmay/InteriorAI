@@ -3,8 +3,7 @@
 A demanda (es el rol más caro): el informe se guarda en el render y no bloquea la selección.
 Desde el Paso 23 (B-046) se audita el boceto seleccionado frente a TODAS las referencias activas
 con perspectiva o geometría marcadas (ninguna, una o varias), con lo marcado en las fichas como
-lista de comprobación; sus correcciones alimentan la composición. Las imágenes de la v1 (con
-brief) se siguen comparando con su captura de origen.
+lista de comprobación; sus correcciones alimentan la composición.
 """
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.foundry import FoundryClient, TextRequest
-from app.hitl.briefs import find_brief
 from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.images import prepare_image
 from app.pipelines.prompts import load_prompt
@@ -26,9 +24,7 @@ from app.storage import ProjectRepository
 from app.telemetry import current_request_id
 from shared.models import (
     Asset,
-    AssetKind,
     AuditReport,
-    DesignBrief,
     ProjectMetadata,
     RenderAudit,
     RenderRecord,
@@ -42,28 +38,13 @@ SCHEMA = strict_schema(AuditReport)
 AUDITABLE = frozenset({RenderStage.DRAFT, RenderStage.COMPOSITION, RenderStage.FINAL})
 
 
-def reference_asset_id(project: ProjectMetadata, render: RenderRecord) -> UUID:
-    """Imagen base de origen: se sigue la cadena de renders hasta la imagen subida."""
-    renders = {r.id: r for r in project.renders}
-    assets = {a.id: a for a in project.assets}
-    current = render.input_asset_ids[0]
-    while current in renders:
-        current = renders[current].input_asset_ids[0]
-    asset = assets.get(current)
-    if asset is None or asset.kind is not AssetKind.REFERENCIA:
-        raise PipelineInputError("No se encuentra la imagen base de origen del render")
-    return current
-
-
 def _context(
     project: ProjectMetadata,
-    brief: DesignBrief | None,
     render: RenderRecord,
     references: list[Asset],
     notes: str,
 ) -> str:
-    """Lo que debe cumplir la imagen: lo marcado en las fichas y, en las imágenes de la v1, su
-    brief (desde el Paso 22 no hay brief: lo sustituye el prompt de cada generación)."""
+    """Lo que debe cumplir la imagen: lo marcado en las fichas y el prompt con que se generó."""
     validated = [  # lo marcado en las referencias activas (B-030)
         {
             "referencia": a.original_name,
@@ -74,29 +55,15 @@ def _context(
         }
         for a in active_references(project)
     ]
-    sections = [f"## Imagen auditada: {render.stage.label}"]
-    if brief is None:
-        images = [
-            f"- Imagen {i}: referencia del espacio — «{a.original_name}»"
-            for i, a in enumerate(references, start=1)
-        ]
-        images.append(f"- Imagen {len(references) + 1}: imagen auditada")
-        sections += ["## Imágenes (en este orden)", "\n".join(images)]
-    if brief is not None:
-        content = brief.content
-        sections += [
-            f"## Brief v{brief.version}: restricciones espaciales",
-            "\n".join(f"- {c}" for c in content.spatial_constraints) or "(ninguna)",
-            "## Mobiliario que debe respetarse con exactitud",
-            json.dumps(
-                [f.model_dump(mode="json") for f in content.furniture if f.keep_exact],
-                ensure_ascii=False,
-                indent=2,
-            ),
-            "## Materiales y paleta pedidos",
-            "\n".join(f"- {m}" for m in [*content.materials, *content.palette]),
-        ]
-    sections += [
+    images = [
+        f"- Imagen {i}: referencia del espacio — «{a.original_name}»"
+        for i, a in enumerate(references, start=1)
+    ]
+    images.append(f"- Imagen {len(references) + 1}: imagen auditada")
+    sections = [
+        f"## Imagen auditada: {render.stage.label}",
+        "## Imágenes (en este orden)",
+        "\n".join(images),
         "## Lo marcado en las fichas del usuario",
         json.dumps(validated, ensure_ascii=False, indent=2) if validated else "(ninguna)",
         "## Prompt con el que se generó la imagen auditada",
@@ -121,27 +88,17 @@ async def audit_render(
         raise RenderNotFoundError(str(render_id))
     if render.stage not in AUDITABLE:
         raise PipelineInputError("Esta imagen no se puede auditar")
-    brief = find_brief(project, render.brief_id) if render.brief_id else None
-    if brief is not None:  # v1: frente a su captura de origen
-        reference_id: UUID | None = reference_asset_id(project, render)
-        references: list[Asset] = []
-        compared = [reference_id]
-        prompt = load_prompt("auditor_captura_v1")
-    else:
-        reference_id = None
-        references = geometric_references(project)
-        compared = [a.id for a in references]
-        prompt = load_prompt("auditor_espacio")
-
+    references = geometric_references(project)
+    prompt = load_prompt("auditor_espacio")
     images = [
         await prepare_image(await repo.read_asset_bytes(project.id, asset_id), AUDIT_MAX_SIDE_PX)
-        for asset_id in (*compared, render.id)
+        for asset_id in (*(a.id for a in references), render.id)
     ]
     result = await client.complete_text(
         Role.GEOMETRY_AUDITOR,
         TextRequest(
             instructions=prompt.text,
-            input=_context(project, brief, render, references, notes),
+            input=_context(project, render, references, notes),
             images=images,
             json_schema=SCHEMA,
             schema_name="auditoria",
@@ -157,7 +114,6 @@ async def audit_render(
     deployment_name = getattr(client, "deployment_name", None)
     audit = RenderAudit(
         report=report,
-        reference_asset_id=reference_id,
         reference_asset_ids=[a.id for a in references],
         notes=notes.strip(),
         deployment=deployment_name(Role.GEOMETRY_AUDITOR) if deployment_name else result.deployment,

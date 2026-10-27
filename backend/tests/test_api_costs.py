@@ -251,67 +251,54 @@ def test_cost_alerts_use_real_spend_only(
     }  # fmt: skip
 
 
-def test_chain_cost_matches_legacy_briefs_and_references_by_time() -> None:
+def test_chain_cost_includes_the_recipes_of_the_references_used() -> None:
+    """Paso 33: la cadena suma las recetas de las referencias que se enviaron como imagen (las
+    anteriores al Paso 16, sin `request_id`, se emparejan por la hora)."""
     from datetime import timedelta
 
     from app.telemetry.chain import chain_cost
     from shared.models import (
+        RECIPE_GROUPS,
         Asset,
-        AssetAnalysis,
         AssetKind,
-        DesignBrief,
-        DesignBriefContent,
-        DimensionsCm,
-        ImagePrompts,
         ProjectMetadata,
-        ReferenceAnalysis,
+        ReferenceSheet,
         RenderRecord,
         utc_now,
     )  # fmt: skip
 
-    ficha = ReferenceAnalysis(
-        category="sofa", item_name="Sofá", brand=None, product_name=None, style_tags=[],
-        colors=[], materials=[], dimensions_cm=DimensionsCm(width_cm=None, depth_cm=None,
-        height_cm=None), dimensions_source="desconocido", summary="s", design_relevance="d",
-    )  # fmt: skip
-    reference = Asset(
-        kind=AssetKind.REFERENCIA, stored_name="r.png", original_name="r.png",
-        mime_type="image/png", size_bytes=1, sha256="0" * 64,
-        analysis=AssetAnalysis(result=ficha),  # anterior al Paso 16: sin request_id
-    )  # fmt: skip
-    content = DesignBriefContent(
-        title="t", summary="s", spatial_constraints=[], furniture=[], palette=[], materials=[],
-        lighting="l", camera="c", open_questions=[],
-        image_prompts=ImagePrompts(fast_draft="f", structural_composer="s",
-                                   photorealistic_renderer="p"),
-    )  # fmt: skip
-    # Anterior al Paso 14: sin request_id
-    brief = DesignBrief(version=1, content=content, reference_asset_ids=[reference.id])
+    recipe = {"summary": "s", **{group: [] for group in RECIPE_GROUPS}}
+
+    def reference(request_id: str | None) -> Asset:
+        sheet = ReferenceSheet.model_validate({"recipe": recipe, "request_id": request_id})
+        return Asset(kind=AssetKind.REFERENCIA, stored_name="r.png", original_name="r.png",
+                     mime_type="image/png", size_bytes=1, sha256="0" * 64, sheet=sheet)  # fmt: skip
+
+    old, new, unused = reference(None), reference("r-receta"), reference("r-otra")
     draft = RenderRecord(
-        id=uuid4(), stage="boceto", role=Role.FAST_DRAFT_MAKER, deployment="d", brief_id=brief.id,
-        brief_version=1, prompt="p", input_asset_ids=[], batch_id=uuid4(), size="1536x1024",
+        id=uuid4(), stage="boceto", role=Role.FAST_DRAFT_MAKER, deployment="d", prompt="p",
+        input_asset_ids=[old.id, new.id], batch_id=uuid4(), size="1536x1024",
         request_id="r-draft",
     )  # fmt: skip
     now = utc_now()
     project = ProjectMetadata(
-        id=uuid4(), name="x", created_at=now, updated_at=now,
-        briefs=[brief], renders=[draft], assets=[reference],
+        id=uuid4(), name="x", created_at=now, updated_at=now, renders=[draft],
+        assets=[old, new, unused],
     )  # fmt: skip
-    analyzed = reference.analysis.analyzed_at
+    analyzed = old.sheet.analyzed_at  # type: ignore[union-attr]
     records = [
         _real_record(0.0004, Role.REFERENCE_ANALYST, request_id="r-ficha",
                      timestamp=analyzed - timedelta(seconds=2)),
-        _real_record(0.02, Role.PROMPT_ARCHITECT, request_id="r-brief",
-                     timestamp=brief.created_at - timedelta(seconds=1)),
-        _real_record(0.5, Role.PROMPT_ARCHITECT, request_id="r-other",
-                     timestamp=brief.created_at - timedelta(hours=1)),  # otro brief
+        _real_record(0.04, Role.REFERENCE_ANALYST, request_id="r-receta",
+                     timestamp=analyzed - timedelta(hours=1)),
+        _real_record(0.04, Role.REFERENCE_ANALYST, request_id="r-otra",  # no se envió
+                     timestamp=analyzed - timedelta(hours=2)),
         _real_record(0.03, request_id="r-draft"),
         _real_record(0.03, request_id="r-sibling"),  # otra llamada: fuera de la cadena
     ]  # fmt: skip
     result = chain_cost(project, records, draft.id)
-    assert result is not None and result.renders == 1
-    assert result.briefs == 1 and result.references == 1
-    assert result.totals.calls == 3 and result.totals.cost_eur == pytest.approx(0.0504)
+    assert result is not None and result.renders == 1 and result.references == 2
+    assert result.totals.calls == 3 and result.totals.cost_eur == pytest.approx(0.0704)
     assert chain_cost(project, records, uuid4()) is None
 
 

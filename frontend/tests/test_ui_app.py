@@ -41,8 +41,8 @@ def fake_backend(projects: list[dict], mode: str = "mock") -> BackendClient:
 def project_json(name: str) -> dict:
     now = utc_now().isoformat()
     return {
-        "schema_version": 2, "id": str(uuid4()), "name": name,
-        "description": "", "created_at": now, "updated_at": now, "assets": [], "briefs": [],
+        "schema_version": 3, "id": str(uuid4()), "name": name,
+        "description": "", "created_at": now, "updated_at": now, "assets": [],
         "renders": [],
     }  # fmt: skip
 

@@ -28,14 +28,15 @@ router = APIRouter(prefix="/projects/{project_id}/renders", tags=["renders"])
 class _RenderRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    brief_id: UUID | None = Field(default=None, description="Por defecto, el brief aprobado")
-    size: str | None = Field(default=None, description="Por defecto, según la captura")
+    size: str | None = Field(default=None, description="Por defecto, el de cada etapa")
     prompt_override: str | None = Field(
-        default=None, min_length=1, max_length=4_000, description="Sustituye el prompt del brief"
-    )
+        default=None, min_length=1, max_length=4_000,
+        description="Prompt propio en lugar del que escribe el PROMPT_ARCHITECT (pruebas)",
+    )  # fmt: skip
     extra_instructions: str = Field(
-        default="", max_length=2_000, description="Se añade al final del prompt"
-    )
+        default="", max_length=2_000,
+        description="Indicaciones para esta generación (con `prompt_override`, van al final)",
+    )  # fmt: skip
 
 
 class DraftRequest(_RenderRequest):
@@ -107,7 +108,6 @@ def _options(body: _RenderRequest, **extra: object) -> RenderOptions:
     return RenderOptions(
         n=body.n,  # type: ignore[attr-defined]
         size=body.size,
-        brief_id=body.brief_id,
         prompt_override=body.prompt_override,
         extra_instructions=body.extra_instructions,
         **extra,  # type: ignore[arg-type]

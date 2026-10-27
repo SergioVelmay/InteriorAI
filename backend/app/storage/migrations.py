@@ -1,21 +1,20 @@
 """Migración de `metadatos.json` entre versiones del esquema.
 
-v1 → v2 (versión 2.0.0, Paso 17):
+v2 → v3 (versión 4.0.0, Paso 33, B-056): sin la compatibilidad con la v1.
 
-- Proyecto (B-026): sin tipo de espacio, notas de diseño, dimensiones, estilo ni presupuesto; lo
-  que tuvieran se añade al final de la descripción, una línea por campo con valor.
-- Estados (B-048): los renders descartados o rechazados vuelven a `generado` (los comentarios
-  del rechazo se conservan como historia).
-- Selección (B-043): una imagen seleccionada por etapa. Si había varias, queda la decidida más
-  tarde; si una etapa no tenía ninguna pero sí la siguiente, se selecciona la imagen de la que
-  esta procede (p. ej. el boceto del que salió la composición seleccionada).
-- Imágenes (B-028): un solo tipo. Capturas de SketchUp y planos pasan a referencias (con su tipo
-  anterior en `legacy_kind`) y sus archivos se renombran a `referencias/`.
+- Sin briefs: los briefs de la v1 desaparecen del proyecto.
+- Imágenes de la v1 (con brief, rechazadas, salidas en bruto o retoques recompuestos): se
+  conservan como imágenes sueltas, con su prompt y su coste, sin la cadena de la v1 (brief,
+  comentarios del rechazo, intento anterior, salida en bruto ni el retoque). Sus archivos no se
+  tocan.
+- Referencias: sin la ficha de la v1 (`analysis`) ni el tipo de imagen anterior (`legacy_kind`).
+- Auditorías: sin la captura de la v1 con la que se compararon (`reference_asset_id`).
+
+Los datos de la 1.0.0 (esquema 1) ya no se leen: hay que actualizarlos antes con la 3.0.0.
 
 Se aplica al arrancar (todos los proyectos) y al restaurar un proyecto de la papelera. Antes de
-escribir nada, el original se copia a `metadatos.v1.json`; los archivos se mueven con un
-renombrado, nunca se borran. Es repetible: si se corta a medias, el siguiente arranque la
-completa.
+escribir nada, el original se copia a `metadatos.v2.json`. Es repetible: si se corta a medias, el
+siguiente arranque la completa.
 """
 
 from __future__ import annotations
@@ -25,142 +24,83 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.storage.atomic import replace_with_retry, write_bytes_atomic, write_json_atomic
+from app.storage.atomic import write_bytes_atomic, write_json_atomic
 from app.storage.paths import METADATA_FILE
 from shared.models import SCHEMA_VERSION, ProjectMetadata
 
 logger = logging.getLogger("interiorai.storage")
 
-BACKUP_FILE = "metadatos.v1.json"
+BACKUP_FILE = "metadatos.v2.json"
 
-# Etiquetas de los tipos de espacio de la v1 (el enum ya no existe).
-_SPACE_LABELS = {
-    "salon_cocina_comedor": "Salón-cocina-comedor",
-    "salon": "Salón",
-    "cocina": "Cocina",
-    "comedor": "Comedor",
-    "dormitorio": "Dormitorio",
-    "estudio": "Estudio",
-    "bano": "Baño",
-    "terraza": "Terraza",
-    "otro": "Otro",
-}
-
-_V1_PROJECT_FIELDS = frozenset({"space_type", "design_notes", "dimensions", "style", "budget_eur"})
-# Carpetas de los tipos de imagen que desaparecen en la v2.
-_V1_FOLDERS = {"captura_sketchup": "capturas_sketchup", "plano": "planos"}
-REFERENCE_FOLDER = "referencias"
-_STAGES_DOWNSTREAM_FIRST = ("render_final", "composicion", "boceto")
-
-Move = tuple[str, str]  # (carpeta/archivo origen, carpeta/archivo destino), relativos al proyecto
+_V1_RENDER_FIELDS = frozenset(
+    {"brief_id", "brief_version", "feedback", "previous_attempt_id", "raw_of_render_id"}
+)
+_V1_INPAINT_FIELDS = frozenset({"raw_file", "guide_file", "feather_px"})
+_V1_ASSET_FIELDS = frozenset({"analysis", "legacy_kind"})
 
 
-def _number(value: float) -> str:
-    return f"{value:g}".replace(".", ",")
-
-
-def _description(data: dict[str, Any]) -> str:
-    """Descripción v2: la de la v1 y, debajo, los campos eliminados que tenían valor."""
-    lines = []
-    if space_type := data.get("space_type"):
-        lines.append(f"Tipo de espacio: {_SPACE_LABELS.get(space_type, space_type)}")
-    if notes := (data.get("design_notes") or "").strip():
-        lines.append(f"Notas de diseño: {notes}")
-    if dimensions := data.get("dimensions"):
-        size = f"{_number(dimensions['width_m'])} x {_number(dimensions['length_m'])} m"
-        if dimensions.get("height_m"):
-            size += f" x {_number(dimensions['height_m'])} m de alto"
-        lines.append(f"Dimensiones: {size}")
-    if style := (data.get("style") or "").strip():
-        lines.append(f"Estilo: {style}")
-    if data.get("budget_eur") is not None:
-        lines.append(f"Presupuesto: {data['budget_eur']:.0f} €")
-    parts = [(data.get("description") or "").strip(), "\n".join(lines)]
-    return "\n\n".join(p for p in parts if p)
-
-
-def _assets(assets: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[Move]]:
-    upgraded, moves = [], []
-    for asset in assets:
-        if (kind := asset.get("kind")) in _V1_FOLDERS:
-            name = asset["stored_name"]
-            moves.append((f"{_V1_FOLDERS[kind]}/{name}", f"{REFERENCE_FOLDER}/{name}"))
-            asset = asset | {"kind": "referencia", "legacy_kind": kind}
-        upgraded.append(asset)
-    return upgraded, moves
+def _is_v1(render: dict[str, Any]) -> bool:
+    """Imagen de la v1: con algún campo de su cadena o un retoque recompuesto."""
+    if any(render.get(field) for field in _V1_RENDER_FIELDS):
+        return True
+    inpaint = render.get("inpaint") or {}
+    return inpaint.get("method") == "regeneracion" or any(
+        inpaint.get(field) is not None for field in _V1_INPAINT_FIELDS
+    )
 
 
 def _render(render: dict[str, Any]) -> dict[str, Any]:
-    if render.get("status") in {"descartado", "rechazado"}:
-        return render | {"status": "generado"}
-    return render
+    v1 = _is_v1(render)
+    upgraded = {k: v for k, v in render.items() if k not in _V1_RENDER_FIELDS}
+    if v1:
+        upgraded.pop("inpaint", None)  # imagen suelta: sin el retoque de la v1
+    elif inpaint := upgraded.get("inpaint"):
+        upgraded["inpaint"] = {
+            k: v for k, v in inpaint.items() if k not in _V1_INPAINT_FIELDS | {"method"}
+        }
+    upgraded["audits"] = [
+        {k: v for k, v in audit.items() if k != "reference_asset_id"}
+        for audit in render.get("audits", [])
+    ]
+    return upgraded
 
 
-def _single_selection(renders: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_id = {r["id"]: r for r in renders}
-    keep: set[str] = set()
-    downstream: dict[str, Any] | None = None
-    for stage in _STAGES_DOWNSTREAM_FIRST:
-        selected = [r for r in renders if r["stage"] == stage and r["status"] == "seleccionado"]
-        chosen = max(selected, key=lambda r: r.get("decided_at") or r["created_at"], default=None)
-        if chosen is None and downstream is not None:
-            parent = by_id.get(downstream.get("parent_render_id"))
-            chosen = parent if parent is not None and parent["stage"] == stage else None
-        if chosen is not None:
-            keep.add(chosen["id"])
-        downstream = chosen
-    return [r | {"status": "seleccionado" if r["id"] in keep else "generado"} for r in renders]
-
-
-def upgrade_v1(data: dict[str, Any]) -> tuple[dict[str, Any], list[Move]]:
-    """Convierte el contenido de un `metadatos.json` v1 en v2 (sin tocar el disco). Devuelve
-    también los archivos que hay que mover."""
-    upgraded = {k: v for k, v in data.items() if k not in _V1_PROJECT_FIELDS}
-    upgraded["description"] = _description(data)
-    upgraded["assets"], moves = _assets(data.get("assets", []))
-    upgraded["renders"] = _single_selection([_render(r) for r in data.get("renders", [])])
+def upgrade_v2(data: dict[str, Any]) -> dict[str, Any]:
+    """Convierte el contenido de un `metadatos.json` v2 en v3 (sin tocar el disco)."""
+    upgraded = {k: v for k, v in data.items() if k != "briefs"}
+    upgraded["assets"] = [
+        {k: v for k, v in asset.items() if k not in _V1_ASSET_FIELDS}
+        for asset in data.get("assets", [])
+    ]
+    upgraded["renders"] = [_render(r) for r in data.get("renders", [])]
     upgraded["schema_version"] = SCHEMA_VERSION
-    return upgraded, moves
-
-
-def _move(root: Path, source: str, target: str) -> None:
-    """Renombra sin sobrescribir; si el origen ya no está, una ejecución anterior lo movió."""
-    origin, destination = root / source, root / target
-    if not origin.exists():
-        return
-    if destination.exists():
-        logger.warning("%s: %s ya existe, se deja %s en su sitio", root.name, target, source)
-        return
-    destination.parent.mkdir(exist_ok=True)
-    replace_with_retry(origin, destination)
-
-
-def _remove_empty_folders(root: Path) -> None:
-    for folder in _V1_FOLDERS.values():
-        path = root / folder
-        if path.is_dir() and not any(path.iterdir()):
-            path.rmdir()
+    return upgraded
 
 
 def migrate(root: Path) -> bool:
-    """Migra el proyecto de `root` si está en la v1. Devuelve si migró."""
+    """Migra el proyecto de `root` si está en la v2. Devuelve si migró."""
     path = root / METADATA_FILE
     try:
         raw = path.read_bytes()
         data = json.loads(raw)
     except (OSError, ValueError):
         return False  # lo notificará la lectura normal (no existe o está corrupto)
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
+    if not isinstance(data, dict):
+        return False
+    if data.get("schema_version") == 1:
+        logger.error(
+            "Proyecto %s con datos de la 1.0.0 (esquema 1): ya no se leen. Actualízalo antes "
+            "con la versión 3.0.0 de InteriorAI.",
+            root.name,
+        )
+        return False
+    if data.get("schema_version") != 2:
         return False
     backup = root / BACKUP_FILE
     if not backup.exists():  # si ya existe, un arranque anterior se cortó: se conserva
         write_bytes_atomic(backup, raw)
-    upgraded, moves = upgrade_v1(data)
-    metadata = ProjectMetadata.model_validate(upgraded)
-    for source, target in moves:
-        _move(root, source, target)
+    metadata = ProjectMetadata.model_validate(upgrade_v2(data))
     write_json_atomic(path, metadata)
-    _remove_empty_folders(root)
     logger.info(
         "Proyecto %s migrado al esquema v%d (original: %s)", root.name, SCHEMA_VERSION, BACKUP_FILE
     )

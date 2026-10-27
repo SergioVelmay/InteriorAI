@@ -33,7 +33,7 @@ def asset(kind: AssetKind, mime: str = "image/png", **extra) -> Asset:
 def render(asset_id, stage: RenderStage, status: RenderStatus, minutes: int = 0) -> RenderRecord:
     return RenderRecord(
         id=asset_id, stage=stage, status=status, role=Role.FAST_DRAFT_MAKER, deployment="d",
-        brief_id=uuid4(), brief_version=1, prompt="p", input_asset_ids=[], batch_id=uuid4(),
+        prompt="p", input_asset_ids=[], batch_id=uuid4(),
         size="1536x1024", created_at=utc_now() + timedelta(minutes=minutes),
     )  # fmt: skip
 
