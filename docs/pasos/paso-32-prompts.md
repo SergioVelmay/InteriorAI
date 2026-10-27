@@ -63,7 +63,9 @@ Coste real del paso: 0,38 € (18 llamadas: 12 del PROMPT_ARCHITECT, 0,04 €, y
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-32`.
+✅ Cerrado — rama `feat/paso-32`, PR #45 revisada y mergeada por el usuario (2026-10-27).
+Docker reconstruido: el contenedor usa los prompts nuevos (`prompt_bocetos@e2c583a33cfa+prompt_criterios@2da7a341fb5e`),
+razonamiento `high` y timeout de 300 s.
 
 ## 6. Pendiente / futuro
 

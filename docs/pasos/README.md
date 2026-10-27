@@ -60,7 +60,7 @@ Después de la 3.0.0:
 
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
-| 32 | [Prompts del PROMPT_ARCHITECT más precisos](paso-32-prompts.md) (B-054, B-094 a B-097) | `feat/paso-32` | ⏳ En revisión |
+| 32 | [Prompts del PROMPT_ARCHITECT más precisos](paso-32-prompts.md) (B-054, B-094 a B-097) | `feat/paso-32` | ✅ Cerrado |
 
 ## Plantilla de documento de paso
 
