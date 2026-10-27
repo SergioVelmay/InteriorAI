@@ -41,8 +41,11 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-33`. Al reconstruir Docker tras el merge, los datos reales se
-migran al esquema 3 (con su copia `metadatos.v2.json`).
+✅ Cerrado — rama `feat/paso-33`, PR #47 revisada y mergeada por el usuario (2026-10-27).
+Docker reconstruido: los tres proyectos reales se migraron al esquema 3 al arrancar, cada uno con
+su `metadatos.v2.json`. Comprobado por la API: «Personalización Cocina Los Molinos» (26
+imágenes, 3 seleccionadas, 4 retoques, 2,01 € de gasto) queda idéntica salvo el número de
+esquema; los proyectos de prueba conservan sus 19 y 12 imágenes y sus selecciones.
 
 ## 6. Pendiente / futuro
 
