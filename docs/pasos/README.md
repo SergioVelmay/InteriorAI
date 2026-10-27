@@ -65,7 +65,7 @@ Después de la 3.0.0:
 | 34 | [Web de documentación](paso-34-web.md) (B-099) | `feat/paso-34` | ✅ Cerrado |
 | 35 | [Referencia técnica](paso-35-referencia.md) (B-100) | `feat/paso-35` | ✅ Cerrado |
 | 36 | [Manual de usuario](paso-36-manual.md) (B-101) | `feat/paso-36` | ✅ Cerrado |
-| 37 | [Comunidad del repositorio](paso-37-comunidad.md) (B-102) | `feat/paso-37` | ⏳ En revisión |
+| 37 | [Comunidad del repositorio](paso-37-comunidad.md) (B-102) | `feat/paso-37` | ✅ Cerrado |
 
 Versión 4.0.0 (en curso): [plan de acción](plan-version-4.md), Pasos 32 a 39, entradas B-054,
 B-056, B-094 a B-102, B-104 y B-105 del [backlog](BACKLOG.md).
