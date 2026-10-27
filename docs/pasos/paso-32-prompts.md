@@ -57,6 +57,7 @@ Imágenes reales sobre la copia (comparaciones y prompts de antes y después en 
 | `uv run ruff check .` / `ruff format --check` / pre-commit | ✅ |
 | Postman en local (mock) | ✅ 53 peticiones, 96 comprobaciones |
 | Playwright en local (mock), Chromium y Edge | ✅ 6/6 |
+| CI de la PR #45 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0,38 € (18 llamadas: 12 del PROMPT_ARCHITECT, 0,04 €, y 3 de imagen).
 
