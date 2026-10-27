@@ -46,10 +46,10 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-31`.
+✅ Cerrado — rama `feat/paso-31`, PR #43 revisada y mergeada por el usuario (2026-10-27). Con su
+OK, etiqueta `v3.0.0` sobre `a41e396` y [GitHub Release «InteriorAI 3.0.0»](https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0)
+(2026-10-27), con las notas del CHANGELOG. Docker reconstruido: `/health` devuelve la versión 3.0.0.
 
 ## 6. Pendiente / futuro
 
-- Tras el merge y con el OK del usuario: etiqueta `v3.0.0` y GitHub Release con las notas del
-  CHANGELOG.
 - B-024: quitar el `override-dependencies` de Pillow cuando Gradio admita Pillow 13.

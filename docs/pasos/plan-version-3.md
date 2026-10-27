@@ -6,6 +6,9 @@ finales, con capturas de trabajo en cada etapa. Recoge las 25 observaciones (O-1
 12 de la revisión tras el Paso 29 (O-26 a O-37) como entradas **B-057 a B-093** del
 [backlog](BACKLOG.md) (O-n → B-(056 + n)), y cierra con las capturas del README (B-023).
 
+**Completado el 2026-10-27** (Pasos 26 a 31, PRs #38 a #43; las llamadas reales, en el
+documento de cada paso). Publicada como [InteriorAI 3.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0).
+
 ## Por qué 3.0.0
 
 Casi todo son mejoras de interfaz y de prompts, sin cambios en el esquema de datos ni en la API.
