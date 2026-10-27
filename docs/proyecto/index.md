@@ -30,3 +30,4 @@ InteriorAI es software libre con [licencia MIT](licencia.md), desarrollado en ab
 | Historial de cambios | [CHANGELOG.md](https://github.com/SergioVelmay/InteriorAI/blob/main/CHANGELOG.md) |
 | Avisar de un fallo o proponer una mejora | [Issues](https://github.com/SergioVelmay/InteriorAI/issues) |
 | Avisar de una vulnerabilidad | [Seguridad](seguridad.md) (en privado) |
+| Contribuir | [Guía y código de conducta](contribuir.md) |

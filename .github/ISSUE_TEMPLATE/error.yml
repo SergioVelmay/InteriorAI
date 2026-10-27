@@ -1,0 +1,61 @@
+name: Avisar de un fallo
+description: Algo no funciona como debería
+title: "[Fallo] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. **No pegues tu `.env`, claves ni endpoints de Azure**, tampoco en
+        capturas. Si es una vulnerabilidad, no abras una issue: sigue la
+        [política de seguridad](https://github.com/SergioVelmay/InteriorAI/security/policy).
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué pasa
+      description: Lo que ocurre y lo que esperabas que ocurriera.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      description: Pestaña, opciones elegidas y acciones, paso a paso.
+      placeholder: |
+        1. En Bocetos, con 2 referencias activas…
+        2. Pulso «Generar bocetos»…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de InteriorAI
+      placeholder: "4.0.0, o el commit si usas main"
+    validations:
+      required: true
+  - type: dropdown
+    id: modo
+    attributes:
+      label: Modo de la IA
+      options:
+        - Simulación (mock)
+        - Azure (azure)
+    validations:
+      required: true
+  - type: dropdown
+    id: entorno
+    attributes:
+      label: Cómo la ejecutas
+      options:
+        - Docker Compose
+        - Sin Docker (uv)
+    validations:
+      required: true
+  - type: textarea
+    id: registros
+    attributes:
+      label: Capturas o registros
+      description: >-
+        Capturas de la interfaz o líneas de `docker compose logs backend`. Revisa que no
+        contengan secretos.
+      render: text

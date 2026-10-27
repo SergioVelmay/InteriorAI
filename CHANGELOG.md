@@ -21,6 +21,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   Azure, «Cocina Abierta para Manual de Usuario», recorre cada pestaña y cada opción con sus
   capturas (de las referencias al render final de día, atardecer y noche, y los costes), más una
   página de consejos. La portada de la web muestra el render de noche del caso.
+- **Comunidad** (Paso 37, B-102): guía de contribución (`CONTRIBUTING.md`), código de conducta
+  (Contributor Covenant 2.1), plantillas de issues (fallo y mejora) y de Pull Request, y la página
+  «Contribuir» en la web. El repositorio enlaza la web y tiene temas; la Wiki, sin uso, se
+  desactiva.
 
 ### Cambiado (incompatible: API y esquema de datos)
 

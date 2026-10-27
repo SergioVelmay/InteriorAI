@@ -1,0 +1,32 @@
+name: Proponer una mejora
+description: Una idea nueva o un cambio en lo que ya existe
+title: "[Mejora] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: necesidad
+    attributes:
+      label: Qué necesitas
+      description: El problema o la situación de diseño que quieres resolver.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Cómo te gustaría que funcionara (pestaña, opciones, resultado).
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas
+      description: Otras soluciones o cómo lo resuelves hoy.
+  - type: checkboxes
+    id: principios
+    attributes:
+      label: Principios del proyecto
+      options:
+        - label: >-
+            La propuesta mantiene la supervisión humana (nada avanza sin la elección del usuario)
+            y funciona también en modo simulación.

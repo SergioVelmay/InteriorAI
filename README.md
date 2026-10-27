@@ -216,6 +216,11 @@ historial, la construcción de las imágenes, la colección de Postman (con newm
 Playwright, siempre en modo mock y sin secretos. `main` solo acepta cambios por Pull Request con
 la CI en verde.
 
+## Contribuir
+
+Avisos de fallos, ideas y Pull Requests son bienvenidos: lee la [guía de
+contribución](CONTRIBUTING.md) y el [código de conducta](CODE_OF_CONDUCT.md).
+
 ## Seguridad
 
 Repositorio público: los secretos solo viven en `.env` (nunca versionado). Cómo avisar de una
