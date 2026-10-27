@@ -55,6 +55,12 @@ postman collection run postman/interiorai.postman_collection.json \
 ```
 
 ```bash
+# Documentación pública (GitHub Pages): https://sergiovelmay.github.io/InteriorAI/
+uv run --group docs mkdocs serve           # en local
+uv run --group docs mkdocs build --strict  # lo que comprueba la CI
+```
+
+```bash
 # Interfaz de extremo a extremo (Playwright; app levantada en mock; proyectos «E2E …»)
 uv run --group e2e pytest e2e --browser-channel msedge
 ```
