@@ -175,11 +175,8 @@ class AzureFoundryClient(FoundryClient):
 
     async def _openai_call(self, role: Role, call: Callable[[AsyncOpenAI], Awaitable[T]]) -> T:
         """Ejecuta una llamada del SDK reintentando solo 429/503 (nunca timeouts)."""
-        client = (
-            self._openai.with_options(timeout=self._settings.auditor.timeout_s)
-            if role is Role.GEOMETRY_AUDITOR
-            else self._openai
-        )
+        timeout = self._settings.timeout_for(role)  # auditor y PROMPT_ARCHITECT, más largos
+        client = self._openai.with_options(timeout=timeout) if timeout else self._openai
         with _openai_errors(role):
             for attempt in range(self._max_retries + 1):
                 try:
@@ -205,7 +202,11 @@ class AzureFoundryClient(FoundryClient):
     async def _complete_text(self, role: Role, request: TextRequest) -> TextResult:
         deployment = self._settings.deployment_for(role)
         content: list[dict[str, Any]] = [{"type": "input_text", "text": request.input}]
-        content += [{"type": "input_image", "image_url": img.data_url()} for img in request.images]
+        content += [
+            {"type": "input_image", "image_url": img.data_url()}
+            | ({"detail": img.detail} if img.detail else {})
+            for img in request.images
+        ]
         kwargs: dict[str, Any] = {
             "model": deployment,
             "input": [{"role": "user", "content": content}],

@@ -1,12 +1,20 @@
 import io
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from PIL import Image
 
 from app.foundry.mock import sample_from_schema
 from app.pipelines.images import prepare_image
-from app.pipelines.prompt_writer import InputRole, build_context, references_section
+from app.pipelines.prompt_writer import (
+    InputRole,
+    build_context,
+    history_section,
+    previous_section,
+    references_section,
+    system_prompt,
+)
 from app.pipelines.prompts import load_prompt
 from app.pipelines.schemas import strict_schema
 from shared.models import (
@@ -18,6 +26,10 @@ from shared.models import (
     ReferenceAnalysis,
     ReferenceRecipe,
     ReferenceSheet,
+    RenderInpaint,
+    RenderRecord,
+    RenderStage,
+    RenderStatus,
     StagePrompt,
     utc_now,
 )
@@ -101,7 +113,7 @@ async def test_prepare_image_never_upscales() -> None:
 def test_prompts_are_versioned_by_content() -> None:
     for name in (
         "reference_analyst", "brief_v1", "prompt_bocetos", "prompt_composicion",
-        "prompt_render_final",
+        "prompt_render_final", "prompt_criterios",
     ):  # fmt: skip
         prompt = load_prompt(name)
         assert prompt.text
@@ -149,3 +161,64 @@ def test_stage_prompt_context_has_roles_selections_and_indications() -> None:
     assert "lo que hay que ignorar" in text
     assert '"origen_medidas": "estimada"' in text
     assert "Luz de tarde" in text and "Más cálido" in text and "1536x1024" in text
+    assert entry["resumen_analisis"] == "s"  # Paso 32: qué es la imagen y qué aporta
+
+
+def test_system_prompt_adds_the_common_criteria() -> None:
+    """Paso 32: cada etapa + los criterios comunes (medidas estándar, dudas, repaso final)."""
+    text, version = system_prompt(RenderStage.DRAFT)
+    assert text.startswith(load_prompt("prompt_bocetos").text)
+    assert "medida" in text and "estándar del mercado" in text and "Repaso final" in text
+    own, criteria = version.split("+")
+    assert own.startswith("prompt_bocetos@") and criteria.startswith("prompt_criterios@")
+
+
+def _render(stage: RenderStage, minutes: int, **extra: Any) -> RenderRecord:
+    info = StagePrompt(prompt="p", interpretation=f"entendido {minutes}", open_questions=["¿x?"])
+    return RenderRecord(
+        id=uuid4(), stage=stage, role="FAST_DRAFT_MAKER", deployment="d",
+        prompt=f"prompt {minutes}", prompt_info=info, input_asset_ids=[], batch_id=uuid4(),
+        size="1536x1024", created_at=utc_now().replace(minute=minutes), **extra,
+    )  # fmt: skip
+
+
+def test_history_and_previous_generations_for_the_writer() -> None:
+    """Paso 32: el historial de la imagen de partida (con los retoques) y las generaciones
+    anteriores de la etapa (la seleccionada y la última) llegan al PROMPT_ARCHITECT."""
+    draft = _render(RenderStage.DRAFT, 1, status=RenderStatus.SELECTED)
+    first = _render(RenderStage.COMPOSITION, 2, parent_render_id=draft.id)
+    retouch = _render(
+        RenderStage.COMPOSITION, 3, parent_render_id=draft.id, status=RenderStatus.SELECTED,
+        inpaint=RenderInpaint(source_render_id=first.id, instruction="frigorífico de acero",
+                              mask_file="m.png", coverage=0.1),
+    )  # fmt: skip
+    later = _render(RenderStage.COMPOSITION, 4, parent_render_id=draft.id)
+    now = utc_now()
+    project = ProjectMetadata(id=uuid4(), name="Cocina", created_at=now, updated_at=now,
+                              renders=[draft, first, retouch, later])  # fmt: skip
+
+    def start(render: RenderRecord) -> list[InputRole]:
+        asset = Asset(
+            id=render.id, kind=AssetKind.RENDER, stored_name="r.png", original_name="r",
+            mime_type="image/png", size_bytes=1, sha256="0" * 64,
+        )  # fmt: skip
+        return [InputRole(asset, "imagen de partida")]
+
+    history = history_section(project, start(retouch))
+    assert [h["imagen"][-8:] for h in history] == [r.id.hex[:8] for r in (draft, first, retouch)]
+    assert history[-1]["retoque_pedido_por_el_usuario"] == "frigorífico de acero"
+    assert history[-1]["es_la_imagen_de_partida"] is True and history[-1]["prompt"] == "prompt 3"
+    assert "prompt" not in history[0] and history[0]["lo_que_se_entendio"] == "entendido 1"
+    # Desde la composición seleccionada: las anteriores de la etapa son la última (no la propia).
+    previous = previous_section(project, RenderStage.COMPOSITION, start(retouch))
+    assert [p["imagen"][-8:] for p in previous] == [later.id.hex[:8]]
+    assert previous[0]["dudas"] == ["¿x?"] and previous[0]["seleccionada"] is False
+    # Bocetos (sin imagen de partida de un render): el seleccionado, sin historial.
+    assert history_section(project, []) == []
+    [chosen] = previous_section(project, RenderStage.DRAFT, [])
+    assert chosen["seleccionada"] is True
+    text = build_context(
+        project, start(retouch), [], "", "1536x1024", stage=RenderStage.COMPOSITION
+    )
+    assert "## Historial de la imagen de partida" in text
+    assert "## Generaciones anteriores de esta etapa" in text

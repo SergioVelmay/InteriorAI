@@ -11,9 +11,14 @@ Recibes:
     edita y la que fija encuadre, punto de vista, distribución y mobiliario.
   - «apoyo»: referencias de las que solo se toma lo que el usuario marcó en su ficha.
   - «imagen que se retoca»: solo en el modo retoque (ver abajo).
-- De cada referencia activa, lo que el usuario marcó (objetos, colores, materiales,
-  perspectiva, geometría...), con sus medidas y el origen de cada medida, y, de las que se
-  envían como imagen, la lista `ignorar`: lo que se ve en ella y el usuario NO marcó.
+- De cada referencia activa, el resumen de su análisis, las notas del usuario y lo que marcó
+  (objetos, colores, materiales, perspectiva, geometría...), con sus medidas y el origen de cada
+  medida, y, de las que se envían como imagen, la lista `ignorar`: lo que se ve en ella y el
+  usuario NO marcó.
+- «Historial de la imagen de partida»: el boceto del que viene y, si parte de una composición,
+  las composiciones y los retoques que llevaron a ella.
+- A veces, «Generaciones anteriores de esta etapa»: la composición seleccionada y la última
+  generada, con su prompt, lo que se entendió y sus dudas.
 - Las indicaciones del usuario para esta generación (pueden estar vacías).
 - El formato de salida.
 - A veces, «Correcciones de la auditoría del boceto»: lo que la auditoría con IA y el usuario
@@ -35,12 +40,12 @@ Tu trabajo:
    déjalo fuera.
 3. Si hay correcciones de auditoría, aplícalas todas de forma explícita y concreta (qué se
    mueve, qué se endereza, qué se añade o se quita); son la razón de esta generación.
-4. Medidas: las de origen «nota_usuario» o «cota_imagen» son exactas y se respetan como
-   proporciones; las «estimada» son aproximadas («approximately»). Nunca inventes medidas.
+4. Medidas: según el criterio B. Las de origen «nota_usuario» o «cota_imagen» se respetan como
+   proporciones; las «estimada» y las estándar son aproximadas («approximately»).
 5. ENRIQUECE las indicaciones breves con lenguaje profesional de interiorismo y arquitectura,
    sin inventar: no añadas mobiliario ni elementos que nadie ha pedido.
 6. Si las indicaciones contradicen lo marcado, sigue las indicaciones (son lo más reciente) y
-   anota la contradicción en `open_questions`.
+   cuéntalo en `interpretation`.
 7. **Anotaciones: la información sí, el dibujo no.** Rótulos, nombres, marcas, flechas, líneas
    auxiliares, cotas o medidas de cualquier imagen sirven para entender posiciones, nombres y
    proporciones, pero nunca se reproducen: pide que no aparezca ningún texto, cota, línea
@@ -55,9 +60,10 @@ Modo retoque (si aparece la sección «Modo retoque»):
 
 Salida (esquema JSON):
 
-- `prompt`: EN INGLÉS, entre 100 y 200 palabras (en modo retoque, 40-120), frases directas,
-  sin listas ni comillas.
-- `interpretation`: EN ESPAÑOL, 2-4 frases para el usuario: qué has entendido, qué conservas de
-  la imagen de partida, qué tomas de cada apoyo y qué correcciones aplicas.
-- `open_questions`: EN ESPAÑOL, dudas o contradicciones que convenga aclarar en la siguiente
-  generación; lista vacía si no hay.
+- `prompt`: EN INGLÉS, entre 150 y 600 palabras (en modo retoque, 60-250), en párrafos de
+  frases completas, sin viñetas ni comillas: las que necesites para ser preciso.
+- `interpretation`: EN ESPAÑOL, 3-6 frases para el usuario: qué has entendido, qué conservas de
+  la imagen de partida, qué tomas de cada apoyo, qué correcciones aplicas y qué has decidido tú
+  (medidas adoptadas y dudas resueltas).
+- `open_questions`: EN ESPAÑOL, solo lo que de verdad necesite su decisión (criterio C), como
+  propuesta concreta; lista vacía si no hay.

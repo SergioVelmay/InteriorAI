@@ -208,6 +208,9 @@ class ReasoningSettings(BaseSettings):
 
     prompt_architect_reasoning_effort: str = Field(default="medium", min_length=1)
     reference_analyst_reasoning_effort: str = Field(default="medium", min_length=1)
+    # Timeout propio del PROMPT_ARCHITECT (Paso 32): con `high`, un prompt de bocetos tardó 102 s,
+    # al borde de los 120 s del cliente (los timeouts no se reintentan).
+    prompt_architect_timeout_s: float = Field(default=300, gt=0)
 
     @field_validator("*", mode="before")
     @classmethod
@@ -320,6 +323,13 @@ class Settings(BaseModel):
             Role.GEOMETRY_AUDITOR: self.auditor.reasoning_effort,
         }.get(role)
 
+    def timeout_for(self, role: Role) -> float | None:
+        """Timeout propio de un rol (auditor y PROMPT_ARCHITECT); None = el del cliente."""
+        return {
+            Role.GEOMETRY_AUDITOR: self.auditor.timeout_s,
+            Role.PROMPT_ARCHITECT: self.reasoning.prompt_architect_timeout_s,
+        }.get(role)
+
     def deployment_for(self, role: Role) -> str:
         """Único punto para obtener el despliegue de un rol."""
         if name := self.deployments.get(role):
@@ -383,7 +393,8 @@ def render_report(s: Settings) -> str:
             for role in Role
             if s.reasoning_effort(role) is not None
         ),
-        f"  Auditor: timeout {s.auditor.timeout_s:g}s",
+        f"  Timeouts propios: auditor {s.auditor.timeout_s:g}s | PROMPT_ARCHITECT "
+        f"{s.reasoning.prompt_architect_timeout_s:g}s",
         f"  Avisos de gasto: {s.cost_alerts.project_eur:g} € por proyecto "
         f"| {s.cost_alerts.total_eur:g} € en total",
         f"  Datos: {s.storage.data_dir.as_posix()} | precios: {s.storage.pricing_file.as_posix()} "

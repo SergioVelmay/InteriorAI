@@ -40,6 +40,8 @@ class Usage(_Model):
 class InputImage(_Model):
     data: bytes = Field(repr=False)
     mime_type: str = "image/png"
+    # Detalle con que la ve un modelo de texto (Responses API); None = el del proveedor («auto»).
+    detail: Literal["low", "high", "auto"] | None = None
 
     def data_url(self) -> str:
         return f"data:{self.mime_type};base64,{base64.b64encode(self.data).decode()}"

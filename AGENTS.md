@@ -38,7 +38,9 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
    parte de lo que el usuario eligió en la anterior. Nunca se inventan medidas:
    lo que no conste va a `null` y, si hay dudas, a `open_questions`. Una medida **estimada**
    solo se admite marcada como tal (`dimensions_source: "estimada"`, recetas de las
-   referencias) y nunca se trata como exacta.
+   referencias) y nunca se trata como exacta. En los prompts de imagen, si una medida falta o dos
+   fuentes no cuadran, el PROMPT_ARCHITECT puede usar la estándar del mercado, siempre como
+   aproximada y explicándolo al usuario (Paso 32).
 7. `data/` contiene datos del usuario: nunca se versiona ni se borra sin confirmación
    (el borrado de la app es suave: mueve a `data/.papelera/`).
 8. **Mínimo privilegio en contenedores**: usuario sin privilegios (uid 1000), puertos publicados
