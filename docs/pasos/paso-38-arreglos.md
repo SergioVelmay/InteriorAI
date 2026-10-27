@@ -45,7 +45,8 @@ El proyecto suma 34 llamadas y 1,7959 €. Cuentan en el contraste con la factur
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-38`.
+✅ Cerrado — rama `feat/paso-38`, PR #53 revisada y mergeada por el usuario (2026-10-27). Docker
+reconstruido con la interfaz nueva.
 
 ## 7. Pendiente / futuro
 
