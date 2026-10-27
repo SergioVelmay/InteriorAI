@@ -92,7 +92,8 @@ figura con 0,013 € (los megapíxeles de referencia). Para contrastar con la fa
 
 ## 7. Estado final
 
-⏳ En revisión — rama `feat/paso-36`.
+✅ Cerrado — rama `feat/paso-36`, PR #51 revisada y mergeada por el usuario (2026-10-27). Publicado
+al integrar en `main`: las páginas del manual, sus imágenes y la portada nueva responden en la web.
 
 ## 8. Pendiente / futuro
 
