@@ -45,7 +45,9 @@ Aviso de la herramienta: **Material for MkDocs llega al fin de su vida el 5 de m
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-34`. La web se publica al mergear la PR.
+✅ Cerrado — rama `feat/paso-34`, PR #49 revisada y mergeada por el usuario (2026-10-27). El
+workflow publicó la web al integrar en `main` (construcción y despliegue correctos) y todas sus
+páginas responden en <https://sergiovelmay.github.io/InteriorAI/>.
 
 ## 6. Pendiente / futuro
 

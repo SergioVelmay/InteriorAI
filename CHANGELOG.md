@@ -12,6 +12,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   MkDocs Material en GitHub Pages, publicada sola al integrar en `main`. Inicio, primeros pasos
   (instalación y configuración), versiones, seguridad y licencia; el manual de usuario y la
   referencia técnica, en preparación.
+- **Referencia técnica y desarrollo en la web** (Paso 35, B-100): arquitectura, API REST con el
+  Swagger (solo de consulta), datos y almacenamiento, IA y costes, interfaz; entorno, pruebas, CI
+  y herramientas. El esquema OpenAPI se exporta a `docs/referencia/openapi.json`
+  (`python -m app.openapi`) y un test vigila que esté al día. La API describe sus grupos de
+  endpoints, su licencia y su contacto.
 
 ### Cambiado (incompatible: API y esquema de datos)
 

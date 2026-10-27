@@ -1,0 +1,4190 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "InteriorAI API",
+    "description": "API REST de InteriorAI: proyectos, referencias analizadas (receta y ficha),\nbocetos, composición (auditoría y retoque), render final y costes de la IA.\n\nEs la única vía de escritura en `data/` y de llamada a la IA (Azure AI Foundry o simulación).\nCada respuesta lleva la cabecera `X-Request-ID`; las que llaman a la IA devuelven además su\ncoste estimado (`cost_eur`). Documentación: https://sergiovelmay.github.io/InteriorAI/",
+    "contact": {
+      "name": "InteriorAI",
+      "url": "https://github.com/SergioVelmay/InteriorAI"
+    },
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "3.0.0"
+  },
+  "paths": {
+    "/api/v1/asset-kinds": {
+      "get": {
+        "tags": [
+          "catálogos"
+        ],
+        "summary": "List Asset Kinds",
+        "operationId": "list_asset_kinds_api_v1_asset_kinds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssetKindOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Asset Kinds Api V1 Asset Kinds Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "List Projects",
+        "operationId": "list_projects_api_v1_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Projects Api V1 Projects Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Create Project",
+        "operationId": "create_project_api_v1_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Get Project",
+        "operationId": "get_project_api_v1_projects__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Update Project",
+        "operationId": "update_project_api_v1_projects__project_id__patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Delete Project",
+        "description": "Borrado suave: el proyecto se mueve a `data/.papelera/`.",
+        "operationId": "delete_project_api_v1_projects__project_id__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{kind}": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Upload Asset",
+        "description": "Subida multipart. El tipo real se detecta por el contenido, no por la extensión.",
+        "operationId": "upload_asset_api_v1_projects__project_id__assets__kind__post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UploadKind"
+            }
+          },
+          {
+            "name": "allow_duplicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Permite subir un archivo idéntico a uno ya existente",
+              "default": false,
+              "title": "Allow Duplicate"
+            },
+            "description": "Permite subir un archivo idéntico a uno ya existente"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_asset_api_v1_projects__project_id__assets__kind__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{kind}/base64": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Upload Asset Base64",
+        "description": "Subida en JSON con el contenido en Base64.",
+        "operationId": "upload_asset_base64_api_v1_projects__project_id__assets__kind__base64_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UploadKind"
+            }
+          },
+          {
+            "name": "allow_duplicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Permite subir un archivo idéntico a uno ya existente",
+              "default": false,
+              "title": "Allow Duplicate"
+            },
+            "description": "Permite subir un archivo idéntico a uno ya existente"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Base64Upload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "List Assets",
+        "operationId": "list_assets_api_v1_projects__project_id__assets_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AssetKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Asset"
+                  },
+                  "title": "Response List Assets Api V1 Projects  Project Id  Assets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{asset_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset",
+        "operationId": "get_asset_api_v1_projects__project_id__assets__asset_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Update Asset",
+        "description": "Actualiza la nota del usuario sobre el asset (orienta su análisis y los prompts).",
+        "operationId": "update_asset_api_v1_projects__project_id__assets__asset_id__patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Delete Asset",
+        "description": "Borrado suave: el archivo se mueve a `data/.papelera/{proyecto}/`.",
+        "operationId": "delete_asset_api_v1_projects__project_id__assets__asset_id__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{asset_id}/content": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Download Asset",
+        "operationId": "download_asset_api_v1_projects__project_id__assets__asset_id__content_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/costs": {
+      "get": {
+        "tags": [
+          "costes"
+        ],
+        "summary": "Project Costs",
+        "description": "Totales y desgloses por rol, día y despliegue. Coste **estimado** con precios de lista.\nCada llamada cuenta en el rol que hoy tiene su despliegue (el original, en `call_role`).",
+        "operationId": "project_costs_api_v1_projects__project_id__costs_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 0,
+              "description": "Últimos registros a devolver",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Últimos registros a devolver"
+          },
+          {
+            "name": "include_simulated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir las llamadas simuladas (modo mock)",
+              "default": true,
+              "title": "Include Simulated"
+            },
+            "description": "Incluir las llamadas simuladas (modo mock)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/costs": {
+      "get": {
+        "tags": [
+          "costes"
+        ],
+        "summary": "All Costs",
+        "description": "Lo mismo para todos los proyectos (con desglose por proyecto). Los proyectos en la\npapelera no cuentan.",
+        "operationId": "all_costs_api_v1_costs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 0,
+              "description": "Últimos registros a devolver",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Últimos registros a devolver"
+          },
+          {
+            "name": "include_simulated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir las llamadas simuladas (modo mock)",
+              "default": true,
+              "title": "Include Simulated"
+            },
+            "description": "Incluir las llamadas simuladas (modo mock)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/costs/alerts": {
+      "get": {
+        "tags": [
+          "costes"
+        ],
+        "summary": "Alerts",
+        "description": "Gasto real (sin simulación) por proyecto y total frente a los umbrales de aviso\n(`COST_ALERT_PROJECT_EUR`, `COST_ALERT_TOTAL_EUR`). Solo informa.",
+        "operationId": "alerts_api_v1_costs_alerts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostAlerts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/cost": {
+      "get": {
+        "tags": [
+          "costes"
+        ],
+        "summary": "Render Cost",
+        "description": "Coste acumulado para llegar a esta imagen: recetas de las referencias usadas, lotes de\ncada etapa (con su prompt automático), retoques y auditorías de la cadena. Sin las llamadas\nsimuladas en el total (van aparte).",
+        "operationId": "render_cost_api_v1_projects__project_id__renders__render_id__cost_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderChainCost"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pricing": {
+      "get": {
+        "tags": [
+          "costes"
+        ],
+        "summary": "Pricing Table",
+        "operationId": "pricing_table_api_v1_pricing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingTable"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/references/index": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Index Project References",
+        "description": "Analiza en bloque las referencias sin receta (o las indicadas) con el REFERENCE_ANALYST.",
+        "operationId": "index_project_references_api_v1_projects__project_id__references_index_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexRequest",
+                "default": {
+                  "force": false
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{asset_id}/analyze": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Analyze Reference",
+        "description": "Receta de una referencia (al subirla, o de nuevo con otras notas). La ficha se guarda con\nlo que piden las notas ya marcado y sustituye a la anterior.",
+        "operationId": "analyze_reference_api_v1_projects__project_id__assets__asset_id__analyze_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/assets/{asset_id}/sheet": {
+      "put": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Update Reference Sheet",
+        "description": "«Guardar ficha»: los elementos que el usuario marca. Activa si hay alguno.",
+        "operationId": "update_reference_sheet_api_v1_projects__project_id__assets__asset_id__sheet_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SheetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/drafts": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Create Drafts",
+        "description": "Etapa 1 (FAST_DRAFT_MAKER): bocetos a partir de las referencias activas, con prompt\nautomático.",
+        "operationId": "create_drafts_api_v1_projects__project_id__renders_drafts_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest",
+                "default": {
+                  "extra_instructions": "",
+                  "n": 4,
+                  "quality": "medium"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/compositions": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Create Composition",
+        "description": "Etapa 2 (COMPOSITION_BUILDER): composición a partir del boceto seleccionado o de la\ncomposición actual, con las referencias activas como apoyo (hasta 12).",
+        "operationId": "create_composition_api_v1_projects__project_id__renders_compositions_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionRequest",
+                "default": {
+                  "extra_instructions": "",
+                  "source": "boceto",
+                  "use_audit": false,
+                  "audit_notes": "",
+                  "n": 1,
+                  "quality": "medium"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/final": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Create Final",
+        "description": "Etapa 3 (REALISTIC_RENDERER): fotografía realista de la composición seleccionada o\ndel render final actual; o «Otra versión» de un render final (`variant_of`).",
+        "operationId": "create_final_api_v1_projects__project_id__renders_final_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalRequest",
+                "default": {
+                  "extra_instructions": "",
+                  "source": "composicion",
+                  "n": 1
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders": {
+      "get": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "List Renders",
+        "description": "Historial de renders (más reciente primero). La imagen: `/assets/{id}/content`.",
+        "operationId": "list_renders_api_v1_projects__project_id__renders_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RenderStage"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RenderRecord"
+                  },
+                  "title": "Response List Renders Api V1 Projects  Project Id  Renders Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/select": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Select",
+        "description": "El usuario elige este render: puede alimentar la etapa siguiente.",
+        "operationId": "select_api_v1_projects__project_id__renders__render_id__select_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/audit": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Audit",
+        "description": "GEOMETRY_AUDITOR a demanda (rol más caro): compara la imagen (normalmente el boceto\nseleccionado) con las referencias activas de perspectiva o geometría y guarda el informe.\n\nNo bloquea la selección: se puede seleccionar un render sin auditar.",
+        "operationId": "audit_api_v1_projects__project_id__renders__render_id__audit_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditRequest",
+                "default": {
+                  "notes": ""
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/inpaint": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Inpaint",
+        "description": "Retoque de una zona de una composición (multipart): «Generar con la composición actual»\ncon «Usar el retoque».\n\nLo pintado en la máscara (opaco, o claro si no tiene transparencia) se edita con la\ninstrucción mediante la máscara nativa del modelo, que devuelve la imagen completa (B-038).\nEl prompt lo escribe el PROMPT_ARCHITECT con la zona, las indicaciones y, si se pide, la\nauditoría del boceto. Crea una imagen nueva de la misma etapa, sin seleccionar.",
+        "operationId": "inpaint_api_v1_projects__project_id__renders__render_id__inpaint_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_inpaint_api_v1_projects__project_id__renders__render_id__inpaint_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/inpaint/{file}": {
+      "get": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Inpaint File",
+        "description": "Máscara de un retoque (blanco = zona editada).",
+        "operationId": "inpaint_file_api_v1_projects__project_id__renders__render_id__inpaint__file__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "const": "mascara",
+              "type": "string",
+              "title": "File"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "sistema"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyzeRequest": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Notas nuevas (orientan el análisis)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AnalyzeRequest"
+      },
+      "AnalyzeResponse": {
+        "properties": {
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur",
+            "description": "Coste estimado de las llamadas a IA de esta petición"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/Asset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cost_eur",
+          "request_id",
+          "asset"
+        ],
+        "title": "AnalyzeResponse"
+      },
+      "Asset": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "stored_name": {
+            "type": "string",
+            "title": "Stored Name"
+          },
+          "original_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Original Name"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256"
+          },
+          "width_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Px"
+          },
+          "height_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Px"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "default": ""
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceSheet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "stored_name",
+          "original_name",
+          "mime_type",
+          "size_bytes",
+          "sha256"
+        ],
+        "title": "Asset"
+      },
+      "AssetKind": {
+        "type": "string",
+        "enum": [
+          "referencia",
+          "render"
+        ],
+        "title": "AssetKind",
+        "description": "Tipo de asset. Desde la v2 (B-028), toda imagen subida es una referencia."
+      },
+      "AssetKindOut": {
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "folder": {
+            "type": "string",
+            "title": "Folder"
+          },
+          "uploadable": {
+            "type": "boolean",
+            "title": "Uploadable"
+          },
+          "accepted_mime_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Mime Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "folder",
+          "uploadable",
+          "accepted_mime_types"
+        ],
+        "title": "AssetKindOut"
+      },
+      "AssetUpdate": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "description": "Nota del usuario (p. ej. medidas)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "AssetUpdate"
+      },
+      "AuditCheck": {
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "enum": [
+              "encuadre",
+              "proporciones",
+              "mobiliario",
+              "elementos_fijos",
+              "materiales_color",
+              "iluminacion"
+            ],
+            "title": "Aspect"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "aviso",
+              "fallo"
+            ],
+            "title": "Status"
+          },
+          "finding": {
+            "type": "string",
+            "title": "Finding",
+            "description": "Hallazgo concreto, en español"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "aspect",
+          "status",
+          "finding"
+        ],
+        "title": "AuditCheck"
+      },
+      "AuditDeviation": {
+        "properties": {
+          "element": {
+            "type": "string",
+            "title": "Element"
+          },
+          "expected": {
+            "type": "string",
+            "title": "Expected",
+            "description": "Lo que indican las referencias, en español"
+          },
+          "observed": {
+            "type": "string",
+            "title": "Observed",
+            "description": "Lo que se ve en la imagen auditada, en español"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "baja",
+              "media",
+              "alta"
+            ],
+            "title": "Severity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "element",
+          "expected",
+          "observed",
+          "severity"
+        ],
+        "title": "AuditDeviation"
+      },
+      "AuditReport": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "conforme",
+              "conforme_con_observaciones",
+              "no_conforme"
+            ],
+            "title": "Verdict"
+          },
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "description": "Fidelidad global a las referencias"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/AuditCheck"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "deviations": {
+            "items": {
+              "$ref": "#/components/schemas/AuditDeviation"
+            },
+            "type": "array",
+            "title": "Deviations"
+          },
+          "suggested_prompt_adjustments": {
+            "type": "string",
+            "title": "Suggested Prompt Adjustments",
+            "description": "Correcciones para la siguiente iteración, EN INGLÉS; vacío si no hacen falta"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "Resumen en español"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "verdict",
+          "score",
+          "checks",
+          "deviations",
+          "suggested_prompt_adjustments",
+          "summary"
+        ],
+        "title": "AuditReport",
+        "description": "Salida estructurada del GEOMETRY_AUDITOR."
+      },
+      "AuditRequest": {
+        "properties": {
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Notes",
+            "description": "Observaciones que el auditor debe comprobar",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AuditRequest"
+      },
+      "AuditResponse": {
+        "properties": {
+          "render": {
+            "$ref": "#/components/schemas/RenderRecord"
+          },
+          "audit": {
+            "$ref": "#/components/schemas/RenderAudit"
+          },
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "render",
+          "audit",
+          "cost_eur",
+          "request_id"
+        ],
+        "title": "AuditResponse"
+      },
+      "Base64Upload": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "examples": [
+              "plano_salon.png"
+            ]
+          },
+          "data_base64": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Data Base64",
+            "description": "Contenido en Base64; admite el prefijo `data:<mime>;base64,`"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "default": "",
+            "examples": [
+              "Sofá 285 x 160 x 87 cm"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "data_base64"
+        ],
+        "title": "Base64Upload"
+      },
+      "Body_inpaint_api_v1_projects__project_id__renders__render_id__inpaint_post": {
+        "properties": {
+          "mask": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Mask",
+            "description": "Imagen con la proporción del render; lo pintado es la zona a editar"
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instruction"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "auto"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "extra_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Extra Instructions",
+            "default": ""
+          },
+          "use_audit": {
+            "type": "boolean",
+            "title": "Use Audit",
+            "default": false
+          },
+          "audit_notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Audit Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "mask",
+          "instruction"
+        ],
+        "title": "Body_inpaint_api_v1_projects__project_id__renders__render_id__inpaint_post"
+      },
+      "Body_upload_asset_api_v1_projects__project_id__assets__kind__post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Imagen PNG, JPEG o WebP"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_asset_api_v1_projects__project_id__assets__kind__post"
+      },
+      "CompositionRequest": {
+        "properties": {
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "Por defecto, el de cada etapa"
+          },
+          "prompt_override": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Override",
+            "description": "Prompt propio en lugar del que escribe el PROMPT_ARCHITECT (pruebas)"
+          },
+          "extra_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Extra Instructions",
+            "description": "Indicaciones para esta generación (con `prompt_override`, van al final)",
+            "default": ""
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id",
+            "description": "Por defecto, el boceto seleccionado"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "boceto",
+              "composicion"
+            ],
+            "title": "Source",
+            "description": "Imagen de partida: boceto o composición seleccionados",
+            "default": "boceto"
+          },
+          "use_audit": {
+            "type": "boolean",
+            "title": "Use Audit",
+            "description": "Usar la auditoría del boceto",
+            "default": false
+          },
+          "audit_notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Audit Notes",
+            "description": "Auditoría manual: notas del usuario",
+            "default": ""
+          },
+          "n": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "N",
+            "default": 1
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "auto"
+            ],
+            "title": "Quality",
+            "default": "medium"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CompositionRequest",
+        "description": "Composición (B-045, B-046, B-055): a partir del boceto seleccionado o de la composición\nactual (la seleccionada), con las referencias activas como apoyo y, si se pide, las\ncorrecciones de la auditoría del boceto. El prompt lo escribe el PROMPT_ARCHITECT."
+      },
+      "CostAlert": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur"
+          },
+          "threshold_eur": {
+            "type": "number",
+            "title": "Threshold Eur"
+          },
+          "exceeded": {
+            "type": "boolean",
+            "title": "Exceeded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "cost_eur",
+          "threshold_eur",
+          "exceeded"
+        ],
+        "title": "CostAlert"
+      },
+      "CostAlerts": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "total": {
+            "$ref": "#/components/schemas/CostAlert"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/CostAlert"
+            },
+            "type": "array",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "total",
+          "projects"
+        ],
+        "title": "CostAlerts",
+        "description": "Aviso de gasto real (B-021): por proyecto y total. Solo informa, nunca bloquea."
+      },
+      "CostRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "deployment": {
+            "type": "string",
+            "title": "Deployment"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "complete_text",
+              "generate_image",
+              "edit_image"
+            ],
+            "title": "Operation"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "error_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Type"
+          },
+          "latency_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Latency S"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "cached_input_tokens": {
+            "type": "integer",
+            "title": "Cached Input Tokens",
+            "default": 0
+          },
+          "cache_write_tokens": {
+            "type": "integer",
+            "title": "Cache Write Tokens",
+            "default": 0
+          },
+          "input_text_tokens": {
+            "type": "integer",
+            "title": "Input Text Tokens",
+            "default": 0
+          },
+          "input_image_tokens": {
+            "type": "integer",
+            "title": "Input Image Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens",
+            "default": 0
+          },
+          "images_out": {
+            "type": "integer",
+            "title": "Images Out",
+            "default": 0
+          },
+          "megapixels_out": {
+            "type": "number",
+            "title": "Megapixels Out",
+            "default": 0.0
+          },
+          "megapixels_ref": {
+            "type": "number",
+            "title": "Megapixels Ref",
+            "default": 0.0
+          },
+          "cost_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Eur"
+          },
+          "cost_breakdown": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Cost Breakdown"
+          },
+          "pricing_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Tier"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated",
+            "default": false
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "call_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "deployment",
+          "operation",
+          "status",
+          "latency_s"
+        ],
+        "title": "CostRecord",
+        "description": "Registro de telemetría con el proyecto al que pertenece."
+      },
+      "CostSummary": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "estimated": {
+            "type": "boolean",
+            "title": "Estimated",
+            "default": true
+          },
+          "includes_simulated": {
+            "type": "boolean",
+            "title": "Includes Simulated"
+          },
+          "simulated_excluded": {
+            "type": "integer",
+            "title": "Simulated Excluded",
+            "default": 0
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CostTotals"
+          },
+          "by_role": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Role"
+          },
+          "role_deployments": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Role Deployments",
+            "default": {}
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Day"
+          },
+          "by_deployment": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Deployment"
+          },
+          "by_project": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Project",
+            "default": []
+          },
+          "by_day_role": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Day Role",
+            "default": []
+          },
+          "by_project_role": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Project Role",
+            "default": []
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/CostRecord"
+            },
+            "type": "array",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "currency",
+          "includes_simulated",
+          "totals",
+          "by_role",
+          "by_day",
+          "by_deployment",
+          "records"
+        ],
+        "title": "CostSummary"
+      },
+      "CostTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "default": 0
+          },
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur",
+            "default": 0.0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "cached_input_tokens": {
+            "type": "integer",
+            "title": "Cached Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens",
+            "default": 0
+          },
+          "images_out": {
+            "type": "integer",
+            "title": "Images Out",
+            "default": 0
+          },
+          "megapixels_out": {
+            "type": "number",
+            "title": "Megapixels Out",
+            "default": 0.0
+          },
+          "latency_s": {
+            "type": "number",
+            "title": "Latency S",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "CostTotals"
+      },
+      "DimensionsCm": {
+        "properties": {
+          "width_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Cm"
+          },
+          "depth_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth Cm"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "width_cm",
+          "depth_cm",
+          "height_cm"
+        ],
+        "title": "DimensionsCm",
+        "description": "Medidas en cm; `None` si no se conocen. Nunca se inventan: una estimación solo se\nadmite marcada como tal (`dimensions_source: \"estimada\"`) y nunca se trata como exacta."
+      },
+      "DraftRequest": {
+        "properties": {
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "Por defecto, el de cada etapa"
+          },
+          "prompt_override": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Override",
+            "description": "Prompt propio en lugar del que escribe el PROMPT_ARCHITECT (pruebas)"
+          },
+          "extra_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Extra Instructions",
+            "description": "Indicaciones para esta generación (con `prompt_override`, van al final)",
+            "default": ""
+          },
+          "n": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "N",
+            "default": 4
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "auto"
+            ],
+            "title": "Quality",
+            "default": "medium"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DraftRequest",
+        "description": "Bocetos (B-036, B-040, B-043): de 1 a 8 variantes (4 por defecto), calidad media y\nformato 1536x1024 (3:2) por defecto. El prompt lo escribe el PROMPT_ARCHITECT."
+      },
+      "FinalRequest": {
+        "properties": {
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "Por defecto, el de cada etapa"
+          },
+          "prompt_override": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Override",
+            "description": "Prompt propio en lugar del que escribe el PROMPT_ARCHITECT (pruebas)"
+          },
+          "extra_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Extra Instructions",
+            "description": "Indicaciones para esta generación (con `prompt_override`, van al final)",
+            "default": ""
+          },
+          "composition_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Id",
+            "description": "Por defecto, la composición seleccionada"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "composicion",
+              "render_final"
+            ],
+            "title": "Source",
+            "description": "Imagen de partida: composición o render seleccionados",
+            "default": "composicion"
+          },
+          "variant_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Of",
+            "description": "«Otra versión»: repite tal cual el prompt, la partida y el tamaño de ese render final (se ignoran las indicaciones y el tamaño)"
+          },
+          "n": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "N",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FinalRequest",
+        "description": "Render final (B-051, B-055, B-040): a partir de la composición seleccionada o del render\nfinal actual, con indicaciones globales; el renderizador recibe solo la imagen de partida y\nel prompt. Tamaño: 3:2 a 2448x1632 por defecto (`shared.sizes`)."
+      },
+      "GroupTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "default": 0
+          },
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur",
+            "default": 0.0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "cached_input_tokens": {
+            "type": "integer",
+            "title": "Cached Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens",
+            "default": 0
+          },
+          "images_out": {
+            "type": "integer",
+            "title": "Images Out",
+            "default": 0
+          },
+          "megapixels_out": {
+            "type": "number",
+            "title": "Megapixels Out",
+            "default": 0.0
+          },
+          "latency_s": {
+            "type": "number",
+            "title": "Latency S",
+            "default": 0.0
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "GroupTotals"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ProviderMode"
+          },
+          "data_dir_writable": {
+            "type": "boolean",
+            "title": "Data Dir Writable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "mode",
+          "data_dir_writable"
+        ],
+        "title": "HealthResponse"
+      },
+      "ImageTokenPricing": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image_tokens",
+            "title": "Type"
+          },
+          "input_text": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Input Text"
+          },
+          "cached_input_text": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cached Input Text"
+          },
+          "input_image": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Input Image"
+          },
+          "cached_input_image": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cached Input Image"
+          },
+          "output_image": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Output Image"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "input_text",
+          "cached_input_text",
+          "input_image",
+          "cached_input_image",
+          "output_image"
+        ],
+        "title": "ImageTokenPricing"
+      },
+      "IndexFailure": {
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Asset Id"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "error"
+        ],
+        "title": "IndexFailure"
+      },
+      "IndexRequest": {
+        "properties": {
+          "asset_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Ids",
+            "description": "Referencias a analizar (por defecto, las que no tienen receta)"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "description": "Volver a analizar también las ya analizadas",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "IndexRequest"
+      },
+      "IndexResponse": {
+        "properties": {
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur",
+            "description": "Coste estimado de las llamadas a IA de esta petición"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "indexed": {
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            },
+            "type": "array",
+            "title": "Indexed"
+          },
+          "skipped": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/IndexFailure"
+            },
+            "type": "array",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cost_eur",
+          "request_id",
+          "indexed",
+          "skipped",
+          "failed"
+        ],
+        "title": "IndexResponse"
+      },
+      "MegapixelPricing": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "megapixels",
+            "title": "Type"
+          },
+          "initial_mp": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Initial Mp"
+          },
+          "additional_mp": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Additional Mp"
+          },
+          "reference_mp": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Reference Mp"
+          },
+          "reference_mode": {
+            "type": "string",
+            "enum": [
+              "pixels",
+              "per_image"
+            ],
+            "title": "Reference Mode",
+            "default": "pixels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "initial_mp",
+          "additional_mp",
+          "reference_mp"
+        ],
+        "title": "MegapixelPricing"
+      },
+      "PricingTable": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "EUR"
+          },
+          "deployment_type": {
+            "type": "string",
+            "enum": [
+              "global",
+              "data_zone"
+            ],
+            "title": "Deployment Type",
+            "default": "global"
+          },
+          "long_context_threshold_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Long Context Threshold Tokens"
+          },
+          "megapixel_rounding": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "ceil"
+            ],
+            "title": "Megapixel Rounding",
+            "default": "exact"
+          },
+          "megapixel_px": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Megapixel Px",
+            "default": 1000000
+          },
+          "billing_factor": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Billing Factor",
+            "default": 1.0
+          },
+          "deployments": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TokenPricing"
+                },
+                {
+                  "$ref": "#/components/schemas/ImageTokenPricing"
+                },
+                {
+                  "$ref": "#/components/schemas/MegapixelPricing"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "image_tokens": "#/components/schemas/ImageTokenPricing",
+                  "megapixels": "#/components/schemas/MegapixelPricing",
+                  "tokens": "#/components/schemas/TokenPricing"
+                }
+              }
+            },
+            "type": "object",
+            "title": "Deployments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "deployments"
+        ],
+        "title": "PricingTable"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 25000,
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectCreate"
+      },
+      "ProjectMetadata": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 25000,
+            "title": "Description",
+            "default": ""
+          },
+          "schema_version": {
+            "type": "integer",
+            "const": 3,
+            "title": "Schema Version",
+            "default": 3
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "renders": {
+            "items": {
+              "$ref": "#/components/schemas/RenderRecord"
+            },
+            "type": "array",
+            "title": "Renders"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProjectMetadata",
+        "description": "Contenido de `{id}/metadatos.json`."
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProjectSummary",
+        "description": "Entrada del índice global `proyectos.json`."
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 25000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Actualización parcial: solo se aplican los campos enviados."
+      },
+      "ProviderMode": {
+        "type": "string",
+        "enum": [
+          "mock",
+          "azure"
+        ],
+        "title": "ProviderMode"
+      },
+      "RecipeElement": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Qué es, breve y concreto, en español"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Detalle útil para reproducirlo, en español; vacío si no hay"
+          },
+          "dimensions_cm": {
+            "$ref": "#/components/schemas/DimensionsCm"
+          },
+          "dimensions_source": {
+            "type": "string",
+            "enum": [
+              "nota_usuario",
+              "cota_imagen",
+              "estimada",
+              "ninguna"
+            ],
+            "title": "Dimensions Source",
+            "description": "nota_usuario | cota_imagen (legible en la imagen) | estimada (aproximada, nunca exacta) | ninguna"
+          },
+          "selected": {
+            "type": "boolean",
+            "title": "Selected",
+            "description": "True si las notas del usuario piden este elemento"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "detail",
+          "dimensions_cm",
+          "dimensions_source",
+          "selected"
+        ],
+        "title": "RecipeElement",
+        "description": "Un «ingrediente» de la receta: algo concreto que la imagen puede aportar al diseño."
+      },
+      "ReferenceRecipe": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "Qué es la imagen y qué aporta, en una o dos frases"
+          },
+          "objetos": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Objetos"
+          },
+          "decoracion": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Decoracion"
+          },
+          "colores": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Colores"
+          },
+          "materiales": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Materiales"
+          },
+          "arquitectura": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Arquitectura"
+          },
+          "estilo": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Estilo"
+          },
+          "iluminacion": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Iluminacion"
+          },
+          "perspectiva": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Perspectiva"
+          },
+          "geometria": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Geometria"
+          },
+          "ambiente": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Ambiente"
+          },
+          "fotografia": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Fotografia"
+          },
+          "otros": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeElement"
+            },
+            "type": "array",
+            "title": "Otros"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "summary",
+          "objetos",
+          "decoracion",
+          "colores",
+          "materiales",
+          "arquitectura",
+          "estilo",
+          "iluminacion",
+          "perspectiva",
+          "geometria",
+          "ambiente",
+          "fotografia",
+          "otros"
+        ],
+        "title": "ReferenceRecipe",
+        "description": "Receta de una imagen de referencia: grupos fijos y exhaustivos, con «otros» para lo no\nprevisto. El orden de los elementos de cada grupo sigue las prioridades de las notas."
+      },
+      "ReferenceSheet": {
+        "properties": {
+          "recipe": {
+            "$ref": "#/components/schemas/ReferenceRecipe"
+          },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Selected"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "default": ""
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "deployment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment"
+          },
+          "analyzed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Analyzed At"
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Saved At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recipe"
+        ],
+        "title": "ReferenceSheet",
+        "description": "Ficha guardada de una referencia: su receta y los elementos marcados por el usuario.\nGuardada desde el análisis (con lo que piden las notas ya marcado); activa si hay algo\nmarcado. Solo las referencias activas se usan en el diseño."
+      },
+      "RenderAudit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "report": {
+            "$ref": "#/components/schemas/AuditReport"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Reference Asset Ids"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "default": ""
+          },
+          "deployment": {
+            "type": "string",
+            "title": "Deployment"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "title": "Reasoning Effort"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "cost_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Eur"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report",
+          "deployment",
+          "reasoning_effort",
+          "prompt_version"
+        ],
+        "title": "RenderAudit"
+      },
+      "RenderChainCost": {
+        "properties": {
+          "render_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Render Id"
+          },
+          "renders": {
+            "type": "integer",
+            "title": "Renders"
+          },
+          "references": {
+            "type": "integer",
+            "title": "References",
+            "default": 0
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CostTotals"
+          },
+          "by_role": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotals"
+            },
+            "type": "array",
+            "title": "By Role"
+          },
+          "simulated_calls": {
+            "type": "integer",
+            "title": "Simulated Calls",
+            "default": 0
+          },
+          "simulated_cost_eur": {
+            "type": "number",
+            "title": "Simulated Cost Eur",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "render_id",
+          "renders",
+          "totals",
+          "by_role"
+        ],
+        "title": "RenderChainCost"
+      },
+      "RenderInpaint": {
+        "properties": {
+          "source_render_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Render Id"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction"
+          },
+          "mask_file": {
+            "type": "string",
+            "title": "Mask File"
+          },
+          "coverage": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Coverage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_render_id",
+          "instruction",
+          "mask_file",
+          "coverage"
+        ],
+        "title": "RenderInpaint",
+        "description": "Retoque de una zona de una composición con máscara nativa (B-038): la imagen es la que\ndevuelve el modelo, completa."
+      },
+      "RenderRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/RenderStage"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RenderStatus",
+            "default": "generado"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "deployment": {
+            "type": "string",
+            "title": "Deployment"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "prompt_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagePrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "input_asset_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Input Asset Ids"
+          },
+          "parent_render_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Render Id"
+          },
+          "variant_of_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Of Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "size": {
+            "type": "string",
+            "title": "Size"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "cost_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Eur"
+          },
+          "audits": {
+            "items": {
+              "$ref": "#/components/schemas/RenderAudit"
+            },
+            "type": "array",
+            "title": "Audits"
+          },
+          "inpaint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RenderInpaint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "role",
+          "deployment",
+          "prompt",
+          "input_asset_ids",
+          "batch_id",
+          "size"
+        ],
+        "title": "RenderRecord",
+        "description": "Trazabilidad de una imagen generada. `id` coincide con el del asset `render`."
+      },
+      "RenderRunResponse": {
+        "properties": {
+          "renders": {
+            "items": {
+              "$ref": "#/components/schemas/RenderRecord"
+            },
+            "type": "array",
+            "title": "Renders"
+          },
+          "cost_eur": {
+            "type": "number",
+            "title": "Cost Eur"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "renders",
+          "cost_eur",
+          "request_id"
+        ],
+        "title": "RenderRunResponse"
+      },
+      "RenderStage": {
+        "type": "string",
+        "enum": [
+          "boceto",
+          "composicion",
+          "render_final"
+        ],
+        "title": "RenderStage"
+      },
+      "RenderStatus": {
+        "type": "string",
+        "enum": [
+          "generado",
+          "seleccionado"
+        ],
+        "title": "RenderStatus",
+        "description": "Sin estados de rechazo ni descarte desde la v2 (B-048): las imágenes se generan y,\ncomo mucho, se seleccionan."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "PROMPT_ARCHITECT",
+          "GEOMETRY_AUDITOR",
+          "REFERENCE_ANALYST",
+          "FAST_DRAFT_MAKER",
+          "COMPOSITION_BUILDER",
+          "REALISTIC_RENDERER"
+        ],
+        "title": "Role"
+      },
+      "SheetUpdate": {
+        "properties": {
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Selected",
+            "description": "Elementos marcados («grupo:índice»); vacío = referencia descartada"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selected"
+        ],
+        "title": "SheetUpdate"
+      },
+      "StagePrompt": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "Prompt para el modelo de imagen, EN INGLÉS"
+          },
+          "interpretation": {
+            "type": "string",
+            "title": "Interpretation",
+            "description": "Lo que has entendido y cómo lo traduces, en español, para el usuario"
+          },
+          "open_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Open Questions",
+            "description": "Dudas o contradicciones que el usuario debería aclarar, en español"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt",
+          "interpretation",
+          "open_questions"
+        ],
+        "title": "StagePrompt",
+        "description": "Prompt automático de una generación (Paso 22: sustituye al brief). El PROMPT_ARCHITECT lo\nescribe al generar, con las entradas reales de la etapa, y explica lo que ha entendido."
+      },
+      "TokenPricing": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tokens",
+            "title": "Type"
+          },
+          "rates": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/TokenRates"
+              },
+              "propertyNames": {
+                "enum": [
+                  "short",
+                  "long"
+                ]
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "enum": [
+                "global",
+                "data_zone"
+              ]
+            },
+            "type": "object",
+            "title": "Rates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "rates"
+        ],
+        "title": "TokenPricing"
+      },
+      "TokenRates": {
+        "properties": {
+          "input": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Input"
+          },
+          "cached_input": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cached Input"
+          },
+          "cache_write": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cache Write",
+            "default": 0
+          },
+          "output": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Output"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "input",
+          "cached_input",
+          "output"
+        ],
+        "title": "TokenRates"
+      },
+      "UploadKind": {
+        "type": "string",
+        "enum": [
+          "referencia"
+        ],
+        "title": "UploadKind",
+        "description": "Tipos de asset que el usuario puede subir: solo referencias (B-028). Los renders solo\nlos genera la IA."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "sistema",
+      "description": "Estado del backend."
+    },
+    {
+      "name": "proyectos",
+      "description": "Crear, consultar, editar y mover a la papelera."
+    },
+    {
+      "name": "assets",
+      "description": "Imágenes del proyecto: subir referencias y descargar."
+    },
+    {
+      "name": "catálogos",
+      "description": "Valores admitidos (tipos de imagen)."
+    },
+    {
+      "name": "pipelines",
+      "description": "Análisis de referencias (receta) y su ficha."
+    },
+    {
+      "name": "renders",
+      "description": "Bocetos, composición, render final, selección, auditoría y retoque."
+    },
+    {
+      "name": "costes",
+      "description": "Gasto de la IA, avisos, coste de una cadena y precios."
+    }
+  ]
+}

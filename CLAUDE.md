@@ -58,6 +58,7 @@ postman collection run postman/interiorai.postman_collection.json \
 # Documentación pública (GitHub Pages): https://sergiovelmay.github.io/InteriorAI/
 uv run --group docs mkdocs serve           # en local
 uv run --group docs mkdocs build --strict  # lo que comprueba la CI
+cd backend && uv run python -m app.openapi # tras cambiar la API: docs/referencia/openapi.json
 ```
 
 ```bash

@@ -62,10 +62,34 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.foundry.aclose()
 
 
+DESCRIPTION = """API REST de InteriorAI: proyectos, referencias analizadas (receta y ficha),
+bocetos, composición (auditoría y retoque), render final y costes de la IA.
+
+Es la única vía de escritura en `data/` y de llamada a la IA (Azure AI Foundry o simulación).
+Cada respuesta lleva la cabecera `X-Request-ID`; las que llaman a la IA devuelven además su
+coste estimado (`cost_eur`). Documentación: https://sergiovelmay.github.io/InteriorAI/"""
+
+# Grupos de endpoints del Swagger (Paso 35), en el orden del flujo de trabajo.
+OPENAPI_TAGS = [
+    {"name": "sistema", "description": "Estado del backend."},
+    {"name": "proyectos", "description": "Crear, consultar, editar y mover a la papelera."},
+    {"name": "assets", "description": "Imágenes del proyecto: subir referencias y descargar."},
+    {"name": "catálogos", "description": "Valores admitidos (tipos de imagen)."},
+    {"name": "pipelines", "description": "Análisis de referencias (receta) y su ficha."},
+    {"name": "renders", "description": "Bocetos, composición, render final, selección, "
+                                       "auditoría y retoque."},
+    {"name": "costes", "description": "Gasto de la IA, avisos, coste de una cadena y precios."},
+]  # fmt: skip
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="InteriorAI API",
         version=__version__,
+        description=DESCRIPTION,
+        contact={"name": "InteriorAI", "url": "https://github.com/SergioVelmay/InteriorAI"},
+        license_info={"name": "MIT", "identifier": "MIT"},
+        openapi_tags=OPENAPI_TAGS,
         lifespan=_lifespan,
     )
     app.state.settings = settings = settings or get_settings()
