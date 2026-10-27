@@ -33,13 +33,14 @@ identificadores de la petición). Es la única excepción a «cualquier otro sit
 | Navegador (Playwright, aplicación local en modo simulación con un proxy que anuncia el modo Azure; ningún botón con coste pulsado) | ✅ Bocetos: 4 en calidad media 0,248 € → 8: 0,284 € (lo que calculaba la confirmación) → 8 en calidad alta: 0,492 €. Composición: media 0,071 € → baja 0,065 €, en los dos botones. Render final: 4,0 MP 0,079 € → 16:9 3,7 MP 0,075 € → 1,3 MP 0,045 €. Lo elegido se conserva al cambiar de pestaña. Costes IA: el aviso nuevo; fila → detalle; clic en el detalle → sigue; clic fuera → estado inicial, sin celda resaltada; la misma fila otra vez → detalle; otra pestaña → estado inicial |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #53 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (6 pruebas en 58 s; el trabajo tardó 11 min por la instalación de las dependencias del sistema del navegador, unos 9 min, ajena al cambio), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
 ## 5. Hallazgo para el Paso 39
 
 En el proyecto del manual hay **5 llamadas reales posteriores a las capturas**, el 27/10 entre
-las 15:48 y las 15:55 UTC, hechas desde la interfaz: 3 renders finales y 2 prompts, **0,2301 €**.
+las 15:48 y las 15:55 UTC, hechas por el usuario desde la interfaz: 3 renders finales y 2 prompts, **0,2301 €**.
 El proyecto suma 34 llamadas y 1,7959 €. Cuentan en el contraste con la factura del 27/10.
 
 ## 6. Estado final
