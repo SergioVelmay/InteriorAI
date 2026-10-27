@@ -39,6 +39,7 @@ validación, estado final y pendientes. Lo diferido se consolida en
 | 28 | [Bocetos](paso-28-bocetos.md) | `feat/paso-28` | ✅ Cerrado |
 | 29 | [Composición y Render Final](paso-29-composicion-render.md) | `feat/paso-29` | ✅ Cerrado |
 | 30 | [Detalles finales](paso-30-detalles-finales.md) | `feat/paso-30` | ✅ Cerrado |
+| 31 | [Capturas y versión 3.0.0](paso-31-version-3.md) | `feat/paso-31` | ⏳ En revisión |
 
 Versión 2.0.0 (publicada el 2026-10-25): [plan de acción](plan-version-2.md), Pasos 17 a 25,
 entradas B-023 a B-055

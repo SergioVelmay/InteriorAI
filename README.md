@@ -9,7 +9,7 @@ Estudio de interiorismo asistido por IA con **supervisión humana en cada etapa*
 planos, muebles e inspiración) genera bocetos, una composición fiel y una fotografía realista de
 cada habitación. **Nada avanza sin tu elección** y cada acción con coste lo muestra antes.
 
-Construido con FastAPI, Gradio y Azure AI Foundry. Versión **2.0.0** ([CHANGELOG](CHANGELOG.md)).
+Construido con FastAPI, Gradio y Azure AI Foundry. Versión **3.0.0** ([CHANGELOG](CHANGELOG.md)).
 
 ## Cómo funciona
 
@@ -41,6 +41,47 @@ flowchart LR
 6. **Costes IA:** cada llamada queda registrada con su coste; la pestaña muestra el gasto por rol,
    día y proyecto, y cada imagen indica cuánto ha costado llegar a ella.
 
+### Recorrido
+
+Un caso real, de principio a fin: la personalización de una cocina abierta al salón. Cada
+captura es una pestaña completa, con sus secciones desplegadas.
+
+<details>
+<summary><strong>Proyectos</strong>: galería, resumen con el gasto por rol y llamadas de IA</summary>
+
+![Pestaña Proyectos](docs/img/01-proyectos.jpg)
+</details>
+
+<details>
+<summary><strong>Referencias</strong>: la imagen, tus notas y la ficha con lo que se usa</summary>
+
+![Pestaña Referencias](docs/img/02-referencias.jpg)
+</details>
+
+<details>
+<summary><strong>Bocetos</strong>: lo que se envía, las variantes y el boceto elegido con su prompt</summary>
+
+![Pestaña Bocetos](docs/img/03-bocetos.jpg)
+</details>
+
+<details>
+<summary><strong>Composición</strong>: auditoría del boceto, retoque con máscara y la composición elegida</summary>
+
+![Pestaña Composición](docs/img/04-composicion.jpg)
+</details>
+
+<details>
+<summary><strong>Render final</strong>: la fotografía realista y lo que ha costado llegar a ella</summary>
+
+![Pestaña Render Final](docs/img/05-render-final.jpg)
+</details>
+
+<details>
+<summary><strong>Costes IA</strong>: gasto por rol, día y proyecto, registro de llamadas y precios</summary>
+
+![Pestaña Costes IA](docs/img/06-costes.jpg)
+</details>
+
 ### Roles de IA
 
 El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegue se configura en
@@ -58,16 +99,16 @@ El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegu
 ### Costes orientativos
 
 Precios de lista en `config/pricing.yaml` (estimados; la cifra real está en Azure Cost
-Management). Medidos en las pruebas reales de la versión 2.0.0:
+Management). Medidos en las pruebas reales de las versiones 2.0.0 y 3.0.0:
 
 | Acción | Coste aproximado |
 |--------|------------------|
-| Receta de una referencia | 0,03-0,04 € |
+| Receta de una referencia | 0,03-0,05 € |
 | Prompt automático de una generación | 0,001-0,002 € |
-| 4 bocetos en calidad media (3 imágenes de entrada) | 0,14-0,18 € |
-| Composición o retoque (4 imágenes de entrada) | 0,05 € |
+| 4 bocetos en calidad media (3-4 imágenes de entrada) | 0,14-0,19 € |
+| Composición o retoque (4-5 imágenes de entrada) | 0,05-0,06 € |
 | Render final a 4 MP | 0,08 € |
-| Auditoría del boceto | 0,14 € (razonamiento `medium`) |
+| Auditoría del boceto | 0,14-0,25 € (razonamiento `medium`) |
 
 En los modelos de bocetos pesan más las imágenes de entrada que las generadas. En modo `azure`,
 las acciones de más de 0,20 € piden un segundo clic de confirmación junto al botón.
