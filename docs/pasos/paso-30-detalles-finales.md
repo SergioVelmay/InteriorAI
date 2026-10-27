@@ -43,7 +43,8 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-30`.
+✅ Cerrado — rama `feat/paso-30`, PR #42 revisada y mergeada por el usuario (2026-10-26).
+Docker reconstruido.
 
 ## 6. Pendiente / futuro
 

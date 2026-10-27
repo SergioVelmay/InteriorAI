@@ -45,6 +45,10 @@
   rueda sobre el lienzo se intercepta en `FORCE_DARK_JS` para desplazar la página (B-072).
   La mano solo se activa con la imagen ampliada; activa, en blanco, y sin pincel, goma ni
   tamaño. Al elegirla, `FORCE_DARK_JS` cierra el deslizador del tamaño (B-087).
+- Botones con coste (B-090): el «procesando» va en la línea del coste (`.iai-action-note`, sin el
+  icono de Gradio) y «Confirmar» oculta su cuadro antes de lanzar la acción (`.then`).
+- Gráficos de Altair: sin el relleno de 6 px que Gradio pone al lienzo (`.altair canvas`); con
+  él, el tooltip de Vega quedaba desplazado respecto a las barras (B-092).
 - `.gradio-container` con `width: 100%` y `max-width: 1440px`: sin el ancho, la página se
   ajustaba a su contenido (Costes IA más estrecha con un solo proyecto, B-089).
 - Secciones plegables de Composición (`gr.Accordion`, B-074): sus hijos no se montan hasta

@@ -166,9 +166,9 @@ class Panel:
 def _action(label: str, slug: str, variant: str = "primary") -> Action:
     with gr.Row(equal_height=True):
         button = gr.Button(label, variant=variant, elem_id=f"iai-gen-{slug}")  # type: ignore[arg-type]
-        cost = gr.Markdown(elem_classes="iai-muted")
+        cost = gr.Markdown(elem_classes=["iai-muted", "iai-action-note"])
     with gr.Column(visible=False, elem_id=f"iai-confirm-{slug}") as confirm_box:
-        confirm_md = gr.Markdown()
+        confirm_md = gr.Markdown(elem_classes="iai-action-note")
         with gr.Row():
             confirm_btn = gr.Button("Confirmar (con coste)", elem_classes="iai-danger")
             cancel_btn = gr.Button("Cancelar", variant="secondary")
@@ -886,9 +886,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     )
 
     for key, action in actions.items():
+        # El cuadro de confirmación se oculta al pulsar (B-090): el «procesando» queda junto al
+        # botón de la acción y no se puede confirmar dos veces.
         confirmed = action.confirm_btn.click(
-            confirm_handler(key), inputs=[action.pending, *common], outputs=outputs
-        )
+            lambda: gr.update(visible=False),
+            outputs=action.confirm_box,
+            queue=False,
+            show_progress="hidden",
+        ).then(confirm_handler(key), inputs=[action.pending, *common], outputs=outputs)
         forecasts.append((confirmed, ACTION_FORECASTS[key]))
         action.cancel_btn.click(
             lambda action=action: {

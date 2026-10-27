@@ -397,7 +397,7 @@ wheels = [
 
 [[package]]
 name = "interiorai"
-version = "2.0.0"
+version = "3.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "interiorai-backend" },
@@ -438,7 +438,7 @@ e2e = [
 
 [[package]]
 name = "interiorai-backend"
-version = "2.0.0"
+version = "3.0.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "anyio" },
@@ -469,7 +469,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-frontend"
-version = "2.0.0"
+version = "3.0.0"
 source = { editable = "frontend" }
 dependencies = [
     { name = "altair" },
@@ -490,7 +490,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-shared"
-version = "2.0.0"
+version = "3.0.0"
 source = { editable = "shared" }
 dependencies = [
     { name = "pydantic" },

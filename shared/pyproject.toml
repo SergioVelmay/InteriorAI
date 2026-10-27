@@ -1,6 +1,6 @@
 [project]
 name = "interiorai-shared"
-version = "2.0.0"
+version = "3.0.0"
 description = "Configuración, roles y modelos comunes de InteriorAI"
 requires-python = ">=3.11,<3.12"
 dependencies = [

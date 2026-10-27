@@ -106,9 +106,12 @@ def test_kpis_and_notes() -> None:
 def test_six_vivid_role_colors_and_a_common_legend() -> None:
     """B-080 y B-081: un color por rol, distinto y vivo; una sola leyenda, fuera de los gráficos,
     con el despliegue actual de cada rol."""
-    assert list(ROLE_COLORS) == [
-        "REFERENCE_ANALYST", "PROMPT_ARCHITECT", "FAST_DRAFT_MAKER", "COMPOSITION_BUILDER",
-        "REALISTIC_RENDERER", "GEOMETRY_AUDITOR",
+    assert list(ROLE_COLORS) == [  # B-093: los de texto y después los de imagen
+        "REFERENCE_ANALYST", "PROMPT_ARCHITECT", "GEOMETRY_AUDITOR", "FAST_DRAFT_MAKER",
+        "COMPOSITION_BUILDER", "REALISTIC_RENDERER",
+    ]  # fmt: skip
+    assert list(ROLE_COLORS.values()) == [  # verde, morado, azul; amarillo, naranja, rojo
+        "#22c55e", "#a855f7", "#3b82f6", "#facc15", "#f97316", "#ef4444",
     ]  # fmt: skip
     assert len(set(ROLE_COLORS.values())) == 6
     legend = legend_html(summary())

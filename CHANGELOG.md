@@ -4,7 +4,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 [SemVer](https://semver.org/lang/es/). El detalle de cada paso está en
 [docs/pasos/](docs/pasos/README.md).
 
-## [Sin publicar]
+## [3.0.0] — 2026-10-27
+
+Pulido completo de la interfaz tras un caso real guiado («Personalización Cocina Los Molinos»)
+y roles con nombres nuevos. Plan y bitácora:
+[docs/pasos/plan-version-3.md](docs/pasos/plan-version-3.md) (Pasos 26 a 31). El README muestra
+ahora capturas de cada pestaña.
+
+Actualización desde la 2.0.0: renombra en el `.env` las variables de los roles (tabla de abajo);
+los datos se leen tal cual, sin migración.
 
 ### Cambiado (incompatible: variables del `.env`)
 
@@ -40,8 +48,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   minimalistas, con solo lo marcado en las fichas (el prompt dice qué no tomar de cada imagen)
   y sin reproducir rótulos ni cotas de las referencias, también en la composición y el render
   final (B-067 a B-070).
-- **Composición y Render Final** (Paso 29): ① Auditoría y ② Retoque plegables (① abierta si
-  el boceto ya tiene auditoría); editor de máscara con la herramienta activa resaltada, iconos
+- **Composición y Render Final** (Paso 29): Auditoría y Retoque plegables (la auditoría,
+  abierta si el boceto ya tiene una); editor de máscara con la herramienta activa resaltada, iconos
   más claros y la rueda del ratón para desplazar la página; aviso de que, con el retoque, las
   indicaciones solo actúan en la zona pintada; tabla de la auditoría sin palabras partidas;
   prompt con ajuste de línea; tamaño con su proporción («2448×1632 (3:2)») y sin «calidad» en
@@ -54,7 +62,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   B-089).
 - **Costes IA, nueva maquetación** (B-080, B-081): colores vivos y muy distintos por rol, una
   leyenda común junto al coste por rol, y el coste por día y por proyecto apilados por rol a
-  ancho completo.
+  ancho completo. Los roles van agrupados, primero los de texto y después los de imagen
+  (B-093).
+- **README con capturas** de las seis pestañas (Paso 31, B-023).
+
+### Corregido
+
+- «Procesando» junto a los botones con coste: salía recortado y, al confirmar, sobre los
+  botones de la confirmación. Ahora ocupa la línea del coste y la confirmación se oculta al
+  pulsarla, de modo que no se puede confirmar dos veces (B-090).
+- Correcciones propuestas de la auditoría con ajuste de línea, sin desplazamiento horizontal
+  (B-091).
+- Tooltip de los gráficos de Costes IA desplazado respecto a la barra, incómodo en las
+  estrechas (B-092).
 
 ## [2.0.0] — 2026-10-25
 
@@ -213,4 +233,6 @@ cada etapa.
   escalada de privilegios, límites de recursos), usuario configurable (`APP_UID`/`APP_GID`) y
   comando de papelera (`listar`, `restaurar`, `vaciar` con confirmación).
 
+[3.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0
+[2.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v2.0.0
 [1.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v1.0.0
