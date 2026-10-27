@@ -35,6 +35,7 @@ en GitHub Pages, con la estructura completa y las primeras páginas (B-099). El 
 | `uv run --locked --only-group docs mkdocs build --strict` | ✅ Sin avisos |
 | Revisión visual con `mkdocs serve` (Playwright) | ✅ Inicio en modo oscuro y claro, configuración (tablas sin partir los nombres de variable), instalación y versiones |
 | pre-commit | ✅ |
+| CI de la PR #49 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación (la publicación se salta en las PR) |
 
 Coste real del paso: 0 €.
 
