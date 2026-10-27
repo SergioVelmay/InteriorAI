@@ -32,6 +32,7 @@ pública, con la API y su Swagger, y una sección de desarrollo (B-100).
 | `mkdocs build --strict` | ✅ Sin avisos |
 | Revisión visual (`mkdocs serve`, Playwright) | ✅ Swagger embebido en modo oscuro con los 7 grupos descritos; diagramas de contenedores, de secuencia y de datos dibujados. El de secuencia fallaba por un punto y coma en un mensaje (en Mermaid separa instrucciones): corregido |
 | pre-commit | ✅ |
+| CI de la PR #50 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
