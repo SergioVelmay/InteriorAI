@@ -46,7 +46,7 @@ Las dos dudas que se repetían en todas las generaciones (cinco altos de 60 cm f
 50; desayunador a 90 frente a 93/106 cm) quedan resueltas: se adopta lo que escribió el usuario
 y se interpretan 93 y 106 como cotas de partes distintas del desayunador.
 
-Imágenes reales sobre la copia (comparación en `%TEMP%`, fuera del repositorio):
+Imágenes reales sobre la copia (comparaciones y prompts de antes y después en `InteriorAI-capturas/etapa-07-paso-32/`, fuera del repositorio):
 
 | Prueba | Resultado |
 |--------|-----------|
