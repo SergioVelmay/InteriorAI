@@ -6,6 +6,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Documentación pública** en <https://sergiovelmay.github.io/InteriorAI/> (Paso 34, B-099):
+  MkDocs Material en GitHub Pages, publicada sola al integrar en `main`. Inicio, primeros pasos
+  (instalación y configuración), versiones, seguridad y licencia; el manual de usuario y la
+  referencia técnica, en preparación.
+
 ### Cambiado (incompatible: API y esquema de datos)
 
 - **Sin la compatibilidad con la v1** (Paso 33, B-056). Fuera los briefs (`/briefs`, su

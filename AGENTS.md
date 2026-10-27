@@ -73,8 +73,9 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 | `config/pricing.yaml` | Precios por despliegue en EUR (sin secretos; montado en solo lectura) |
 | `postman/` | Colección (flujo completo de la API v1), entorno local y `fixtures/` |
 | `data/` | Volumen de proyectos (gitignored): `proyectos.json`, `{id}/...` |
-| `docs/agent/` | Contexto técnico por materia (leer solo cuando aplique) |
-| `docs/pasos/` | Bitácora de pasos y backlog |
+| `docs/` + `mkdocs.yml` | Web pública (GitHub Pages, MkDocs Material): `index.md`, `primeros-pasos/`, `manual/`, `referencia/`, `proyecto/`; se publica al mergear en `main` (`.github/workflows/docs.yml`) |
+| `docs/agent/` | Contexto técnico por materia (leer solo cuando aplique; fuera de la web) |
+| `docs/pasos/` | Bitácora de pasos y backlog (fuera de la web) |
 
 ## Documentación por materia (leer bajo demanda)
 

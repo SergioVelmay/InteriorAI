@@ -101,3 +101,6 @@ desktop.ini
 # --- Claude Code: ajustes locales del usuario --------------------------------
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Documentación generada por MkDocs (uv run --group docs mkdocs build)
+/site/

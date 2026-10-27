@@ -12,6 +12,11 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
 ]
+# Documentación pública (GitHub Pages): uv run --group docs mkdocs serve
+docs = [
+    "mkdocs-glightbox>=0.4",
+    "mkdocs-material>=9.6",
+]
 # Pruebas de extremo a extremo (e2e/): uv run --group e2e pytest e2e
 e2e = [
     "playwright>=1.48",

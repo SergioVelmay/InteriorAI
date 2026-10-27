@@ -11,6 +11,9 @@ cada habitación. **Nada avanza sin tu elección** y cada acción con coste lo m
 
 Construido con FastAPI, Gradio y Azure AI Foundry. Versión **3.0.0** ([CHANGELOG](CHANGELOG.md)).
 
+📖 **Documentación:** <https://sergiovelmay.github.io/InteriorAI/> (instalación, configuración,
+manual de usuario y referencia técnica).
+
 ## Cómo funciona
 
 ```mermaid
