@@ -88,6 +88,7 @@ figura con 0,013 € (los megapíxeles de referencia). Para contrastar con la fa
 | Imágenes | ✅ Todas referenciadas; ninguna de más de 1 MB |
 | `uv run pytest` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #51 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación (la publicación solo corre en `main`) |
 
 ## 7. Estado final
 
