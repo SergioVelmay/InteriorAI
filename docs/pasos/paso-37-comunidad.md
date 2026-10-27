@@ -35,6 +35,7 @@ comunidad de GitHub (B-102; el perfil estaba al 57 %) y los ajustes del reposito
 | `uv run pytest` | ✅ |
 | pre-commit | ✅ (incluye `check yaml` sobre las plantillas) |
 | Ajustes del repositorio | ✅ Comprobados con `gh repo view` |
+| CI de la PR #52 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
