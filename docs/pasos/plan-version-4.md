@@ -45,13 +45,14 @@ Proyecto nuevo **«Cocina Abierta para Manual de Usuario»**, con las referencia
 
 - **Punto de vista y perspectiva:** los de la infografía con muchos muebles (la vista general),
   no los de las capturas de SketchUp.
-- **Capturas de SketchUp:** solo las medidas y la distribución de los elementos.
+- **Capturas de SketchUp:** solo las medidas y la distribución de los elementos, sin el
+  desayunador que está delante del cuerpo principal de la cocina.
 - **Referencias de cocina:** los colores, gris antracita y madera.
 - **Render del espacio abierto vacío:** los materiales de paredes, suelo y techo, las ventanas,
   la cortina y el estor, las vistas exteriores y la barandilla de la terraza.
 - **Infografía con muebles:** sus detalles entran en los bocetos; en la composición se eliminan
-  o modifican algunos para que estética y composición cuadren, y se añaden una planta en maceta
-  y un perro golden retriever donde queden bien.
+  o modifican algunos con colores y materiales que combinen con los de la cocina, y con un
+  retoque con máscara se añade una planta en maceta (ajuste del usuario: sin el perro).
 - **Render final:** uno de día, otro al atardecer y otro de noche; queda seleccionado el de
   noche.
 - Libertad creativa en el resto (notas, fichas, indicaciones, retoques, auditoría), recorriendo

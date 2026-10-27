@@ -10,7 +10,7 @@ referencias (vistas de la estancia, capturas de SketchUp, planos, muebles e insp
 InteriorAI genera bocetos, una composición fiel y una fotografía realista de cada habitación.
 **Nada avanza sin tu elección** y cada acción con coste te lo muestra antes.
 
-![Render final de una cocina generada con InteriorAI](img/portada-render-final.jpg)
+![Render final de noche de una cocina abierta al salón, generado con InteriorAI (el caso del manual)](img/portada-render-final.jpg)
 
 Software libre (licencia MIT), construido con FastAPI, Gradio y Azure AI Foundry. Funciona en tu
 equipo con Docker y tiene un modo de **simulación sin coste** para probarlo sin credenciales.

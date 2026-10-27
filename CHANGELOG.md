@@ -17,6 +17,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   y herramientas. El esquema OpenAPI se exporta a `docs/referencia/openapi.json`
   (`python -m app.openapi`) y un test vigila que esté al día. La API describe sus grupos de
   endpoints, su licencia y su contacto.
+- **Manual de usuario en la web** (Paso 36, B-101): un caso real hecho desde cero con la IA de
+  Azure, «Cocina Abierta para Manual de Usuario», recorre cada pestaña y cada opción con sus
+  capturas (de las referencias al render final de día, atardecer y noche, y los costes), más una
+  página de consejos. La portada de la web muestra el render de noche del caso.
 
 ### Cambiado (incompatible: API y esquema de datos)
 

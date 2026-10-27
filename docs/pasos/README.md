@@ -64,6 +64,7 @@ Después de la 3.0.0:
 | 33 | [Retirar la compatibilidad con la v1](paso-33-sin-v1.md) (B-056) | `feat/paso-33` | ✅ Cerrado |
 | 34 | [Web de documentación](paso-34-web.md) (B-099) | `feat/paso-34` | ✅ Cerrado |
 | 35 | [Referencia técnica](paso-35-referencia.md) (B-100) | `feat/paso-35` | ✅ Cerrado |
+| 36 | [Manual de usuario](paso-36-manual.md) (B-101) | `feat/paso-36` | ⏳ En revisión |
 
 Versión 4.0.0 (en curso): [plan de acción](plan-version-4.md), Pasos 32 a 39, entradas B-054,
 B-056 y B-094 a B-102 del [backlog](BACKLOG.md).

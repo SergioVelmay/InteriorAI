@@ -1,20 +1,79 @@
 # Manual de usuario
 
-!!! note "En preparación"
-    El manual se está escribiendo con un caso real hecho desde cero en la aplicación,
-    **«Cocina Abierta para Manual de Usuario»**, con capturas de cada pestaña y de cada sección en
-    cada estado: vacía, rellena, procesando y con el resultado.
+Este manual recorre **todas las pestañas y opciones** de InteriorAI con un caso real, hecho desde
+cero en la aplicación con la IA de Azure: **«Cocina Abierta para Manual de Usuario»**, una cocina
+abierta al salón-comedor de un piso de obra nueva.
 
-Contenido previsto:
+![Render final de noche del caso del manual](img/caso-render-noche.jpg)
 
-1. **Proyectos:** crear un proyecto, su resumen, las llamadas de IA y la papelera.
-2. **Referencias:** subir imágenes con notas, el análisis (la receta), la ficha y qué marcar.
-3. **Bocetos:** referencias activas, calidad, formato, variantes, indicaciones y elegir uno.
-4. **Composición:** auditoría del boceto, retoque con máscara y crear la composición.
-5. **Render final:** proporción, resolución, indicaciones globales (de día, al atardecer y de
-   noche) y otras versiones.
-6. **Costes IA:** gasto por rol, día y proyecto, registro de llamadas y precios.
-7. **Consejos:** cómo escribir notas e indicaciones y qué marcar en las fichas.
+## El caso en cuatro imágenes
 
-Mientras tanto, el [README del repositorio](https://github.com/SergioVelmay/InteriorAI#recorrido)
-muestra cada pestaña con un proyecto real.
+<div class="grid" markdown>
+
+<figure markdown="span">
+  ![Boceto elegido](img/caso-boceto.jpg)
+  <figcaption>1. Boceto elegido: la vista del salón con la cocina antracita y roble</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Composición con la auditoría](img/caso-composicion.jpg)
+  <figcaption>2. Composición: muebles que combinan con la cocina</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Retoque con máscara](img/caso-retoque.jpg)
+  <figcaption>3. Retoque: un olivo en maceta pintando solo su zona</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Render final de día](img/caso-render-dia.jpg)
+  <figcaption>4. Render final: la fotografía realista (aquí, de día)</figcaption>
+</figure>
+
+</div>
+
+## Qué se pidió
+
+El objetivo era ver la cocina terminada desde el punto de vista general del salón, con:
+
+- **la perspectiva y el mobiliario** de una infografía comercial del salón-comedor;
+- **las medidas y la distribución** del frente de la cocina de un modelo 3D de SketchUp, sin el
+  desayunador que aparece en el modelo;
+- **los colores y materiales** de una cocina real de referencia: gris antracita, roble y piedra
+  negra;
+- **los materiales del espacio** (paredes, suelo, techo, ventanas, cortina, estor, vistas y
+  barandilla) de una fotografía del piso vacío;
+- en la composición, cambiar los muebles del salón y el comedor para que combinen con la cocina
+  y, con un retoque, **añadir una planta en maceta**;
+- un render final **de día**, otro **al atardecer** y otro **de noche**, que es el elegido.
+
+## Recorrido
+
+| Paso | Pestaña | Qué se hace |
+|------|---------|-------------|
+| 1 | [Proyectos](proyectos.md) | Crear el proyecto y describir la intención del diseño |
+| 2 | [Referencias](referencias.md) | Subir las 6 imágenes con notas, revisar sus fichas y marcar lo que se usa |
+| 3 | [Bocetos](bocetos.md) | Dos tandas de 4 bocetos (la segunda con indicaciones) y elegir uno |
+| 4 | [Composición](composicion.md) | Auditoría del boceto, composición con cambios de mobiliario y retoque con máscara |
+| 5 | [Render final](render-final.md) | Día, atardecer y noche; otra versión y una panorámica |
+| 6 | [Costes IA](costes.md) | Revisar lo que ha costado y el detalle de cada llamada |
+| | [Consejos](consejos.md) | Cómo escribir notas e indicaciones y qué marcar en las fichas |
+
+## Lo que costó
+
+Todo el caso costó **1,57 €** (estimación con los precios de lista; la cifra facturada está en
+Azure Cost Management), en 29 llamadas a la IA:
+
+| Rol | Llamadas | Coste | Para qué |
+|-----|----------|-------|----------|
+| `REFERENCE_ANALYST` | 7 | 0,20 € | Las recetas de las 6 referencias y un nuevo análisis |
+| `PROMPT_ARCHITECT` | 10 | 0,02 € | Un prompt por cada generación |
+| `FAST_DRAFT_MAKER` | 2 | 0,48 € | Dos tandas de 4 bocetos |
+| `GEOMETRY_AUDITOR` | 1 | 0,27 € | La auditoría del boceto |
+| `COMPOSITION_BUILDER` | 3 | 0,21 € | Composición, retoque y otra composición |
+| `REALISTIC_RENDERER` | 6 | 0,39 € | Cinco renders finales y un intento que agotó el tiempo |
+
+!!! tip "Antes de empezar"
+    Si aún no tienes la aplicación en marcha, sigue [Instalación](../primeros-pasos/instalacion.md).
+    Puedes recorrer el manual en **modo simulación**, sin coste: las imágenes serán marcos de
+    colores, pero todas las pantallas y opciones son las mismas.
