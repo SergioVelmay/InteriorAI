@@ -13,7 +13,7 @@ cambiar `.env` (y su precio en `config/pricing.yaml`), sin tocar código.
 
 | Rol (enum) | Variable de entorno | `ApiKind` | Uso |
 |------------|---------------------|-----------|-----|
-| `PROMPT_ARCHITECT` | `DEPLOYMENT_ROLE_PROMPT_ARCHITECT` | `RESPONSES` | Descripción e imágenes → brief y prompts de imagen (luna: en cada generación, casi gratis) |
+| `PROMPT_ARCHITECT` | `DEPLOYMENT_ROLE_PROMPT_ARCHITECT` | `RESPONSES` | Descripción, fichas e imágenes → prompt de cada generación (luna: casi gratis) |
 | `GEOMETRY_AUDITOR` | `DEPLOYMENT_ROLE_GEOMETRY_AUDITOR` | `RESPONSES` | QA del render frente a SketchUp (`reasoning.effort`) |
 | `REFERENCE_ANALYST` | `DEPLOYMENT_ROLE_REFERENCE_ANALYST` | `RESPONSES` | Fichas de las referencias (sol: visión precisa). Antes del Paso 18 se llamaba `CONTEXT_MANAGER` |
 | `FAST_DRAFT_MAKER` | `DEPLOYMENT_ROLE_FAST_DRAFT_MAKER` | `IMAGES` | Bocetos rápidos |
@@ -125,11 +125,10 @@ múltiplo superior y se recorta (`generation_size` + `masks.fit`).
 
 Paso 14: `summary.py` filtra las llamadas simuladas (`include_simulated`; la API las incluye
 por defecto, la interfaz no) y agrega todos los proyectos. `chain.py` calcula el coste de la
-cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos,
-intentos rechazados que sustituye, retoques y su salida en bruto), sus auditorías y el brief
-con sus versiones previas (`DesignBrief.request_id`; los briefs anteriores se emparejan por
-hora con su llamada de `PROMPT_ARCHITECT`, ±10 s). Sin ramas descartadas ni la indexación de
-referencias.
+cadena de un render sumando, por `request_id`, las llamadas de sus renders (lotes completos
+con su prompt automático y retoques), sus auditorías y, desde el Paso 33, las recetas de las
+referencias enviadas como imagen en la cadena (las anteriores al Paso 16 se emparejan por hora
+con su llamada del `REFERENCE_ANALYST`, ±10 s). Sin ramas descartadas.
 
 - `app.state.foundry` es un **`MeteredFoundryClient`** que envuelve al cliente mock/Azure
   (`create_metered_client`). Mide latencia (con reintentos), tokens (entrada, caché, escritura

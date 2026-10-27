@@ -15,8 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from shared.roles import Role, current_role
 
-SCHEMA_VERSION = 2  # 1 → 2: modelo de datos de la versión 2.0.0 (Paso 17)
-# Cabe la descripción de cualquier proyecto migrado (descripción + notas de diseño de la v1).
+# 2: modelo de datos de la versión 2.0.0 (Paso 17); 3: sin la compatibilidad con la v1 (Paso 33,
+# B-056). El índice `proyectos.json` no cambia desde la v2.
+SCHEMA_VERSION = 3
+INDEX_SCHEMA_VERSION = 2
+# Cabe la descripción de los proyectos que vienen de la v1 (descripción + notas de diseño).
 DESCRIPTION_MAX = 25_000
 
 
@@ -49,11 +52,6 @@ _ASSET_LABELS: dict[AssetKind, str] = {
     AssetKind.REFERENCIA: "Referencia",
     AssetKind.RENDER: "Render",
 }
-
-# Tipo que tenía en la v1 una imagen migrada: puente hasta el Paso 22, donde se elige la imagen
-# de partida. Mientras tanto sigue siendo la base de los bocetos, del brief y de la auditoría.
-LegacyKind = Literal["captura_sketchup", "plano"]
-LEGACY_KIND_LABELS: dict[str, str] = {"captura_sketchup": "Captura de SketchUp", "plano": "Plano"}
 
 
 class _Model(BaseModel):
@@ -169,53 +167,6 @@ class ReferenceSheet(_Model):
         return groups
 
 
-# --- Ficha de la v1 (histórico; ya no se genera) ----------------------------------------------
-
-
-class ReferenceCategory(StrEnum):
-    SOFA = "sofa"
-    MESA = "mesa"
-    SILLA = "silla"
-    CAMA = "cama"
-    ALMACENAJE = "almacenaje"
-    LAMPARA = "lampara"
-    ALFOMBRA = "alfombra"
-    TEXTIL = "textil"
-    DECORACION = "decoracion"
-    REVESTIMIENTO = "revestimiento"
-    AMBIENTE = "ambiente"  # inspiración de un ambiente completo
-    OTRO = "otro"
-
-
-class ReferenceAnalysis(_Model):
-    """Salida estructurada del REFERENCE_ANALYST para una referencia (Ikea, Pinterest...)."""
-
-    category: ReferenceCategory
-    item_name: str = Field(
-        description="Qué es, en español (p. ej. 'Sofá modular con chaiselongue')"
-    )
-    brand: str | None = Field(description="Marca si se conoce por la nota o la imagen")
-    product_name: str | None = Field(description="Nombre comercial del producto si se conoce")
-    style_tags: list[str] = Field(description="Estilos, en español")
-    colors: list[str] = Field(description="Colores, en español")
-    materials: list[str] = Field(description="Materiales y acabados, en español")
-    dimensions_cm: DimensionsCm
-    dimensions_source: Literal["nota_usuario", "imagen", "desconocido"]
-    summary: str = Field(description="Descripción breve en español")
-    design_relevance: str = Field(
-        description="Qué aporta al diseño (forma y medidas, textura, color, ambiente...)"
-    )
-
-
-class AssetAnalysis(_Model):
-    result: ReferenceAnalysis
-    status: Literal["proposed", "validated"] = "proposed"  # validated = revisado por el usuario
-    prompt_version: str | None = None
-    analyzed_at: datetime = Field(default_factory=utc_now)
-    validated_at: datetime | None = None
-    request_id: str | None = None  # petición que la generó (coste en la telemetría)
-
-
 class Asset(_Model):
     id: UUID = Field(default_factory=uuid4)
     kind: AssetKind
@@ -228,71 +179,7 @@ class Asset(_Model):
     height_px: int | None = Field(default=None, gt=0)
     description: str = Field(default="", max_length=2_000)  # notas: orientan el análisis
     sheet: ReferenceSheet | None = None  # receta y ficha (v2); None si aún no se ha analizado
-    analysis: AssetAnalysis | None = None  # histórico (v1): ficha anterior, ya no se usa
-    legacy_kind: LegacyKind | None = None  # solo imágenes migradas de la v1 (ver arriba)
     created_at: datetime = Field(default_factory=utc_now)
-
-
-# --- Brief de diseño (PROMPT_ARCHITECT) -----------------------------------------------
-
-
-class FurnitureItem(_Model):
-    name: str
-    reference_asset_id: str | None = Field(
-        description="id de la referencia de la que procede, o null"
-    )
-    dimensions_cm: DimensionsCm
-    placement: str = Field(description="Ubicación en la estancia, en español")
-    keep_exact: bool = Field(description="True si forma y medidas deben respetarse con exactitud")
-
-
-class ImagePrompts(_Model):
-    """Prompts para los modelos de imagen, en inglés."""
-
-    fast_draft: str
-    structural_composer: str
-    photorealistic_renderer: str
-
-
-class DesignBriefContent(_Model):
-    """Salida estructurada del PROMPT_ARCHITECT (editable por el usuario)."""
-
-    title: str
-    summary: str = Field(description="Resumen del diseño, en español")
-    spatial_constraints: list[str] = Field(description="Cotas, huecos y pasos libres, en español")
-    furniture: list[FurnitureItem]
-    palette: list[str]
-    materials: list[str]
-    lighting: str
-    camera: str = Field(description="Punto de vista propuesto, en español")
-    image_prompts: ImagePrompts
-    open_questions: list[str] = Field(description="Dudas para el usuario, en español")
-
-
-class BriefStatus(StrEnum):
-    PROPOSED = "propuesto"
-    APPROVED = "aprobado"
-    REJECTED = "rechazado"
-    SUPERSEDED = "reemplazado"  # había sido aprobado y se aprobó una versión posterior
-
-
-class DesignBrief(_Model):
-    id: UUID = Field(default_factory=uuid4)
-    version: int = Field(ge=1)
-    status: BriefStatus = BriefStatus.PROPOSED
-    content: DesignBriefContent
-    instructions: str = ""  # indicaciones del usuario para esta versión
-    feedback: str | None = None  # motivo del rechazo (alimenta la siguiente versión)
-    parent_id: UUID | None = None
-    source_asset_ids: list[UUID] = Field(default_factory=list)  # imágenes base enviadas
-    reference_asset_ids: list[UUID] = Field(default_factory=list)  # fichas incluidas
-    warnings: list[str] = Field(default_factory=list)
-    prompt_version: str | None = None
-    request_id: str | None = None  # petición que lo generó (coste en la telemetría)
-    edited_by_user: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    decided_at: datetime | None = None
 
 
 # --- Renders (pipelines de imagen) ------------------------------------------------------
@@ -332,7 +219,7 @@ class AuditCheck(_Model):
 
 class AuditDeviation(_Model):
     element: str
-    expected: str = Field(description="Lo que indica la captura o el brief, en español")
+    expected: str = Field(description="Lo que indican las referencias, en español")
     observed: str = Field(description="Lo que se ve en la imagen auditada, en español")
     severity: Literal["baja", "media", "alta"]
 
@@ -341,7 +228,7 @@ class AuditReport(_Model):
     """Salida estructurada del GEOMETRY_AUDITOR."""
 
     verdict: Literal["conforme", "conforme_con_observaciones", "no_conforme"]
-    score: int = Field(ge=0, le=100, description="Fidelidad global a la captura y al brief")
+    score: int = Field(ge=0, le=100, description="Fidelidad global a las referencias")
     checks: list[AuditCheck]
     deviations: list[AuditDeviation]
     suggested_prompt_adjustments: str = Field(
@@ -353,7 +240,6 @@ class AuditReport(_Model):
 class RenderAudit(_Model):
     id: UUID = Field(default_factory=uuid4)
     report: AuditReport
-    reference_asset_id: UUID | None = None  # v1: captura/plano de origen con la que se comparó
     # Paso 23: las referencias del espacio (perspectiva o geometría marcadas) comparadas
     reference_asset_ids: list[UUID] = Field(default_factory=list)
     notes: str = ""  # observaciones del usuario que el auditor debía comprobar
@@ -367,22 +253,17 @@ class RenderAudit(_Model):
 
 class RenderInpaint(_Model):
     """Retoque de una zona de una composición con máscara nativa (B-038): la imagen es la que
-    devuelve el modelo, completa. Los retoques de la v1 recomponían solo la zona pintada sobre
-    `source_render_id` y podían ser de renders finales (`regeneracion`)."""
+    devuelve el modelo, completa."""
 
     source_render_id: UUID  # imagen retocada (no cambia)
     instruction: str  # cambio pedido por el usuario
     mask_file: str  # máscara normalizada junto al render (blanco = zona editada)
-    raw_file: str | None = None  # histórico (v1): salida del modelo antes de recomponer
-    guide_file: str | None = None  # histórico (v1): guía enviada al renderizador (zona en rojo)
     coverage: float = Field(ge=0, le=1)  # fracción de la imagen pintada
-    feather_px: int | None = Field(default=None, ge=0)  # histórico (v1): borde al recomponer
-    method: Literal["mascara", "regeneracion"] = "mascara"  # regeneracion: render final (v1)
 
     @property
     def files(self) -> list[str]:
         """Archivos del retoque guardados junto al render en `renders_historico/`."""
-        return [f for f in (self.mask_file, self.raw_file, self.guide_file) if f]
+        return [self.mask_file]
 
 
 class StagePrompt(_Model):
@@ -406,8 +287,6 @@ class RenderRecord(_Model):
     status: RenderStatus = RenderStatus.GENERATED
     role: Role
     deployment: str
-    brief_id: UUID | None = None  # histórico (v1): brief del que salió; None desde el Paso 22
-    brief_version: int | None = None
     prompt: str  # prompt exacto enviado al modelo
     prompt_info: StagePrompt | None = None  # cómo se escribió el prompt (Paso 22)
     prompt_version: str | None = None  # versión del prompt de sistema que lo escribió
@@ -422,10 +301,7 @@ class RenderRecord(_Model):
     request_id: str | None = None
     cost_eur: float | None = None  # coste estimado de la llamada repartido entre sus imágenes
     audits: list[RenderAudit] = Field(default_factory=list)  # a demanda; la última es la vigente
-    feedback: str | None = None  # histórico (v1): comentarios del usuario al rechazarla
-    previous_attempt_id: UUID | None = None  # histórico (v1): render rechazado al que sustituye
     inpaint: RenderInpaint | None = None  # solo si es un retoque de zona (Paso 13b)
-    raw_of_render_id: UUID | None = None  # histórico (v1): salida en bruto de ese retoque
     created_at: datetime = Field(default_factory=utc_now)
     decided_at: datetime | None = None
 
@@ -477,12 +353,11 @@ class ProjectSummary(_Model):
 class ProjectMetadata(ProjectFields):
     """Contenido de `{id}/metadatos.json`."""
 
-    schema_version: Literal[2] = SCHEMA_VERSION
+    schema_version: Literal[3] = SCHEMA_VERSION
     id: UUID
     created_at: datetime
     updated_at: datetime
     assets: list[Asset] = Field(default_factory=list)
-    briefs: list[DesignBrief] = Field(default_factory=list)
     renders: list[RenderRecord] = Field(default_factory=list)
 
     def summary(self) -> ProjectSummary:
@@ -497,7 +372,7 @@ class ProjectMetadata(ProjectFields):
 class ProjectIndex(_Model):
     """Contenido de `proyectos.json`."""
 
-    schema_version: Literal[2] = SCHEMA_VERSION
+    schema_version: Literal[2] = INDEX_SCHEMA_VERSION
     projects: list[ProjectSummary] = Field(default_factory=list)
 
 

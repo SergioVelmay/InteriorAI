@@ -1,6 +1,6 @@
 # FastAPI — especificaciones y convenciones
 
-> Estado (2.0.0): **backend completo**: proyectos, referencias con receta y ficha, costes, prompt automático, bocetos, composición (auditoría y retoque) y render final (Pasos 5-10 y 17-24). Esquema v2 con migración automática.
+> Estado (4.0.0, en curso): **backend completo**: proyectos, referencias con receta y ficha, costes, prompt automático, bocetos, composición (auditoría y retoque) y render final (Pasos 5-10 y 17-24). Esquema v3 sin la v1 (Paso 33), con migración automática.
 
 ## Estructura y arranque
 
@@ -78,11 +78,6 @@ data/
 | POST | `/projects/{id}/references/index` | `{asset_ids?, force?}` → `{indexed, skipped, failed, cost_eur, request_id}`: análisis en bloque de las referencias sin receta | 8 · 21 ✅ |
 | POST | `/projects/{id}/assets/{asset_id}/analyze` | `{notes?}` → `{asset, cost_eur, request_id}`: receta de una referencia (al subirla o de nuevo con otras notas); la ficha se guarda con lo que piden las notas marcado | 21 ✅ |
 | PUT | `/projects/{id}/assets/{asset_id}/sheet` | `{selected: ["grupo:índice"]}` → `Asset`: «Guardar ficha» (vacía = referencia descartada) | 21 ✅ |
-| POST | `/projects/{id}/briefs` | `{instructions?}` → 201 `{brief, cost_eur, request_id}` | 8 ✅ |
-| GET | `/projects/{id}/briefs` · `/briefs/{brief_id}` | `[DesignBrief]` (versión desc.) · `DesignBrief` | 8 ✅ |
-| PATCH | `/projects/{id}/briefs/{brief_id}` | `BriefContentUpdate` (solo `propuesto`; si no, 409) | 8 ✅ |
-| POST | `/projects/{id}/briefs/{brief_id}/approve` | `DesignBrief` (el aprobado anterior → `reemplazado`) | 8 ✅ |
-| POST | `/projects/{id}/briefs/{brief_id}/reject` | `{feedback, regenerate=true}` → `{rejected, new_brief, cost_eur}` | 8 ✅ |
 | POST | `/projects/{id}/renders/drafts` | `{n=4 (1-8), quality=medium, size=1536x1024, prompt_override?, extra_instructions?}` → 201 `{renders, cost_eur, request_id}`: referencias activas y prompt automático (`prompt_info`), sin brief | 9 · 22 ✅ |
 | POST | `/projects/{id}/renders/compositions` | `{draft_id?, source=boceto\|composicion, use_audit=false, audit_notes, n=1, quality=medium, size=1536x1024, ...}` (parte del boceto o de la composición seleccionados; apoyos hasta 12) → 201 | 9 · 23 ✅ |
 | POST | `/projects/{id}/renders/final` | `{composition_id?, source=composicion\|render_final, variant_of?, size=2448x1632, extra_instructions, n=1}` (solo la imagen de partida y el prompt; `variant_of`: «Otra versión», repite prompt, partida y tamaño) → 201 | 9 · 24 ✅ |
@@ -95,8 +90,7 @@ data/
 ## Subidas (`app/api/uploads.py`, `app/api/limits.py`)
 
 - `{kind}` solo admite `UploadKind` (`referencia`, desde el esquema 2, B-028): los renders
-  solo los genera la IA (otro valor → 422). Las capturas y planos de la v1 son referencias con
-  `legacy_kind` (imagen base hasta el Paso 22: `app/pipelines/sources.py`).
+  solo los genera la IA (otro valor → 422).
 - Tipo real por magic bytes (`detect_mime`), nunca por extensión/`Content-Type`. Todos los tipos
   (planos incluidos, desde el Paso 12): PNG, JPEG, WebP → si no, 415.
 - Imágenes decodificadas por completo con Pillow (corruptas → 415) y límite de 80 MP
@@ -120,7 +114,7 @@ data/
 
 `ProjectNotFoundError`/`AssetNotFoundError` → 404 · `InvalidPathError` → 422 ·
 `CorruptDataError` → 500 genérico (detalle solo en logs) · `UploadError` → su código ·
-`BriefNotFoundError` → 404 · `TransitionError` → 409 · `PipelineInputError` → 422 ·
+`TransitionError` → 409 · `PipelineInputError` → 422 ·
 `PipelineError` → 502 · `FoundryUnsupportedError` → 400 · `FoundryContentFilterError` → 422 ·
 `FoundryRateLimitError` → 429 · `FoundryTimeoutError` → 504 · otros `FoundryError` → 502.
 Formato siempre `{"detail": "<mensaje en español>"}`.
@@ -137,14 +131,14 @@ Los routers anidados no se aplanan en `app.routes` (aparecen como entradas agrup
 
 ## Pipelines y HITL (Paso 8)
 
-- `app/pipelines/`: `reference_analyst.py` (recetas y fichas de las referencias, Paso 21), `sources.py` (uso de las referencias activas hasta el Paso 22), `brief_v1.py` (brief de la v1),
+- `app/pipelines/`: `reference_analyst.py` (recetas y fichas de las referencias, Paso 21), `sources.py` (reglas de las referencias activas, `shared.supports`), `prompt_writer.py` (prompt automático),
   `schemas.py` (`strict_schema`), `images.py` (`prepare_image`, 1.024 px JPEG),
   `prompts/*.md` (prompts de sistema; `load_prompt(name).version` = hash).
-- `app/hitl/`: `ensure_transition` + tablas de transiciones; `briefs.py` (`edit_brief`,
-  `approve_brief`, `reject_brief`, `find_brief`). Las transiciones solo las dispara el usuario.
+- `app/hitl/`: `ensure_transition` + tablas de transiciones. Las transiciones solo las dispara
+  el usuario.
 - Los endpoints que llaman a la IA envuelven el trabajo en `telemetry_scope(project_id)` y
   devuelven `cost_eur` (`request_cost`) y `request_id`.
-- Escrituras de fichas y briefs con `ProjectRepository.mutate(project_id, change)`.
+- Escrituras de fichas con `ProjectRepository.mutate(project_id, change)`.
 - Pruebas manuales desde Git Bash: no usar `curl -d` con tildes (cp1252); usar Swagger,
   Postman o un script Python.
 
@@ -158,29 +152,28 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
 
 ## Renders (Paso 9)
 
-- `app/pipelines/renders.py`: el brief debe estar `aprobado` (409); la imagen base es la
-  primera captura/plano en imagen del brief; cada etapa exige el render anterior
-  `seleccionado` (409) y de la etapa correcta (422).
+- `app/pipelines/renders.py`: bocetos a partir de las referencias activas; cada etapa exige
+  el render anterior `seleccionado` (409) y de la etapa correcta (422).
 - Entradas preparadas a ≤ 2.048 px (`INPUT_MAX_SIDE_PX`). Tamaños: GPT-image 1536×1024 /
   1024×1536 / 1024×1024. Render final (Paso 24): 3:2 a 2448×1632 por defecto y tres
-  resoluciones por proporción en `shared/sizes.py` (las de la v1, con la proporción de la
-  captura); se admite cualquier tamaño ≤ 4 MP. El renderizador
+  resoluciones por proporción en `shared/sizes.py`; se admite cualquier tamaño ≤ 4 MP. El
+  renderizador
   trabaja en múltiplos de 16 px: se le pide el múltiplo superior (`generation_size`, 1920×1088)
   y se **recorta al centro** al tamaño exacto, sin escalar (`masks.fit`).
 - **Una sola imagen seleccionada por etapa** (B-043): seleccionar otra devuelve la anterior a
   `generado`.
 - Retoques (`inpaint_render`, Paso 13b · B-038): solo composiciones, con máscara nativa
   (`COMPOSITION_BUILDER`) y la posición de la zona en el prompt; se guarda la imagen completa
-  del modelo (sin recomponer) y `{id}-mascara.png` (`RenderInpaint`). Los retoques de la v1
-  (render final con guía, `{id}-bruto.png`, `{id}-guia.jpeg`) se conservan como historia.
+  del modelo (sin recomponer) y `{id}-mascara.png` (`RenderInpaint`).
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
 - Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado` (acción del usuario) y
-  `seleccionado → generado` (al seleccionar otra de la etapa). Sin rechazos ni descartes (B-048);
-  `feedback` y `previous_attempt_id` solo existen en imágenes de la v1.
-- Esquema de `metadatos.json` (`SCHEMA_VERSION = 2`): la v1 se migra sola
+  `seleccionado → generado` (al seleccionar otra de la etapa). Sin rechazos ni descartes (B-048).
+- Esquema de `metadatos.json` (`SCHEMA_VERSION = 3`, Paso 33): la v2 se migra sola
   (`app/storage/migrations.py`) al arrancar y al restaurar de la papelera, con copia previa en
-  `metadatos.v1.json`.
+  `metadatos.v2.json`; las imágenes de la v1 quedan sueltas (sin brief, rechazos, salidas en
+  bruto ni sus retoques). Los datos de la 1.0.0 (esquema 1) ya no se leen: se actualizan antes
+  con la 3.0.0. El índice `proyectos.json` sigue en el esquema 2.
 - Formato de salida por etapa en `_STAGE_ROLES` (todo PNG).
 - Auditoría (`app/pipelines/auditor.py`): a demanda y opcional; historial en
   `RenderRecord.audits`. Desde el Paso 23 (B-046) audita sobre todo el boceto seleccionado,

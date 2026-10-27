@@ -170,9 +170,10 @@ tabla; si queda alguna con el nombre anterior, la aplicación avisa al arrancar 
 | `GEOMETRIC_AUDITOR` | `GEOMETRY_AUDITOR` |
 | `REFERENCE_ANALYST` | (sin cambios) |
 
-**Desde la 1.0.0:** los datos se migran solos al esquema v2 al arrancar (cada proyecto conserva
-una copia en `metadatos.v1.json`). Las imágenes y los briefs de la v1 siguen visibles como
-historia; las capturas y los planos pasan a ser referencias, que conviene volver a analizar.
+**Desde la 3.x:** los datos se migran solos al esquema v3 al arrancar (cada proyecto conserva una
+copia en `metadatos.v2.json`). Las imágenes de la v1 siguen en sus galerías como imágenes
+sueltas, sin su brief. **Desde la 1.0.0:** actualiza antes con la 3.0.0 (la 4.0.0 ya no lee
+esos datos).
 
 Los contenedores se ejecutan sin privilegios, con el sistema de archivos en solo lectura, sin
 capacidades y con límites de memoria y CPU; los puertos solo escuchan en `127.0.0.1`.

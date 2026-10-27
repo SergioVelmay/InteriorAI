@@ -25,7 +25,7 @@ from shared.models import (
 )
 
 DEFAULT_TIMEOUT_S = 30
-AI_TIMEOUT_S = 600  # llamadas que invocan a la IA (indexación, brief, renders)
+AI_TIMEOUT_S = 600  # llamadas que invocan a la IA (análisis de referencias y renders)
 AI_AUDIT_TIMEOUT_S = 1_000  # el backend espera hasta GEOMETRY_AUDITOR_TIMEOUT_S (900 s)
 
 

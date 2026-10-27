@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from PIL import Image
+from pydantic import BaseModel
 
 from app.foundry.mock import sample_from_schema
 from app.pipelines.images import prepare_image
@@ -21,9 +22,9 @@ from shared.models import (
     RECIPE_GROUPS,
     Asset,
     AssetKind,
-    DesignBriefContent,
+    AuditReport,
     ProjectMetadata,
-    ReferenceAnalysis,
+    RecipeElement,
     ReferenceRecipe,
     ReferenceSheet,
     RenderInpaint,
@@ -52,9 +53,13 @@ def walk(node: Any):
             yield from walk(item)
 
 
-@pytest.mark.parametrize(
-    "model", [ReferenceAnalysis, DesignBriefContent, ReferenceRecipe, StagePrompt]
-)
+class Titled(BaseModel):
+    """Un campo que se llama como una palabra clave de JSON Schema."""
+
+    title: str
+
+
+@pytest.mark.parametrize("model", [ReferenceRecipe, StagePrompt, AuditReport])
 def test_strict_schema_rules(model) -> None:
     schema = strict_schema(model)
     objects = [n for n in walk(schema) if "properties" in n]
@@ -67,24 +72,24 @@ def test_strict_schema_rules(model) -> None:
 
 
 def test_strict_schema_keeps_fields_named_like_keywords() -> None:
-    """Regresión: la propiedad `title` del brief no debe confundirse con la palabra clave."""
-    schema = strict_schema(DesignBriefContent)
+    """Regresión: una propiedad `title` no debe confundirse con la palabra clave."""
+    schema = strict_schema(Titled)
     assert "title" in schema["properties"]
     assert "title" in schema["required"]
 
 
 def test_strict_schema_keeps_enums_nullables_and_descriptions() -> None:
-    schema = strict_schema(ReferenceAnalysis)
+    schema = strict_schema(RecipeElement)
     props = schema["properties"]
-    assert "sofa" in props["category"]["enum"]
-    assert {"type": "null"} in props["brand"]["anyOf"]
-    assert props["dimensions_source"]["enum"] == ["nota_usuario", "imagen", "desconocido"]
-    assert "español" in props["summary"]["description"]
+    assert props["dimensions_source"]["enum"] == [
+        "nota_usuario", "cota_imagen", "estimada", "ninguna",
+    ]  # fmt: skip
+    dimensions = props["dimensions_cm"]["properties"]
+    assert {"type": "null"} in dimensions["width_cm"]["anyOf"]
+    assert "español" in props["label"]["description"]
 
 
-@pytest.mark.parametrize(
-    "model", [ReferenceAnalysis, DesignBriefContent, ReferenceRecipe, StagePrompt]
-)
+@pytest.mark.parametrize("model", [ReferenceRecipe, StagePrompt, AuditReport])
 def test_mock_output_for_strict_schema_validates(model) -> None:
     model.model_validate(sample_from_schema(strict_schema(model)))
 
@@ -112,14 +117,14 @@ async def test_prepare_image_never_upscales() -> None:
 
 def test_prompts_are_versioned_by_content() -> None:
     for name in (
-        "reference_analyst", "brief_v1", "prompt_bocetos", "prompt_composicion",
+        "reference_analyst", "auditor_espacio", "prompt_bocetos", "prompt_composicion",
         "prompt_render_final", "prompt_criterios",
     ):  # fmt: skip
         prompt = load_prompt(name)
         assert prompt.text
         assert prompt.version.startswith(f"{name}@")
         assert len(prompt.version.split("@")[1]) == 12
-    assert "INGLÉS" in load_prompt("brief_v1").text
+    assert "INGLÉS" in load_prompt("prompt_bocetos").text
     assert "estimada" in load_prompt("reference_analyst").text
 
 

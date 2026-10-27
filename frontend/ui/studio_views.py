@@ -247,7 +247,7 @@ def render_caption(render: RenderRecord) -> str:
     audit = ""
     if render.audits:
         audit = f" · auditoría {render.audits[-1].report.score}/100"
-    retouch = " · retoque" if render.inpaint else " · bruto" if render.raw_of_render_id else ""
+    retouch = " · retoque" if render.inpaint else ""
     return (
         f"{STATUS_ICONS[render.status]} {render.status}{retouch}{audit} · {euros(render.cost_eur)}"
     )
@@ -295,8 +295,7 @@ def render_title_md(render: RenderRecord | None) -> str:
 
 def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> str:
     """«Ver más» (B-036, B-047): lo que entendió el PROMPT_ARCHITECT, el prompt enviado y el
-    resto de la trazabilidad. Las imágenes de la v1 muestran su brief en lugar del prompt
-    automático."""
+    resto de la trazabilidad. Las imágenes de la v1 no tienen prompt automático (Paso 33)."""
     if render is None:
         return ""
     names = {a.id: a.original_name for a in project.assets}
@@ -309,28 +308,16 @@ def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> s
         if info.open_questions:
             lines += ["**Dudas** (acláralas en las indicaciones de la próxima generación)",
                       _bullets(info.open_questions)]  # fmt: skip
-    elif render.brief_version is not None:
-        lines.append(f"Imagen de la v1, generada con el brief v{render.brief_version}.")
+    else:
+        lines.append("Imagen de la v1: anterior al prompt automático.")
     lines.append(f"**Entradas:** {html.escape(inputs)} · {render.deployment}")
     if render.inpaint:
         info_inpaint = render.inpaint
-        method = "máscara" if info_inpaint.method == "mascara" else "imagen regenerada y recortada"
         lines.append(
             f"**Retoque de** `{info_inpaint.source_render_id.hex[:8]}`: "
             f"«{html.escape(info_inpaint.instruction)}» · zona {info_inpaint.coverage:.0%} · "
-            f"{method}"
+            "máscara"
         )
-    if render.raw_of_render_id:
-        lines.append(
-            f"**Salida en bruto del retoque** `{render.raw_of_render_id.hex[:8]}` (v1): la "
-            "imagen completa que generó el modelo, sin recomponer"
-        )
-    if render.previous_attempt_id:
-        lines.append(
-            f"**Sustituye a:** `{render.previous_attempt_id.hex[:8]}` (rechazado en la v1)"
-        )
-    if render.feedback:
-        lines.append(f"**Tus comentarios al rechazarla (v1):** {html.escape(render.feedback)}")
     lines.append(f"**Prompt enviado al modelo de imagen**\n\n```\n{render.prompt}\n```")
     return "\n\n".join(lines)
 

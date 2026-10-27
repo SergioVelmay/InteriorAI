@@ -40,7 +40,7 @@ def test_multipart_upload_detects_type_and_dimensions(api: TestClient, project_u
     assert response.status_code == 201, response.text
     asset = response.json()
     assert asset["kind"] == "referencia"
-    assert asset["legacy_kind"] is None
+    assert "legacy_kind" not in asset and "analysis" not in asset  # sin la v1 (Paso 33)
     assert asset["mime_type"] == "image/png"
     assert (asset["width_px"], asset["height_px"]) == (320, 200)
     assert asset["original_name"] == "Plano Salón.png"

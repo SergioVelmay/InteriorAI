@@ -11,8 +11,6 @@ def test_costs_tab(ui: UI, projects: Projects, api: httpx.Client) -> None:
     page = ui.page
     project = projects.create("costes")
     url = project["url"]
-    brief = api.post(f"{url}/briefs").json()["brief"]
-    api.post(f"{url}/briefs/{brief['id']}/approve")
     api.post(f"{url}/renders/drafts", json={"n": 2})  # llamadas simuladas: no son gasto real
 
     ui.activate(project["name"])

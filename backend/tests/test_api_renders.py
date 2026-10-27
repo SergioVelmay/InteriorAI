@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import image_bytes, mark_active, mark_legacy
+from conftest import image_bytes, mark_active
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -71,7 +71,6 @@ def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) ->
         "product": upload("referencia", image_bytes(color="#556b2f"), "planificador.png"),
         "inspiration": upload("referencia", image_bytes(color="#6b8e23"), "inspiracion.jpg"),
     }
-    mark_legacy(api, pid, {project["capture"]: "captura_sketchup"})  # migrada de la v1 (B-028)
     # Fichas guardadas (B-030): la vista aporta la perspectiva; las demás, objetos y color.
     mark_active(api, pid, {project["capture"]: ["perspectiva"],
                            project["product"]: ["objetos"],
@@ -79,17 +78,9 @@ def new_project(api: TestClient, capture_size: tuple[int, int] = (1600, 900)) ->
     return project
 
 
-def approve_brief(api: TestClient, project: dict) -> dict:
-    brief = api.post(f"{project['url']}/briefs").json()["brief"]
-    api.post(f"{project['url']}/briefs/{brief['id']}/approve")
-    return brief
-
-
 @pytest.fixture
 def project(api: TestClient, spy: SpyClient) -> dict:
-    project = new_project(api)
-    project["brief"] = approve_brief(api, project)
-    return project
+    return new_project(api)
 
 
 def run(api: TestClient, project: dict, stage: str, **body: object) -> dict:
@@ -102,6 +93,13 @@ def select(api: TestClient, project: dict, render_id: str) -> dict:
     response = api.post(f"{project['url']}/renders/{render_id}/select")
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def compose(api: TestClient, project: dict) -> dict:
+    """Una composición (sin seleccionar) a partir de un boceto seleccionado."""
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    return run(api, project, "compositions")["renders"][0]
 
 
 # --- Etapa 1: bocetos -----------------------------------------------------------------------
@@ -126,7 +124,7 @@ def test_drafts_from_active_references_with_an_automatic_prompt(
         assert render["input_asset_ids"] == [
             project["capture"], project["product"], project["inspiration"],
         ]  # fmt: skip
-        assert render["brief_id"] is None and render["brief_version"] is None
+        assert "brief_id" not in render  # sin la v1 (Paso 33)
         assert render["prompt"] == render["prompt_info"]["prompt"] == "mock"
         assert render["prompt_info"]["interpretation"] == "mock"
         assert render["prompt_version"].startswith("prompt_bocetos@")
@@ -211,11 +209,9 @@ def test_invalid_gpt_image_sizes(
 def test_composition_with_and_without_selected_draft(
     api: TestClient, spy: SpyClient, project: dict
 ) -> None:
-    alone = run(api, project, "compositions")["renders"][0]
-    assert alone["input_asset_ids"] == [project["capture"]]
-    assert alone["parent_render_id"] is None
-    assert alone["quality"] == "medium"
-    assert alone["role"] == "COMPOSITION_BUILDER"
+    alone = api.post(f"{project['url']}/renders/compositions", json={})
+    assert alone.status_code == 422  # sin boceto seleccionado (la cadena de la v1 ya no existe)
+    assert "Selecciona un boceto" in alone.json()["detail"]
 
     draft = run(api, project, "drafts", n=1)["renders"][0]
     response = api.post(f"{project['url']}/renders/compositions", json={"draft_id": draft["id"]})
@@ -228,7 +224,7 @@ def test_composition_with_and_without_selected_draft(
         draft["id"], project["capture"], project["product"], project["inspiration"],
     ]  # fmt: skip
     assert composed["parent_render_id"] == draft["id"]
-    assert composed["brief_id"] is None
+    assert composed["quality"] == "medium" and composed["role"] == "COMPOSITION_BUILDER"
     assert composed["prompt_version"].startswith("prompt_composicion@")
     assert composed["size"] == "1536x1024"  # 3:2 por defecto
     role, request = spy.edits[-1]
@@ -307,43 +303,12 @@ def test_supports_are_capped_and_prioritized(
 
 
 def selected_composition(api: TestClient, project: dict) -> dict:
+    """Boceto y composición seleccionados."""
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
     composition = run(api, project, "compositions")["renders"][0]
     select(api, project, composition["id"])
     return composition
-
-
-def test_final_render_uses_composition_and_references(
-    api: TestClient, spy: SpyClient, project: dict
-) -> None:
-    composition = run(api, project, "compositions")["renders"][0]
-    response = api.post(
-        f"{project['url']}/renders/final", json={"composition_id": composition["id"]}
-    )
-    assert response.status_code == 409  # composición no seleccionada
-    select(api, project, composition["id"])
-
-    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
-    assert final["stage"] == "render_final"
-    assert final["role"] == "REALISTIC_RENDERER"
-    assert final["deployment"] == "FLUX.2-pro"
-    assert final["size"] == "1920x1080"  # proporción exacta de la captura (16:9)
-    assert final["quality"] is None
-    assert final["parent_render_id"] == composition["id"]
-    assert final["input_asset_ids"] == [
-        composition["id"],
-        project["product"],
-        project["inspiration"],
-    ]
-    assert final["cost_eur"] > 0
-    role, request = spy.edits[-1]
-    assert role is Role.REALISTIC_RENDERER
-    assert request.output_format == "png"
-    assert len(request.images) == 3
-    assert request.size == "1920x1088"  # el renderizador trabaja en múltiplos de 16 px
-    content = api.get(f"{project['url']}/assets/{final['id']}/content")
-    assert content.headers["content-type"] == "image/png"
-    with Image.open(io.BytesIO(content.content)) as image:
-        assert image.size == (1920, 1080)  # recortado al centro, sin escalar
 
 
 def v2_composition(api: TestClient) -> tuple[dict, dict]:
@@ -422,14 +387,6 @@ def test_another_version_repeats_prompt_start_and_size(api: TestClient, spy: Spy
     assert old.status_code == 422  # sin semilla ni referencias desde el Paso 24
 
 
-def test_v1_final_renders_have_no_versions(api: TestClient, spy: SpyClient, project: dict) -> None:
-    composition = selected_composition(api, project)  # cadena de la v1 (brief)
-    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
-    assert final["prompt_info"] is None
-    response = api.post(f"{project['url']}/renders/final", json={"variant_of": final["id"]})
-    assert response.status_code == 422
-
-
 @pytest.mark.parametrize("size", ["200x200", "2048x2048", "abc"])
 def test_invalid_renderer_sizes(api: TestClient, spy: SpyClient, project: dict, size: str) -> None:
     composition = selected_composition(api, project)
@@ -464,8 +421,9 @@ def test_select_transition(api: TestClient, spy: SpyClient, project: dict) -> No
 
 def test_one_selected_render_per_stage(api: TestClient, spy: SpyClient, project: dict) -> None:
     first, second = run(api, project, "drafts", n=2)["renders"]
+    select(api, project, first["id"])
     composition = run(api, project, "compositions")["renders"][0]
-    for render in (first, composition, second):
+    for render in (composition, second):
         select(api, project, render["id"])
     statuses = {r["id"]: r["status"] for r in api.get(f"{project['url']}/renders").json()}
     assert statuses == {
@@ -476,7 +434,8 @@ def test_one_selected_render_per_stage(api: TestClient, spy: SpyClient, project:
 
 
 def test_history_filter_and_order(api: TestClient, spy: SpyClient, project: dict) -> None:
-    run(api, project, "drafts", n=2)
+    drafts = run(api, project, "drafts", n=2)["renders"]
+    select(api, project, drafts[0]["id"])
     run(api, project, "compositions")
     all_renders = api.get(f"{project['url']}/renders").json()
     assert [r["stage"] for r in all_renders] == ["composicion", "boceto", "boceto"]
@@ -498,21 +457,12 @@ def test_deleting_a_render_removes_its_record(
 def test_render_calls_are_in_project_telemetry(
     api: TestClient, spy: SpyClient, project: dict
 ) -> None:
-    run(api, project, "drafts")
-    selected_composition(api, project)
+    drafts = run(api, project, "drafts")["renders"]
+    select(api, project, drafts[0]["id"])
+    run(api, project, "compositions")
     by_role = {g["key"]: g for g in api.get(f"{project['url']}/costs").json()["by_role"]}
     assert by_role["FAST_DRAFT_MAKER"]["images_out"] == 4  # 4 variantes por defecto (B-043)
     assert by_role["COMPOSITION_BUILDER"]["calls"] == 1
-
-
-def test_final_size_follows_the_capture(api: TestClient, spy: SpyClient) -> None:
-    project = new_project(api, capture_size=(900, 1200))  # vertical 3:4
-    approve_brief(api, project)
-    composition = selected_composition(api, project)
-    final = run(api, project, "final", composition_id=composition["id"])["renders"][0]
-    assert final["size"] == "1440x1920"
-    explicit = run(api, project, "final", composition_id=composition["id"], size="1280x1920")
-    assert explicit["renders"][0]["size"] == "1280x1920"
 
 
 # --- Retoque de una zona (inpainting) ------------------------------------------------------
@@ -544,7 +494,7 @@ def pixels(api: TestClient, project: dict, render_id: str) -> Image.Image:
 def test_inpaint_composition_uses_the_native_mask(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
-    composition = run(api, project, "compositions")["renders"][0]
+    composition = compose(api, project)
     # Máscara a mitad de resolución (misma proporción): se escala a la imagen.
     response = inpaint(api, project, composition["id"], zone_mask((768, 512), (100, 100, 300, 300)))
     assert response.status_code == 201, response.text
@@ -562,7 +512,7 @@ def test_inpaint_composition_uses_the_native_mask(
     assert retouch["size"] == "1536x1024"
     info = retouch["inpaint"]
     assert info["source_render_id"] == composition["id"]
-    assert info["method"] == "mascara" and info["instruction"] == "Cojines en mostaza"
+    assert info["instruction"] == "Cojines en mostaza" and "method" not in info
     assert info["coverage"] == pytest.approx(200 * 200 / (768 * 512), abs=1e-3)
 
     role, request = spy.edits[-1]
@@ -585,7 +535,7 @@ def test_inpaint_composition_uses_the_native_mask(
     # Solo se guarda la máscara: sin salida en bruto ni guía.
     folder = tmp_path / "data" / project["url"].rsplit("/", 1)[1] / "renders_historico"
     assert (folder / info["mask_file"]).is_file()
-    assert info["raw_file"] is None and info["guide_file"] is None and info["feather_px"] is None
+    assert set(info) == {"source_render_id", "instruction", "mask_file", "coverage"}
     url = f"{project['url']}/renders/{retouch['id']}/inpaint"
     mask = api.get(f"{url}/mascara")
     assert mask.status_code == 200 and mask.headers["content-type"] == "image/png"
@@ -608,6 +558,7 @@ def test_final_render_cannot_be_retouched(api: TestClient, spy: SpyClient, proje
 
 def test_inpaint_validation(api: TestClient, spy: SpyClient, project: dict) -> None:
     draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
     composition = run(api, project, "compositions")["renders"][0]
     box = (10, 10, 50, 50)
     assert inpaint(api, project, draft["id"], zone_mask((1536, 1024), box)).status_code == 422
@@ -632,7 +583,7 @@ def test_inpaint_validation(api: TestClient, spy: SpyClient, project: dict) -> N
 def test_deleting_a_retouch_moves_its_files_to_the_trash(
     api: TestClient, spy: SpyClient, project: dict, tmp_path: Path
 ) -> None:
-    composition = run(api, project, "compositions")["renders"][0]
+    composition = compose(api, project)
     retouch = inpaint(
         api, project, composition["id"], zone_mask((1536, 1024), (100, 100, 300, 300))
     ).json()["renders"][0]
@@ -653,7 +604,8 @@ def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> No
     other = run(api, project, "drafts", n=1)  # otra rama: no cuenta
 
     cost = api.get(f"{project['url']}/renders/{final['id']}/cost").json()
-    assert cost["renders"] == 3 and cost["briefs"] == 0  # sin brief desde el Paso 22
+    assert cost["renders"] == 3 and "briefs" not in cost  # sin brief desde el Paso 22
+    assert cost["references"] == 3  # las tres activas que recibió el boceto (Paso 33)
     assert cost["totals"]["calls"] == 0  # en simulación todo va aparte
     # 3 prompts automáticos + lote de 2 bocetos + composición + final
     assert cost["simulated_calls"] == 6
@@ -665,7 +617,7 @@ def test_render_chain_cost(api: TestClient, spy: SpyClient, project: dict) -> No
 
 
 def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: SpyClient) -> None:
-    """B-022: las recetas de las referencias que usa el brief cuentan en la cadena."""
+    """B-022 y Paso 33: las recetas de las referencias enviadas en la cadena cuentan."""
     project = new_project(api)
     indexed = api.post(f"{project['url']}/references/index", json={"force": True})
     assert indexed.status_code == 200, indexed.text
@@ -673,10 +625,9 @@ def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: Spy
     assets = api.get(f"{project['url']}/assets", params={"kind": "referencia"}).json()
     request_id = indexed.headers["x-request-id"]
     assert all(a["sheet"]["request_id"] == request_id for a in assets)
-    brief = approve_brief(api, project)
-    assert len(brief["reference_asset_ids"]) == 3  # las tres activas
-    composition = run(api, project, "compositions")["renders"][0]
+    composition = selected_composition(api, project)
 
     cost = api.get(f"{project['url']}/renders/{composition['id']}/cost").json()
-    assert cost["references"] == 3 and cost["briefs"] == 1
-    assert cost["simulated_calls"] == 5  # 3 recetas + brief + composición
+    assert cost["references"] == 3
+    # 3 recetas + prompt y boceto + prompt y composición
+    assert cost["simulated_calls"] == 7

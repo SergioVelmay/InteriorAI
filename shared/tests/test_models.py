@@ -41,9 +41,9 @@ def test_update_only_reports_fields_sent() -> None:
 def test_metadata_and_index_carry_schema_version() -> None:
     now = utc_now()
     metadata = ProjectMetadata(id=uuid4(), name="x", created_at=now, updated_at=now)
-    assert metadata.schema_version == 2
-    assert ProjectIndex(projects=[metadata.summary()]).schema_version == 2
-    assert '"schema_version":2' in metadata.model_dump_json()
+    assert metadata.schema_version == 3  # sin la v1 (Paso 33)
+    assert ProjectIndex(projects=[metadata.summary()]).schema_version == 2  # no cambia
+    assert '"schema_version":3' in metadata.model_dump_json()
 
 
 def test_telemetry_reads_the_previous_role_name() -> None:

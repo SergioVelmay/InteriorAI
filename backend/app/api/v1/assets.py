@@ -144,7 +144,7 @@ async def download_asset(project_id: UUID, asset_id: UUID, repo: RepositoryDep) 
 async def update_asset(
     project_id: UUID, asset_id: UUID, body: AssetUpdate, repo: RepositoryDep
 ) -> Asset:
-    """Actualiza la nota del usuario sobre el asset (se usa al indexar y en el brief)."""
+    """Actualiza la nota del usuario sobre el asset (orienta su análisis y los prompts)."""
 
     def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, Asset]:
         assets = list(metadata.assets)

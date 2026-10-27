@@ -108,7 +108,7 @@ def audit() -> RenderAudit:
         suggested_prompt_adjustments="Make the sofa 285 cm wide", summary="Bien en general",
     )  # fmt: skip
     return RenderAudit(
-        report=report, reference_asset_id=uuid4(), deployment="dep", reasoning_effort="medium",
+        report=report, deployment="dep", reasoning_effort="medium",
         prompt_version="v1", cost_eur=0.21,
     )  # fmt: skip
 
@@ -204,9 +204,10 @@ def test_size_label_and_final_title_without_quality() -> None:
     assert "2448×1632 (3:2)" in title and "calidad" not in title  # noqa: RUF001
 
 
-def test_v1_images_show_their_brief_and_audit() -> None:
-    old = render(RenderStage.FINAL, brief_id=uuid4(), brief_version=2, audits=[audit()])
-    assert "brief v2" in render_detail_md(project(renders=[old]), old)
+def test_v1_images_show_their_origin_and_audit() -> None:
+    """Paso 33: las imágenes de la v1 quedan sueltas, sin prompt automático."""
+    old = render(RenderStage.FINAL, audits=[audit()])
+    assert "anterior al prompt automático" in render_detail_md(project(renders=[old]), old)
     text = audit_markdown(old.audits[-1])
     assert "82/100" in text and "Sofá algo corto" in text
     assert "perspectiva o geometría" in audit_markdown(None)
@@ -312,7 +313,7 @@ async def test_inpaint_client_request() -> None:
 
 
 CHAIN_COST = {
-    "render_id": str(uuid4()), "renders": 3, "briefs": 0, "by_role": [],
+    "render_id": str(uuid4()), "renders": 3, "references": 2, "by_role": [],
     "totals": {"calls": 5, "cost_eur": 0.2969}, "simulated_calls": 0, "simulated_cost_eur": 0,
 }  # fmt: skip
 

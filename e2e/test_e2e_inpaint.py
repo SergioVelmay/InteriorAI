@@ -64,7 +64,7 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     expect(retouched).to_have_count(1)
     stage = api.get(f"{url}/renders", params={"stage": "composicion"}).json()
     retouch = next(r for r in stage if r.get("inpaint"))
-    assert retouch["inpaint"]["method"] == "mascara"
+    assert "method" not in retouch["inpaint"]  # solo con máscara nativa (Paso 33)
     assert retouch["inpaint"]["instruction"] == "Una planta en la esquina"
     assert 0 < retouch["inpaint"]["coverage"] < 0.2
     assert retouch["prompt_info"] is not None  # el prompt lo escribe el PROMPT_ARCHITECT
