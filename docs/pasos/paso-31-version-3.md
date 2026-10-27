@@ -23,7 +23,7 @@ B-093) y la publicación de la 3.0.0.
 | Correcciones de la auditoría (B-091) | Con ajuste de línea, como el prompt enviado |
 | Tooltip de Costes IA (B-092) | Gradio pone 6 px de relleno al lienzo de Altair y Vega calcula el ratón desde el borde exterior: la zona del tooltip quedaba desplazada respecto a la barra. Sin ese relleno (`.altair canvas`) |
 | Orden de los roles (B-093) | Primero los de texto (REFERENCE_ANALYST verde, PROMPT_ARCHITECT morado, GEOMETRY_AUDITOR azul) y después los de imagen (FAST_DRAFT_MAKER amarillo, COMPOSITION_BUILDER naranja, REALISTIC_RENDERER rojo), en la leyenda, en «Coste por rol» y en el apilado |
-| Capturas (B-023) | Playwright sobre `http://127.0.0.1:7860` a 1920 px (contenedor de 1440 px), solo mirando: elige el proyecto y la primera referencia para verlos, despliega secciones y espera a que no quede nada cargando. JPEG en `docs/img/` (3,1 MB en total; Composición, la más larga, con más compresión para quedar por debajo del límite de 1 MB del pre-commit) |
+| Capturas (B-023) | Playwright sobre `http://127.0.0.1:7860` a 1920 px (contenedor de 1440 px), solo mirando: elige el proyecto y la primera referencia para verlos, despliega secciones y espera a que no quede nada cargando. JPEG en `docs/img/` (3,3 MB en total). Composición, la más larga, en dos (petición del usuario): `04-A` con la auditoría y el retoque y `04-B` desde «Crear composición», cada una por debajo del límite de 1 MB del pre-commit sin comprimirla más que las demás |
 | README | Sección «Recorrido» con las seis capturas, cada una en un desplegable; versión 3.0.0; costes orientativos con lo medido en la 3.0.0 |
 | Versión | `3.0.0` en los cuatro `pyproject.toml` (y en `/health`), `uv.lock` actualizado |
 | CHANGELOG | «Sin publicar» pasa a `[3.0.0] — 2026-10-27`, con un resumen, la nota de actualización y lo corregido en este paso |
@@ -39,7 +39,7 @@ B-093) y la publicación de la 3.0.0.
 | `uv run ruff check .` / `ruff format --check` / pre-commit | ✅ |
 | Postman en local (mock) | ✅ 53 peticiones, 96 comprobaciones; `/health` con la versión 3.0.0 |
 | Playwright en local (mock), Chromium y Edge | ✅ 6/6 |
-| Capturas | ✅ Seis, completas y sin nada cargando, revisadas una a una |
+| Capturas | ✅ Seis pestañas (Composición en dos), completas y sin nada cargando, revisadas una a una |
 | CI de la PR #43 | ✅ lint y tests, gitleaks, Docker con newman y Playwright |
 
 Coste real del paso: 0 €.

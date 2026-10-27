@@ -67,7 +67,9 @@ captura es una pestaña completa, con sus secciones desplegadas.
 <details>
 <summary><strong>Composición</strong>: auditoría del boceto, retoque con máscara y la composición elegida</summary>
 
-![Pestaña Composición](docs/img/04-composicion.jpg)
+![Pestaña Composición: auditoría y retoque](docs/img/04-A-composicion.jpg)
+
+![Pestaña Composición: crear la composición y la elegida](docs/img/04-B-composicion.jpg)
 </details>
 
 <details>
