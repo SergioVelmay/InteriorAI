@@ -47,4 +47,5 @@ formularios y los enlaces de contacto aparecen al abrir una issue. Â«ContribuirÂ
 
 ## 6. Pendiente / futuro
 
-- Paso 38: precios y costes con la factura real (B-098), con B-104 y B-105.
+- Paso 38: arreglos de la interfaz (B-104 a B-106); Paso 39: precios y costes con la factura real
+  (B-098).

@@ -68,7 +68,7 @@ La portada de la web (`docs/img/portada-render-final.jpg`) pasa a ser el render 
 | `REALISTIC_RENDERER` | 6 | 0,3867 € |
 
 El primer render de noche agotó el tiempo (120 s, `FoundryTimeoutError`) y no se reintentó solo:
-figura con 0,013 € (los megapíxeles de referencia). Para contrastar con la factura en el Paso 38
+figura con 0,013 € (los megapíxeles de referencia). Para contrastar con la factura en el Paso 39
 (B-098).
 
 ## 5. Hallazgos

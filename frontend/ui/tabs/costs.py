@@ -3,8 +3,9 @@
 Indicadores; leyenda común (cada rol con su despliegue actual) junto al coste por rol, y
 debajo, a ancho completo, el coste por día y por proyecto apilados por rol (Altair, B-032,
 B-080, B-081); registro de llamadas con filtros, detalle de la fila seleccionada y descarga en
-CSV (B-033), y la tabla de precios vigente (B-034). Solo gasto real: las llamadas simuladas del
-modo mock no cuentan (B-031). Cada llamada cuenta en el rol que hoy tiene su despliegue (Paso 26).
+CSV (B-033; el detalle se oculta al hacer clic fuera del registro, B-106), y la tabla de
+precios vigente (B-034). Solo gasto real: las llamadas simuladas del modo mock no cuentan
+(B-031). Cada llamada cuenta en el rol que hoy tiene su despliegue (Paso 26).
 """
 
 from __future__ import annotations
@@ -84,6 +85,10 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
             elem_id="iai-cost-table",
         )
         detail = gr.Markdown(record_detail_md(None), elem_id="iai-cost-detail")
+        # Lo pulsa `theme.FORCE_DARK_JS` al hacer clic fuera del registro (B-106)
+        reset_detail = gr.Button(
+            "ocultar detalle", elem_id="iai-cost-detail-reset", elem_classes="iai-hidden"
+        )
     with gr.Accordion("Precios vigentes (config/pricing.yaml)", open=False):
         pricing = gr.Dataframe(interactive=False, wrap=False, elem_id="iai-cost-pricing")
 
@@ -168,6 +173,9 @@ def build_costs_tab(client: BackendClient, active: gr.BrowserState) -> CostsTab:
         return record_detail_md(shown[row] if 0 <= row < len(shown) else None)
 
     table.select(on_row, inputs=shown_state, outputs=detail)
+    reset_detail.click(
+        lambda: record_detail_md(None), outputs=detail, queue=False, show_progress="hidden"
+    )
 
     async def refresh_all(active_id: str | None) -> dict:
         return await load(active_id, ACTIVE, ALL, ALL)

@@ -55,6 +55,15 @@ FORCE_DARK_JS = """() => {
             editor.querySelector('.toolbar-wrap button[aria-label^="Tamaño"]')?.click();
         }
     }, {capture: true});
+    document.addEventListener('click', (event) => {
+        // Costes IA (B-106): un clic fuera de las celdas del registro oculta el detalle de la
+        // llamada (dentro del detalle no, para poder copiar sus identificadores).
+        const detail = document.querySelector('#iai-cost-detail');
+        if (!detail || detail.textContent.includes('Selecciona una fila del registro')) return;
+        if (!event.isTrusted || !event.target.closest) return;
+        if (event.target.closest('#iai-cost-table, #iai-cost-detail')) return;
+        document.querySelector('#iai-cost-detail-reset')?.click();
+    }, {capture: true});
     new MutationObserver((mutations) => {
         apply();
         mutations.forEach((m) => { progress(m.target); m.addedNodes.forEach(progress); });

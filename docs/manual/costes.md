@@ -63,7 +63,8 @@ Con el filtro **Estado: error** aparece el intento del render de noche que agot�
 
 Al seleccionar una fila se ve el **detalle de la llamada**: operación y error, el desglose del
 coste según la tarifa, los tokens (también los de caché y razonamiento), las imágenes, la latencia
-y los identificadores de la petición.
+y los identificadores de la petición. Un clic fuera del registro (o en otra pestaña) lo oculta;
+dentro del detalle no, para poder copiar sus datos.
 
 ![Detalle de una llamada](img/costes-detalle.jpg)
 

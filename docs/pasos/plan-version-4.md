@@ -4,7 +4,8 @@ Propuesto el 2026-10-27, tras publicar la 3.0.0. Reúne los prompts más preciso
 (B-054, B-094 a B-097, ya hechos), la retirada de la compatibilidad con la v1 (B-056), la
 documentación pública en GitHub Pages (manual de usuario y referencia técnica, B-099 a B-101),
 los estándares de comunidad de GitHub (B-102) y la actualización de precios y costes con la
-factura real de Azure (B-098). Ampliado el mismo día a petición del usuario (Pasos 34 a 39).
+factura real de Azure (B-098). Ampliado el mismo día a petición del usuario (Pasos 34 a 39) y, tras el manual, con los
+arreglos de la interfaz que salieron en él (Paso 38; precios y versión pasan a 39 y 40).
 
 ## Por qué 4.0.0
 
@@ -23,8 +24,9 @@ quien venga de ella actualiza antes a la 3.0.0.
 | 35. Referencia técnica ✅ | Arquitectura; API con Swagger interactivo a partir del OpenAPI de FastAPI; modelo de datos y almacenamiento; IA, roles y costes; desarrollo (tests, CI, bitácora) | B-100 | No |
 | 36. Manual de usuario ✅ | Caso completo «Cocina Abierta para Manual de Usuario» desde cero en la aplicación real (modo `azure`), pasando por todas las opciones; capturas de cada pestaña y de cada sección en cada estado (vacía, rellena, procesando, resultado); una guía por pestaña y consejos | B-101 | 1,57 € (hecho) |
 | 37. Comunidad del repositorio ✅ | `CONTRIBUTING.md`, código de conducta, plantillas de issues y de PR, temas y web en la descripción del repositorio, Wiki desactivada (la documentación vive en la web) | B-102 | No |
-| 38. Precios y costes reales | Contraste de la estimación con la factura real de Azure de los últimos días, incluido el gasto del Paso 36 (como el mantenimiento de octubre): `config/pricing.yaml`, factor de facturación y costes orientativos del README. El usuario aporta los datos de Azure Cost Management. Además, los arreglos B-104 (estimación de los bocetos con «Variantes») y B-105 (aviso de los errores en Costes IA) | B-098, B-104, B-105 | No |
-| 39. Versión 4.0.0 | README, CHANGELOG (nota de actualización: datos de la 1.0.0 vía la 3.0.0), versión en los `pyproject.toml`, etiqueta y Release con el OK del usuario | — | No |
+| 38. Arreglos de la interfaz | Lo que salió al hacer el manual: la estimación junto a cada botón sigue las variantes, la calidad y la resolución (B-104); aviso exacto sobre el coste de las llamadas con error (B-105); el detalle de una llamada en Costes IA se oculta al hacer clic fuera del registro (B-106, observación del usuario) | B-104 a B-106 | No |
+| 39. Precios y costes reales | Contraste de la estimación con la factura real de Azure de los últimos días, incluido el gasto del Paso 36 (como el mantenimiento de octubre): `config/pricing.yaml`, factor de facturación y costes orientativos del README. El usuario aporta los datos de Azure Cost Management. | B-098 | No |
+| 40. Versión 4.0.0 | README, CHANGELOG (nota de actualización: datos de la 1.0.0 vía la 3.0.0), versión en los `pyproject.toml`, etiqueta y Release con el OK del usuario | — | No |
 
 ## Decisiones tomadas (usuario, 2026-10-27)
 
@@ -60,4 +62,4 @@ Proyecto nuevo **«Cocina Abierta para Manual de Usuario»**, con las referencia
 
 ## Lo que aporta el usuario
 
-- Paso 38: los costes reales de Azure de los últimos días (Cost Management).
+- Paso 39: los costes reales de Azure de los últimos días (Cost Management).

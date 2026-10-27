@@ -28,6 +28,7 @@ from ui.cost_views import (
     role_frame,
 )
 from ui.tabs.costs import ACTIVE, EVERYTHING, build_costs_tab
+from ui.theme import FORCE_DARK_JS
 
 PROJECT = str(uuid4())
 
@@ -98,7 +99,7 @@ def test_kpis_and_notes() -> None:
     assert "0.1178 €" in html and "Latencia media" in html and "12.3 s" in html
     notes = notes_md(summary())
     assert "Gasto **real**" in notes and "estimado" in notes
-    assert "pudo facturarlas" in notes  # hay un error
+    assert "solo con lo que se conoce" in notes and "pudo facturar más" in notes  # B-105
     empty = summary(totals=summary()["totals"] | {"calls": 0, "errors": 0})
     assert "Todavía no hay llamadas reales" in notes_md(empty)
 
@@ -271,6 +272,21 @@ async def test_costs_tab_scopes(tmp_path: Path) -> None:
     assert "/api/v1/costs" in [r.url.path for r in seen]
     assert "Proyectos por encima de 3 €" in by_id(result, "iai-cost-notes")  # aviso
     assert ACTIVE != EVERYTHING
+
+
+def test_detail_resets_when_clicking_outside_the_table() -> None:
+    """B-106: el JS común pulsa el botón oculto, que devuelve el detalle a su estado inicial."""
+    with gr.Blocks() as demo:
+        active = gr.BrowserState(None)
+        build_costs_tab(fake_client([]), active)
+    reset = next(b for b in demo.blocks.values() if b.elem_id == "iai-cost-detail-reset")
+    assert "iai-hidden" in reset.elem_classes
+    for elem_id in ("#iai-cost-detail-reset", "#iai-cost-table", "#iai-cost-detail"):
+        assert elem_id in FORCE_DARK_JS
+    assert "Selecciona una fila del registro" in FORCE_DARK_JS  # el texto inicial no se oculta
+    assert "Selecciona una fila del registro" in record_detail_md(None)
+    fn = next(f for f in demo.fns.values() if reset._id in [t[0] for t in f.targets])
+    assert fn.fn() == record_detail_md(None)
 
 
 ALERTS = {

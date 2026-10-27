@@ -32,14 +32,17 @@ from ui.studio_views import (
     audit_markdown,
     audit_thumbs,
     composition_cost,
+    composition_hint,
     composition_inputs,
     cost_hint,
     draft_cost,
+    draft_hint,
     draft_inputs,
     draft_thumbs,
     editor_mask,
     euros,
     final_cost,
+    final_hint,
     inpaint_hint,
     needs_confirmation,
     reference_summary,
@@ -154,6 +157,24 @@ def test_final_render_cost_and_resolutions() -> None:
         ("2448 x 1632 · 4.0 MP", "2448x1632"),
     ]
     assert [size for _, size in resolution_choices("9:16")][-1] == "1440x2560"
+
+
+def test_cost_hints_follow_the_chosen_options() -> None:
+    """B-104: la estimación junto a cada botón sigue las variantes, la calidad y la resolución."""
+    assert draft_hint(4, "medium", 1, "azure") == "Azure: ≈ 0.080 € (4 en calidad media)"
+    assert draft_hint(8, "high", 1, "azure") == (
+        f"Azure: ≈ {draft_cost(8, 'high', 1):.3f} € (8 en calidad alta)"
+    )
+    assert draft_hint(8, "low", 3, "mock") == "Simulación: sin coste (8 en calidad baja)"
+    assert composition_hint("high", 4, "azure") == (
+        f"Azure: ≈ {composition_cost('high', 4):.3f} € (1 en calidad alta)"
+    )
+    assert final_hint("2448x1632", "azure") == "Azure: ≈ 0.079 € (a 4.0 MP)"
+    assert final_hint("1536x864", "azure") == (
+        f"Azure: ≈ {final_cost('1536x864'):.3f} € (a 1.3 MP)"
+    )
+    assert draft_hint(4, "medium", 1, None) == composition_hint("medium", 1, None) == ""
+    assert final_hint("2448x1632", None) == ""  # sin proyecto activo
 
 
 def test_references_and_selection_helpers() -> None:
@@ -370,7 +391,9 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     p = project(assets=[reference("vista.png", ["perspectiva"])], renders=[draft, final])
     result = await studio_tab(p, tmp_path, mode="azure").refresh_all(str(p.id))
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
-    assert "Azure: ≈ 0.080 € (4 en calidad media)" in texts(result)  # 1 imagen de entrada
+    # Estimaciones (B-104): el modo y las imágenes de entrada; el texto, con las opciones.
+    context = {"mode": "azure", "drafts": 1, "compositions": 2}  # partida + 1 apoyo
+    assert context in result.values()
     assert tabs(result) == {"Composición": True, "Render Final": False}
     galleries = [by_id(result, f"iai-{s}") for s in ("drafts", "compositions", "finals")]
     assert [len(g["value"]) for g in galleries] == [1, 0, 1]
@@ -384,7 +407,7 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     assert by_id(result, "iai-gen-finals")["interactive"] is False
     assert by_id(result, "iai-gen-finals-current")["interactive"] is True
     assert by_id(result, "iai-gen-finals-variant")["interactive"] is True
-    assert "Azure: ≈ 0.079 € (a 4 MP)" in texts(result)
+    assert "Azure: ≈ 0.250 €" in texts(result)  # auditoría, sin opciones
 
 
 async def test_show_render_opens_an_image_of_any_stage(tmp_path: Path) -> None:

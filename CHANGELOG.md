@@ -52,6 +52,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **`PROMPT_ARCHITECT_TIMEOUT_S`** (nuevo, 300 s por defecto) y tope de salida de 32 000 tokens:
   con razonamiento `high`, el prompt de bocetos superaba el tope anterior y rozaba el timeout
   general.
+- **Costes IA:** un clic fuera del registro de llamadas oculta el detalle de la llamada
+  seleccionada (Paso 38, B-106).
+
+### Corregido
+
+- La **estimación junto a cada botón** ahora sigue las opciones elegidas: variantes y calidad en
+  Bocetos, calidad en Composición y resolución en Render final. Antes mostraba siempre la de los
+  valores por defecto; la confirmación ya calculaba bien (Paso 38, B-104).
+- El aviso de **Costes IA** sobre las llamadas con error: figuran con lo que se conoce (p. ej. las
+  imágenes enviadas al renderizador), no siempre a 0 € (Paso 38, B-105).
 
 ## [3.0.0] — 2026-10-27
 
