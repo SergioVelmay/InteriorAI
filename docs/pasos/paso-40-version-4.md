@@ -35,5 +35,11 @@ Coste real del paso: 0 €.
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-40`. Tras el merge y con la CI de `main` en verde: etiqueta
-`v4.0.0` y Release de GitHub con el OK del usuario.
+✅ Cerrado — rama `feat/paso-40`, PR #55 revisada y mergeada por el usuario (2026-10-29). Con la
+CI de `main` en verde y el OK del usuario: etiqueta anotada `v4.0.0` sobre `ebe4630` y
+[Release «InteriorAI 4.0.0»](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0),
+la última, con las notas del CHANGELOG (enlaces relativos a `blob/v4.0.0/`). Docker reconstruido:
+`/health` responde la versión 4.0.0. El enlace de la página Versiones de la web funciona.
+
+En las notas se quitó una frase desfasada de la entrada de la documentación pública («el manual
+de usuario y la referencia técnica, en preparación»); el CHANGELOG se corrige en este cierre.
