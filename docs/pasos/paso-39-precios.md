@@ -83,7 +83,7 @@ Coste real del paso: 0 €. Las estimaciones ya registradas no se recalculan.
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-39`.
+✅ Cerrado — rama `feat/paso-39`, PR #54 revisada y mergeada por el usuario (2026-10-29).
 
 ## 7. Pendiente / futuro
 
