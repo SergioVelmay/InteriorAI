@@ -26,7 +26,7 @@ quien venga de ella actualiza antes a la 3.0.0.
 | 37. Comunidad del repositorio ✅ | `CONTRIBUTING.md`, código de conducta, plantillas de issues y de PR, temas y web en la descripción del repositorio, Wiki desactivada (la documentación vive en la web) | B-102 | No |
 | 38. Arreglos de la interfaz ✅ | Lo que salió al hacer el manual: la estimación junto a cada botón sigue las variantes, la calidad y la resolución (B-104); aviso exacto sobre el coste de las llamadas con error (B-105); el detalle de una llamada en Costes IA se oculta al hacer clic fuera del registro (B-106, observación del usuario) | B-104 a B-106 | No |
 | 39. Precios y costes reales ✅ | Contraste de la estimación con la factura real de Azure de los últimos días, incluido el gasto del Paso 36 (como el mantenimiento de octubre): `config/pricing.yaml`, factor de facturación y costes orientativos del README. El usuario aporta los datos de Azure Cost Management. | B-098 | No |
-| 40. Versión 4.0.0 | README, CHANGELOG (nota de actualización: datos de la 1.0.0 vía la 3.0.0), versión en los `pyproject.toml`, etiqueta y Release con el OK del usuario | — | No |
+| 40. Versión 4.0.0 ✅ | README, CHANGELOG (nota de actualización: datos de la 1.0.0 vía la 3.0.0), versión en los `pyproject.toml`, etiqueta y Release con el OK del usuario | — | No |
 
 ## Decisiones tomadas (usuario, 2026-10-27)
 

@@ -22,8 +22,7 @@ conserva una copia en `metadatos.v2.json`); `PROMPT_ARCHITECT_TIMEOUT_S` es nuev
 
 - **Documentación pública** en <https://sergiovelmay.github.io/InteriorAI/> (Paso 34, B-099):
   MkDocs Material en GitHub Pages, publicada sola al integrar en `main`. Inicio, primeros pasos
-  (instalación y configuración), versiones, seguridad y licencia; el manual de usuario y la
-  referencia técnica, en preparación.
+  (instalación y configuración), versiones, seguridad y licencia.
 - **Referencia técnica y desarrollo en la web** (Paso 35, B-100): arquitectura, API REST con el
   Swagger (solo de consulta), datos y almacenamiento, IA y costes, interfaz; entorno, pruebas, CI
   y herramientas. El esquema OpenAPI se exporta a `docs/referencia/openapi.json`
