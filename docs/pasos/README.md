@@ -67,7 +67,8 @@ Después de la 3.0.0:
 | 36 | [Manual de usuario](paso-36-manual.md) (B-101) | `feat/paso-36` | ✅ Cerrado |
 | 37 | [Comunidad del repositorio](paso-37-comunidad.md) (B-102) | `feat/paso-37` | ✅ Cerrado |
 | 38 | [Arreglos de la interfaz](paso-38-arreglos.md) (B-104 a B-106) | `feat/paso-38` | ✅ Cerrado |
-| 39 | [Precios y costes con la factura real](paso-39-precios.md) (B-098) | `feat/paso-39` | ⏳ En revisión |
+| 39 | [Precios y costes con la factura real](paso-39-precios.md) (B-098) | `feat/paso-39` | ✅ Cerrado |
+| 40 | [Versión 4.0.0](paso-40-version-4.md) | `feat/paso-40` | ⏳ En revisión |
 
 Versión 4.0.0 (en curso): [plan de acción](plan-version-4.md), Pasos 32 a 40, entradas B-054,
 B-056, B-094 a B-102, B-104 a B-106 del [backlog](BACKLOG.md).

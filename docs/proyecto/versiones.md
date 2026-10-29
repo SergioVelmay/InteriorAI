@@ -10,7 +10,7 @@ El detalle de cada versión está en el
 
 | Versión | Fecha | Lo principal |
 |---------|-------|--------------|
-| 4.0.0 | En preparación | Prompts más precisos, sin la compatibilidad con la v1 (esquema de datos v3), esta documentación y precios contrastados con la factura real |
+| [4.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0) | 2026-10-29 | Prompts más precisos, sin la compatibilidad con la v1 (esquema de datos v3), esta documentación y precios contrastados con la factura real |
 | [3.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0) | 2026-10-27 | Pulido completo de la interfaz tras un caso real y roles con nombres nuevos |
 | [2.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v2.0.0) | 2026-10-25 | Rediseño del flujo: referencias analizadas (receta y ficha), prompts automáticos y tres pestañas de estudio |
 | [1.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v1.0.0) | 2026-10-18 | Primera versión: brief de diseño, bocetos, composición y render final |
@@ -26,7 +26,8 @@ docker compose up --build -d
 
 Los datos pasan solos al esquema v3 al arrancar; cada proyecto guarda una copia en
 `metadatos.v2.json`. Las imágenes de la v1 siguen en sus galerías como imágenes sueltas, sin su
-brief. Desaparecen los endpoints `/briefs` de la API.
+brief. Desaparecen los endpoints `/briefs` de la API. La variable `PROMPT_ARCHITECT_TIMEOUT_S` es
+nueva y opcional (300 s por defecto).
 
 ### Desde la 2.x a la 3.0.0
 

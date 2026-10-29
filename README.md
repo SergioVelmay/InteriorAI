@@ -9,7 +9,7 @@ Estudio de interiorismo asistido por IA con **supervisión humana en cada etapa*
 planos, muebles e inspiración) genera bocetos, una composición fiel y una fotografía realista de
 cada habitación. **Nada avanza sin tu elección** y cada acción con coste lo muestra antes.
 
-Construido con FastAPI, Gradio y Azure AI Foundry. Versión **3.0.0** ([CHANGELOG](CHANGELOG.md)).
+Construido con FastAPI, Gradio y Azure AI Foundry. Versión **4.0.0** ([CHANGELOG](CHANGELOG.md)).
 
 📖 **Documentación:** <https://sergiovelmay.github.io/InteriorAI/> (instalación, configuración,
 manual de usuario y referencia técnica).
@@ -176,7 +176,7 @@ tabla; si queda alguna con el nombre anterior, la aplicación avisa al arrancar 
 
 **Desde la 3.x:** los datos se migran solos al esquema v3 al arrancar (cada proyecto conserva una
 copia en `metadatos.v2.json`). Las imágenes de la v1 siguen en sus galerías como imágenes
-sueltas, sin su brief. **Desde la 1.0.0:** actualiza antes con la 3.0.0 (la 4.0.0 ya no lee
+sueltas, sin su brief. `PROMPT_ARCHITECT_TIMEOUT_S` es nueva y opcional (300 s por defecto). **Desde la 1.0.0:** actualiza antes con la 3.0.0 (la 4.0.0 ya no lee
 esos datos).
 
 Los contenedores se ejecutan sin privilegios, con el sistema de archivos en solo lectura, sin

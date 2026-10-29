@@ -6,6 +6,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [4.0.0] — 2026-10-29
+
+Prompts más precisos, sin la compatibilidad con la v1 (esquema de datos v3), documentación
+pública con un manual de usuario hecho sobre un caso real, estándares de comunidad y costes
+contrastados con la factura de Azure. Plan y bitácora:
+[docs/pasos/plan-version-4.md](docs/pasos/plan-version-4.md) (Pasos 32 a 40). Documentación:
+<https://sergiovelmay.github.io/InteriorAI/>.
+
+Actualización desde la 3.x: los datos se migran solos al esquema v3 al arrancar (cada proyecto
+conserva una copia en `metadatos.v2.json`); `PROMPT_ARCHITECT_TIMEOUT_S` es nueva y opcional
+(300 s por defecto). Desde la 1.0.0, actualiza antes con la 3.0.0: la 4.0.0 ya no lee esos datos.
+
 ### Añadido
 
 - **Documentación pública** en <https://sergiovelmay.github.io/InteriorAI/> (Paso 34, B-099):
@@ -304,6 +316,7 @@ cada etapa.
   escalada de privilegios, límites de recursos), usuario configurable (`APP_UID`/`APP_GID`) y
   comando de papelera (`listar`, `restaurar`, `vaciar` con confirmación).
 
+[4.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0
 [3.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0
 [2.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v2.0.0
 [1.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v1.0.0
