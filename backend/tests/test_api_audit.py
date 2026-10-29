@@ -166,8 +166,8 @@ def test_incomplete_audit_is_502_but_billed(api: TestClient, spy: SpyClient, cha
     costs = api.get(f"{chain['url']}/costs").json()
     auditor = next(g for g in costs["by_role"] if g["key"] == "GEOMETRY_AUDITOR")
     assert auditor["errors"] == 1
-    # Precios de lista por el billing_factor de config/pricing.yaml
-    assert auditor["cost_eur"] == pytest.approx((3_000 * 8.80 + 12_000 * 44.0) / 1e6 * 0.98463)
+    # Respuesta incompleta: sus tokens sí se cobran (precios de lista de config/pricing.yaml)
+    assert auditor["cost_eur"] == pytest.approx((3_000 * 8.80 + 12_000 * 44.0) / 1e6)
     renders = api.get(f"{chain['url']}/renders").json()
     assert all(r["audits"] == [] for r in renders)
 

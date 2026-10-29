@@ -124,7 +124,7 @@ async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:
     assert gallery["selected_index"] == 1
     assert gallery["value"][0][1].startswith("Dormitorio · ")
     assert gallery["value"][1][1].startswith("Estudio · ")
-    assert "**0.1000 €** en 2 llamadas" in result[tab.summary]
+    assert "**0.10 €** en 2 llamadas" in result[tab.summary]
     assert result[tab.fields[0]] == "Estudio"
 
 

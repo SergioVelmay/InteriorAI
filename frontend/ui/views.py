@@ -19,6 +19,7 @@ from shared.models import (
     RenderStatus,
 )
 from ui.api_client import Health
+from ui.money import euros_up
 
 BadgeLevel = Literal["ok", "warn", "error", "pending", "neutral"]
 
@@ -57,9 +58,9 @@ def header_html(
             (p for p in alerts["projects"] if active and p["project_id"] == str(active.id)), None
         )
         if current and current["exceeded"]:
-            spending += badge("warn", f"Gasto del proyecto: {current['cost_eur']:.2f} €")
+            spending += badge("warn", f"Gasto del proyecto: {euros_up(current['cost_eur'])}")
         if alerts["total"]["exceeded"]:
-            spending += badge("warn", f"Gasto total: {alerts['total']['cost_eur']:.2f} €")
+            spending += badge("warn", f"Gasto total: {euros_up(alerts['total']['cost_eur'])}")
     return (
         '<div class="iai-header">'
         '<div class="iai-brand"><h1>InteriorAI</h1>'
@@ -96,13 +97,13 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
     if costs is not None:
         totals = costs.get("totals", {})
         lines.append(
-            f"- Gasto real estimado en IA: **{totals.get('cost_eur', 0):.4f} €** en "
+            f"- Gasto real estimado en IA: **{euros_up(totals.get('cost_eur', 0))}** en "
             f"{totals.get('calls', 0)} llamadas"
         )
         # Desglose por rol (B-027), del más caro al más barato.
         for group in sorted(costs.get("by_role", []), key=lambda g: -g["cost_eur"]):
             lines.append(
-                f"  - {group['key']}: {group['cost_eur']:.4f} € · {group['calls']} llamada(s)"
+                f"  - {group['key']}: {euros_up(group['cost_eur'])} · {group['calls']} llamada(s)"
             )
     return "\n".join(lines)
 

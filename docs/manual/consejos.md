@@ -70,4 +70,4 @@ Las notas deciden qué se analiza y qué queda marcado en la ficha. Funcionan me
 - Revisa **Costes IA** de vez en cuando y contrasta con Azure Cost Management.
 
 Como referencia, el caso completo (6 referencias, 8 bocetos, una auditoría, 3 composiciones y 5
-renders) costó **1,57 €**.
+renders) se estimó en **1,57 €**; Azure facturó unos 1,40 €.

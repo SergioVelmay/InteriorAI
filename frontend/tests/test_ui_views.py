@@ -100,9 +100,9 @@ def test_summary_counts_and_costs() -> None:
     assert "Renders finales generados: **1**" in md
     assert "Brief" not in md
     assert "Render final elegido: **SÍ**" in md
-    assert "Gasto real estimado en IA: **0.2700 €** en 9 llamadas" in md
-    # Desglose por rol, del más caro al más barato (B-027).
-    assert md.index("REALISTIC_RENDERER: 0.2500 €") < md.index("FAST_DRAFT_MAKER: 0.0200 €")
+    assert "Gasto real estimado en IA: **0.27 €** en 9 llamadas" in md
+    # Desglose por rol, del más caro al más barato (B-027), al céntimo hacia arriba (Paso 39)
+    assert md.index("REALISTIC_RENDERER: 0.25 €") < md.index("FAST_DRAFT_MAKER: 0.02 €")
     assert calls_label(costs) == "Llamadas de IA (9)"
     assert calls_label(costs | {"records": [{}] * 3}) == "Llamadas de IA (las 3 últimas de 9)"
     assert calls_label(None) == "Llamadas de IA"

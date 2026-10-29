@@ -25,7 +25,10 @@ leer el registro.
 | **Megapíxeles** | El tamaño total de las imágenes generadas |
 | **Latencia media** | Lo que tarda de media una llamada |
 
-En el caso: **1,5658 €** en 29 llamadas, con 1 error y 16 imágenes.
+En el caso: **1,57 €** en 29 llamadas, con 1 error y 16 imágenes. Los indicadores, los
+gráficos y los avisos muestran los importes al céntimo hacia arriba; el registro de llamadas y su
+detalle, con 4 decimales, para cuadrarlos con Azure (las capturas son de antes de la 4.0.0, con 4
+decimales en todo).
 
 ## Gráficos
 
@@ -68,10 +71,11 @@ dentro del detalle no, para poder copiar sus datos.
 
 ![Detalle de una llamada](img/costes-detalle.jpg)
 
-!!! warning "Las llamadas con error también pueden costar"
-    Un tiempo agotado pudo facturarse aunque no devuelva nada. Aquí el registro le asigna lo que
-    se conoce, las imágenes de referencia enviadas (0,013 €). Por eso la aplicación **nunca
-    reintenta un tiempo agotado** por su cuenta.
+!!! warning "Las llamadas con error"
+    Figuran a 0 €, salvo los tokens que el modelo llegara a consumir (p. ej. una respuesta
+    incompleta, que sí se cobra). Un tiempo agotado no devuelve nada y Azure no lo ha cobrado
+    hasta ahora (tampoco el de este caso, que en la captura aún figura con 0,013 €), pero podría:
+    por eso la aplicación **nunca reintenta un tiempo agotado** por su cuenta.
 
 ## Precios vigentes
 

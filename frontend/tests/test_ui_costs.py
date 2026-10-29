@@ -96,10 +96,12 @@ PRICING = {
 
 def test_kpis_and_notes() -> None:
     html = kpi_html(summary())
-    assert "0.1178 €" in html and "Latencia media" in html and "12.3 s" in html
+    assert (
+        "0.12 €" in html and "Latencia media" in html
+    )  # al céntimo hacia arriba (Paso 39) and "12.3 s" in html
     notes = notes_md(summary())
     assert "Gasto **real**" in notes and "estimado" in notes
-    assert "solo con lo que se conoce" in notes and "pudo facturar más" in notes  # B-105
+    assert "figuran a 0 €, salvo los tokens" in notes and "aunque podría" in notes  # Paso 39
     empty = summary(totals=summary()["totals"] | {"calls": 0, "errors": 0})
     assert "Todavía no hay llamadas reales" in notes_md(empty)
 
@@ -132,7 +134,8 @@ def test_charts_by_role_day_and_project() -> None:
 
     days = day_frame(summary())
     assert days.to_dict("records")[0] == {
-        "Día": "2026-10-17", "Rol": "FAST_DRAFT_MAKER", "Coste (€)": 0.0305, "Llamadas": 1,
+        "Día": "2026-10-17", "Rol": "FAST_DRAFT_MAKER", "Coste (€)": 0.0305, "Coste": "0.04 €",
+        "Llamadas": 1,
     }  # fmt: skip
     spec = day_chart(summary()).to_dict()
     assert spec["encoding"]["y"]["field"] == "Coste (€)" and spec["mark"]["type"] == "bar"
@@ -200,7 +203,7 @@ def test_pricing_rates_in_columns_with_units() -> None:
 
 def test_chain_cost_line() -> None:
     line = chain_cost_md({"totals": {"cost_eur": 0.2969, "calls": 6}, "simulated_calls": 2})
-    assert "0.2969 €" in line and "6 llamada(s)" in line and "simulación: 2" in line
+    assert "0.30 €" in line and "6 llamada(s)" in line and "simulación: 2" in line
     assert "brief" not in line  # B-076: la v3 no tiene brief
     assert chain_cost_md(None) == ""
 
