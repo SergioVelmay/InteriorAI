@@ -3,10 +3,10 @@ revision = 5
 requires-python = "==3.11.*"
 resolution-markers = [
     "python_full_version >= '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version >= '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version < '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -486,7 +486,7 @@ wheels = [
 
 [[package]]
 name = "interiorai"
-version = "3.0.0"
+version = "4.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "interiorai-backend" },
@@ -537,7 +537,7 @@ e2e = [
 
 [[package]]
 name = "interiorai-backend"
-version = "3.0.0"
+version = "4.0.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "anyio" },
@@ -568,7 +568,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-frontend"
-version = "3.0.0"
+version = "4.0.0"
 source = { editable = "frontend" }
 dependencies = [
     { name = "altair" },
@@ -589,7 +589,7 @@ requires-dist = [
 
 [[package]]
 name = "interiorai-shared"
-version = "3.0.0"
+version = "4.0.0"
 source = { editable = "shared" }
 dependencies = [
     { name = "pydantic" },
