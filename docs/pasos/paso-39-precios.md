@@ -77,6 +77,7 @@ de partida.
 | Navegador (aplicación local en modo simulación con un proxy que anuncia Azure; ningún botón con coste pulsado) | ✅ Bocetos 0,25 €; composición 0,08 €; auditoría 0,30 €; render final 0,09 € desde la composición y 0,11 € desde el render; «Otra versión» 0,10 €; cadena 0,66 €; indicador 1,80 €; resumen del proyecto y aviso de la receta redondeados; aviso nuevo de los errores |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #54 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €. Las estimaciones ya registradas no se recalculan.
 
