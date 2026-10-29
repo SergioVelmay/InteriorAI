@@ -22,6 +22,7 @@ from shared.supports import MAX_SUPPORTS
 from ui.api_client import ApiError, BackendClient
 from ui.covers import asset_path, placeholder
 from ui.forecast import FORECAST_S
+from ui.money import euros_up
 from ui.studio_views import excluded_count
 from ui.views import (
     COST_ANALYSIS,
@@ -38,9 +39,10 @@ FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"]
 NO_PROJECT = "Ningún proyecto activo: elige o crea uno en la pestaña **Proyectos**."
 NO_SELECTION = "Selecciona una imagen de la galería para ver su ficha."
 ANALYSIS_HINT = (
-    f"Se analiza al subirla (REFERENCE_ANALYST, unos 30-60 s): en Azure ≈ {COST_ANALYSIS:.2f} € "
-    "por imagen; en simulación, sin coste. Las notas orientan el análisis: en qué fijarse, qué "
-    "priorizar o cómo desglosar (p. ej. «quédate con el punto de vista» o «con estas medidas»)."
+    "Se analiza al subirla (REFERENCE_ANALYST, unos 30-60 s): en Azure ≈ "
+    f"{euros_up(COST_ANALYSIS)} por imagen; en simulación, sin coste. Las notas orientan el "
+    "análisis: en qué fijarse, qué priorizar o cómo desglosar (p. ej. «quédate con el punto de "
+    "vista» o «con estas medidas»)."
 )
 
 
@@ -213,7 +215,7 @@ def build_references_tab(
         except ApiError as exc:
             gr.Warning(f"No se pudo analizar: {exc.detail}. Pulsa «Volver a analizar».")
             return False
-        gr.Info(f"Receta lista · ficha guardada · {body['cost_eur']:.4f} €")
+        gr.Info(f"Receta lista · ficha guardada · {euros_up(body['cost_eur'])}")
         return True
 
     async def on_upload(path: str | None, notes_v: str, active_id: str | None) -> dict:

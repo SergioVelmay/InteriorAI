@@ -21,10 +21,9 @@ megapixel_rounding: exact
 # Píxeles por megapíxel. La factura de FLUX (octubre de 2026, B-011) usa el MP binario:
 # 1 MP = 2^20 = 1.048.576 px (1.000.000 sería el decimal).
 megapixel_px: 1048576
-# Factor sobre los precios de lista de esta tabla. En la factura de octubre de 2026 todos los
-# medidores salieron a lista × 0,98463 (mismos tokens, euro algo más barato que la lista):
-# revisar si cambia mucho el tipo de cambio. 1.0 = precios de lista tal cual.
-billing_factor: 0.98463
+# Sin factor de ajuste (`billing_factor`, 1.0 por defecto): se estima con los precios de lista
+# tal cual. La factura sale algo por debajo (≈ lista × 0,985 por el tipo de cambio, facturas de
+# octubre de 2026): mejor ver en Azure menos gasto del previsto que al revés (Paso 39).
 
 deployments:
   # --- Texto: precio por 1M de tokens --------------------------------------------------
@@ -79,11 +78,10 @@ deployments:
 
   # --- Renderizador: precio por megapíxel --------------------------------------------------
   # Primer MP de cada imagen generada a `initial_mp`, el resto a `additional_mp`;
-  # cada MP de las imágenes de referencia (edición) a `reference_mp`.
+  # cada MP de las imágenes de referencia (edición), según su tamaño real, a `reference_mp`
+  # (factura del 25 al 27/10/2026: MP binario de cada referencia; Paso 39).
   FLUX.2-pro:
     type: megapixels
     initial_mp: 0.026400
     additional_mp: 0.013200
     reference_mp: 0.013200
-    # Cada imagen de referencia se factura como 1 MP, sea cual sea su tamaño (factura 10/2026)
-    reference_mode: per_image

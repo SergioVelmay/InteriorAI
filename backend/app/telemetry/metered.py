@@ -132,7 +132,11 @@ class MeteredFoundryClient(FoundryClient):
         error: FoundryError | None = None,
     ) -> None:
         deployment = self._deployment_for(role)
-        cost = estimate_cost(self.pricing, deployment, usage, images_out, references)
+        # Con error solo cuenta lo que el proveedor haya informado (p. ej. los tokens de una
+        # respuesta incompleta): Azure no ha cobrado los timeouts ni las imágenes enviadas en
+        # ellos (facturas de octubre de 2026, Paso 39).
+        priced_references = [] if error else references
+        cost = estimate_cost(self.pricing, deployment, usage, images_out, priced_references)
         record = TelemetryRecord(
             request_id=current_request_id(),
             role=role,

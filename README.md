@@ -103,17 +103,18 @@ El código nunca usa nombres de modelos: cada tarea es un **rol** y su despliegu
 
 ### Costes orientativos
 
-Precios de lista en `config/pricing.yaml` (estimados; la cifra real está en Azure Cost
-Management). Medidos en las pruebas reales de las versiones 2.0.0 y 3.0.0:
+Estimados con los precios de lista de `config/pricing.yaml` y redondeados al céntimo hacia
+arriba, como los muestra la aplicación: la cifra facturada en Azure Cost Management queda por
+debajo. Medidos en las pruebas reales de la 4.0.0:
 
 | Acción | Coste aproximado |
 |--------|------------------|
-| Receta de una referencia | 0,03-0,05 € |
-| Prompt automático de una generación | 0,001-0,002 € |
-| 4 bocetos en calidad media (3-4 imágenes de entrada) | 0,14-0,19 € |
-| Composición o retoque (4-5 imágenes de entrada) | 0,05-0,06 € |
-| Render final a 4 MP | 0,08 € |
-| Auditoría del boceto | 0,14-0,25 € (razonamiento `medium`) |
+| Receta de una referencia | 0,03-0,07 € |
+| Prompt automático de una generación | 0,01 € |
+| 4 bocetos en calidad media (3-6 imágenes de entrada) | 0,20-0,25 € |
+| Composición o retoque (4-6 imágenes de entrada) | 0,06-0,08 € |
+| Render final a 4 MP | 0,09 € desde una composición; 0,11 € desde otro render |
+| Auditoría del boceto | 0,14-0,27 € (razonamiento `medium`) |
 
 En los modelos de bocetos pesan más las imágenes de entrada que las generadas. En modo `azure`,
 las acciones de más de 0,20 € piden un segundo clic de confirmación junto al botón.

@@ -7,9 +7,11 @@ from PIL import Image
 
 from app.foundry import (
     FoundryIncompleteError,
+    FoundryTimeoutError,
     FoundryUnsupportedError,
     ImageEditRequest,
     ImageRequest,
+    ImageResult,
     InputImage,
     MockFoundryClient,
     TextRequest,
@@ -80,7 +82,6 @@ async def test_text_call_is_recorded_with_cost_and_context() -> None:
     assert record.reasoning_tokens == result.usage.reasoning_tokens > 0
     assert record.pricing_tier == "global/short"
     expected = (result.usage.input_tokens * 8.80 + result.usage.output_tokens * 44.0) / 1e6
-    expected *= 0.98463  # billing_factor de config/pricing.yaml
     assert record.cost_eur == pytest.approx(expected)
 
 
@@ -100,10 +101,11 @@ async def test_image_calls_record_megapixels() -> None:
     assert generated.images_out == 1
     assert generated.megapixels_out == pytest.approx(1.048576)
     # 1024x1024 = exactamente 1 MP binario (megapixel_px = 2^20): solo el primer MP
-    assert generated.cost_eur == pytest.approx(0.0264 * 0.98463)
+    assert generated.cost_eur == pytest.approx(0.0264)
     assert edited.operation == "edit_image"
     assert edited.megapixels_ref == pytest.approx(0.5)
-    assert edited.cost_breakdown["reference_mp"] == pytest.approx(0.0132 * 0.98463)  # 1 MP
+    # La referencia, por su tamaño en MP binario (Paso 39)
+    assert edited.cost_breakdown["reference_mp"] == pytest.approx(500_000 / 1_048_576 * 0.0132)
 
 
 async def test_errors_with_usage_are_recorded_and_reraised() -> None:
@@ -119,7 +121,26 @@ async def test_errors_with_usage_are_recorded_and_reraised() -> None:
     [(_, record)] = sink.records
     assert record.status == "error"
     assert record.error_type == "FoundryIncompleteError"
-    assert record.cost_eur == pytest.approx((100 * 8.80 + 2000 * 44.0) / 1e6 * 0.98463)
+    assert record.cost_eur == pytest.approx((100 * 8.80 + 2000 * 44.0) / 1e6)
+
+
+async def test_timeouts_cost_nothing_even_with_reference_images() -> None:
+    """Paso 39: Azure no ha cobrado los timeouts (ni las imágenes enviadas en ellos)."""
+
+    class Slow(MockFoundryClient):
+        async def _edit_image(self, role: Role, request: ImageEditRequest) -> ImageResult:
+            raise FoundryTimeoutError("tiempo agotado", role=role)
+
+    client, sink = metered(inner=Slow())
+    request = ImageEditRequest(
+        prompt="x", size="512x512", images=[InputImage(data=png((1536, 1024)))]
+    )
+    with telemetry_scope(uuid4()), pytest.raises(FoundryTimeoutError):
+        await client.edit_image(Role.REALISTIC_RENDERER, request)
+    [(_, record)] = sink.records
+    assert record.status == "error" and record.error_type == "FoundryTimeoutError"
+    assert record.megapixels_ref == pytest.approx(1.572864)  # se registra lo enviado
+    assert record.cost_eur == 0.0 and record.cost_breakdown["reference_mp"] == 0.0
 
 
 async def test_invalid_role_is_rejected_before_any_record() -> None:

@@ -125,10 +125,13 @@ def project(**extra) -> ProjectMetadata:
 
 
 def test_costs_and_confirmation_threshold() -> None:
-    assert euros(None) == "sin precio" and euros(0.0105) == "0.0105 €"
+    # Estimaciones y resúmenes, al céntimo hacia arriba (Paso 39)
+    assert euros(None) == "sin precio" and euros(0.0105) == "0.02 €" and euros(0.07) == "0.07 €"
     assert cost_hint(0.095, "mock") == "Simulación: sin coste"
-    assert cost_hint(0.095, "azure") == "Azure: ≈ 0.095 €"
+    assert cost_hint(0.095, "azure") == "Azure: ≈ 0.10 €"
     assert not needs_confirmation("mock", 10)
+    assert not needs_confirmation("azure", 0.195)  # se ve 0.20 €: sin confirmación
+    assert needs_confirmation("azure", 0.2001)  # se ve 0.21 €
     assert not needs_confirmation("azure", 0.20)  # umbral de 0,20 € (B-043), no incluido
     assert needs_confirmation("azure", 0.21)
 
@@ -145,12 +148,16 @@ def test_draft_cost_follows_inputs_quality_and_variants() -> None:
 
 
 def test_final_render_cost_and_resolutions() -> None:
-    """Paso 24: precio por MP binario (primer MP, resto y 1 MP por la imagen de partida)."""
-    assert final_cost("2448x1632") == pytest.approx(
-        0.002 + 0.0264 + (2448 * 1632 / 1_048_576 - 1) * 0.0132 + 0.0132
-    )
-    assert final_cost("2448x1632") < 0.20  # sin confirmación
-    assert final_cost("1024x1024", prompt=False) == pytest.approx(0.0264 + 0.0132)
+    """Paso 24 y 39: precio por MP binario (primer MP, resto y los MP de la imagen de partida tal
+    como se envía, con el lado largo a 2048 px como máximo)."""
+    output = 0.0264 + (2448 * 1632 / 1_048_576 - 1) * 0.0132
+    from_composition = final_cost("2448x1632", source="1536x1024")
+    assert from_composition == pytest.approx(0.002 + output + 1.5 * 0.0132)
+    from_render = final_cost("2448x1632", source="2448x1632")  # se envía a 2048x1365
+    assert from_render == pytest.approx(0.002 + output + 2048 * 1365 / 1_048_576 * 0.0132)
+    assert final_cost("2448x1632") == from_render  # partida desconocida: la mayor en 3:2
+    assert from_composition < from_render < 0.20  # sin confirmación
+    assert final_cost("1024x1024", prompt=False, source="1024x1024") == pytest.approx(0.0396)
     assert resolution_choices("3:2") == [
         ("1536 x 1024 · 1.6 MP", "1536x1024"),
         ("2016 x 1344 · 2.7 MP", "2016x1344"),
@@ -161,18 +168,16 @@ def test_final_render_cost_and_resolutions() -> None:
 
 def test_cost_hints_follow_the_chosen_options() -> None:
     """B-104: la estimación junto a cada botón sigue las variantes, la calidad y la resolución."""
-    assert draft_hint(4, "medium", 1, "azure") == "Azure: ≈ 0.080 € (4 en calidad media)"
-    assert draft_hint(8, "high", 1, "azure") == (
-        f"Azure: ≈ {draft_cost(8, 'high', 1):.3f} € (8 en calidad alta)"
-    )
+    assert draft_hint(4, "medium", 1, "azure") == "Azure: ≈ 0.08 € (4 en calidad media)"
+    assert draft_cost(8, "high", 1) == pytest.approx(0.324)
+    assert draft_hint(8, "high", 1, "azure") == "Azure: ≈ 0.33 € (8 en calidad alta)"
     assert draft_hint(8, "low", 3, "mock") == "Simulación: sin coste (8 en calidad baja)"
-    assert composition_hint("high", 4, "azure") == (
-        f"Azure: ≈ {composition_cost('high', 4):.3f} € (1 en calidad alta)"
-    )
-    assert final_hint("2448x1632", "azure") == "Azure: ≈ 0.079 € (a 4.0 MP)"
-    assert final_hint("1536x864", "azure") == (
-        f"Azure: ≈ {final_cost('1536x864'):.3f} € (a 1.3 MP)"
-    )
+    assert composition_cost("high", 4) == pytest.approx(0.077)
+    assert composition_hint("high", 4, "azure") == "Azure: ≈ 0.08 € (1 en calidad alta)"
+    # Render final: desde una composición de 1536x1024 o desde un render de 4 MP (Paso 39)
+    assert final_hint("2448x1632", "azure", "1536x1024") == "Azure: ≈ 0.09 € (a 4.0 MP)"
+    assert final_hint("2448x1632", "azure", "2448x1632") == "Azure: ≈ 0.11 € (a 4.0 MP)"
+    assert final_hint("1536x864", "azure", "1536x1024") == "Azure: ≈ 0.06 € (a 1.3 MP)"
     assert draft_hint(4, "medium", 1, None) == composition_hint("medium", 1, None) == ""
     assert final_hint("2448x1632", None) == ""  # sin proyecto activo
 
@@ -203,7 +208,7 @@ def test_render_title_detail_and_inputs(tmp_path: Path) -> None:
     draft = render(RenderStage.DRAFT, RenderStatus.SELECTED, input_asset_ids=[view.id],
                    prompt_info=info)  # fmt: skip
     p = project(assets=[view], renders=[draft])
-    assert "● seleccionado" in render_title_md(draft) and "0.0105 €" in render_title_md(draft)
+    assert "● seleccionado" in render_title_md(draft) and "0.02 €" in render_title_md(draft)
     detail = render_detail_md(p, draft)
     assert "Conservo &lt;la vista&gt;" in detail and "- ¿Alfombra?" in detail
     assert "prompt exacto" in detail  # el prompt enviado al modelo
@@ -392,13 +397,16 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     result = await studio_tab(p, tmp_path, mode="azure").refresh_all(str(p.id))
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
     # Estimaciones (B-104): el modo y las imágenes de entrada; el texto, con las opciones.
-    context = {"mode": "azure", "drafts": 1, "compositions": 2}  # partida + 1 apoyo
+    context = {
+        "mode": "azure", "drafts": 1, "compositions": 2,  # partida + 1 apoyo
+        "final_sources": {"render_final": None, "render_final_actual": final.size},
+    }  # fmt: skip
     assert context in result.values()
     assert tabs(result) == {"Composición": True, "Render Final": False}
     galleries = [by_id(result, f"iai-{s}") for s in ("drafts", "compositions", "finals")]
     assert [len(g["value"]) for g in galleries] == [1, 0, 1]
     assert by_id(result, "iai-select-drafts")["value"] == "Seleccionada ●"
-    assert "**Coste acumulado de la cadena:** 0.2969 €" in by_id(result, "iai-chain-drafts")
+    assert "**Coste acumulado de la cadena:** 0.30 €" in by_id(result, "iai-chain-drafts")
     assert "82/100" in by_id(result, "iai-audit-report")  # auditoría del boceto seleccionado
     assert by_id(result, "iai-gen-compositions")["interactive"] is True
     assert by_id(result, "iai-gen-compositions-current")["interactive"] is False  # sin composición
@@ -407,7 +415,7 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     assert by_id(result, "iai-gen-finals")["interactive"] is False
     assert by_id(result, "iai-gen-finals-current")["interactive"] is True
     assert by_id(result, "iai-gen-finals-variant")["interactive"] is True
-    assert "Azure: ≈ 0.250 €" in texts(result)  # auditoría, sin opciones
+    assert "Azure: ≈ 0.30 €" in texts(result)  # auditoría, sin opciones (Paso 39: 0,30 €)
 
 
 async def test_show_render_opens_an_image_of_any_stage(tmp_path: Path) -> None:
@@ -460,7 +468,7 @@ def test_retouch_caption_detail_and_mask_input(tmp_path: Path) -> None:
                               mask_file="x-mascara.png", coverage=0.042),
     )  # fmt: skip
     p = project(renders=[source, retouch])
-    assert render_caption(retouch) == "○ generado · retoque · 0.0105 €"
+    assert render_caption(retouch) == "○ generado · retoque · 0.02 €"
     text = render_detail_md(p, retouch)
     assert f"**Retoque de** `{source.id.hex[:8]}`" in text
     assert "Cojines &lt;mostaza&gt;" in text and "zona 4%" in text
@@ -472,7 +480,7 @@ def test_retouch_caption_detail_and_mask_input(tmp_path: Path) -> None:
     [
         (None, "azure", None),
         (RenderStage.DRAFT, "azure", None),
-        (RenderStage.COMPOSITION, "azure", "Azure: ≈ 0.035 €"),
+        (RenderStage.COMPOSITION, "azure", "Azure: ≈ 0.07 €"),
         (RenderStage.COMPOSITION, "mock", "Simulación: sin coste"),
         (RenderStage.FINAL, "azure", None),  # solo composiciones (B-038)
     ],

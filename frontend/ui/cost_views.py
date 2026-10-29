@@ -13,6 +13,7 @@ import altair as alt
 import pandas as pd
 
 from shared.roles import Role
+from ui.money import euros_up
 
 ALL = "Todos"
 STATUS_LABELS = {"ok": "correcta", "error": "error"}
@@ -48,7 +49,13 @@ _LABEL_CHARS = 90  # caracteres de etiquetas que caben en horizontal en media pa
 
 
 def money(value: float | None) -> str:
+    """Importe de una llamada del registro: exacto, con 4 decimales (para cuadrar con Azure)."""
     return "—" if value is None else f"{value:.4f} €"
+
+
+def money_up(value: float | None) -> str:
+    """Resúmenes (indicadores, cadena, avisos y gráficos): al céntimo hacia arriba (Paso 39)."""
+    return euros_up(value, "—")
 
 
 def kpi_html(summary: dict[str, Any]) -> str:
@@ -56,7 +63,7 @@ def kpi_html(summary: dict[str, Any]) -> str:
     calls = totals["calls"]
     average = totals["latency_s"] / calls if calls else 0.0
     cards = [
-        ("Coste estimado", money(totals["cost_eur"])),
+        ("Coste estimado", money_up(totals["cost_eur"])),
         ("Llamadas", f"{calls}"),
         ("Errores", f"{totals['errors']}"),
         ("Imágenes", f"{totals['images_out']}"),
@@ -81,8 +88,9 @@ def notes_md(summary: dict[str, Any]) -> str:
         parts.append(f"{summary['totals']['unpriced_calls']} llamada(s) sin precio configurado.")
     if summary["totals"]["errors"]:
         parts.append(
-            "Las llamadas con error figuran solo con lo que se conoce (p. ej. las imágenes "
-            "enviadas al renderizador); el proveedor pudo facturar más (p. ej. un timeout)."
+            "Las llamadas con error figuran a 0 €, salvo los tokens que el modelo llegó a "
+            "consumir (p. ej. una respuesta incompleta): hasta ahora Azure no ha cobrado los "
+            "tiempos agotados, aunque podría."
         )
     return " ".join(parts)
 
@@ -135,9 +143,10 @@ def legend_html(summary: dict[str, Any]) -> str:
 
 def role_frame(summary: dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame(
-        [{"Rol": g["key"], "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
+        [{"Rol": g["key"], "Coste (€)": g["cost_eur"], "Coste": money_up(g["cost_eur"]),
+          "Llamadas": g["calls"]}
          for g in summary.get("by_role", [])],
-        columns=["Rol", "Coste (€)", "Llamadas"],
+        columns=["Rol", "Coste (€)", "Coste", "Llamadas"],
     )  # fmt: skip
 
 
@@ -152,7 +161,7 @@ def role_chart(summary: dict[str, Any]) -> alt.Chart:
                     axis=alt.Axis(labelAngle=-40, labelAlign="right", labelLimit=0)),
             y=alt.Y("Coste (€):Q", scale=alt.Scale(domainMin=0)),
             color=_color(),
-            tooltip=["Rol", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
+            tooltip=["Rol", alt.Tooltip("Coste:N", title="Coste (€)"), "Llamadas"],
         )
     )  # fmt: skip
     return _finish(chart, "Coste por rol", HALF_WIDTH, height=300)
@@ -162,9 +171,9 @@ def _stacked(groups: list[dict[str, Any]], column: str, label: bool = False) -> 
     """Desglose cruzado del backend (`by_day_role`, `by_project_role`) → filas para apilar."""
     return pd.DataFrame(
         [{column: (g["label"] or g["key"][:8]) if label else g["key"], "Rol": g["role"],
-          "Coste (€)": g["cost_eur"], "Llamadas": g["calls"]}
+          "Coste (€)": g["cost_eur"], "Coste": money_up(g["cost_eur"]), "Llamadas": g["calls"]}
          for g in groups],
-        columns=[column, "Rol", "Coste (€)", "Llamadas"],
+        columns=[column, "Rol", "Coste (€)", "Coste", "Llamadas"],
     )  # fmt: skip
 
 
@@ -179,7 +188,7 @@ def _stacked_chart(frame: pd.DataFrame, column: str, title: str) -> alt.Chart:
             y=alt.Y("sum(Coste (€)):Q", title="Coste (€)", scale=alt.Scale(domainMin=0)),
             color=_color(),
             order=alt.Order("Orden:Q"),
-            tooltip=[column, "Rol", alt.Tooltip("Coste (€):Q", format=".4f"), "Llamadas"],
+            tooltip=[column, "Rol", alt.Tooltip("Coste:N", title="Coste (€)"), "Llamadas"],
         )
         .transform_calculate(Orden=f"indexof({list(ROLE_COLORS)}, datum.Rol)")
     )  # fmt: skip
@@ -372,7 +381,7 @@ def chain_cost_md(cost: dict[str, Any] | None) -> str:
         return ""
     totals = cost["totals"]
     text = (
-        f"**Coste acumulado de la cadena:** {money(totals['cost_eur'])} · "
+        f"**Coste acumulado de la cadena:** {money_up(totals['cost_eur'])} · "
         f"{totals['calls']} llamada(s) (fichas de referencias, etapas, retoques y auditorías "
         "que llevan a esta imagen; sin ramas descartadas)"
     )
@@ -391,18 +400,18 @@ def alert_lines(alerts: dict[str, Any] | None, project_id: str | None) -> list[s
     if project_id is not None:
         projects = [p for p in projects if p["project_id"] == project_id]
         lines += [
-            f"⚠️ Este proyecto lleva {p['cost_eur']:.2f} € de IA "
+            f"⚠️ Este proyecto lleva {money_up(p['cost_eur'])} de IA "
             f"(aviso a partir de {p['threshold_eur']:g} €)."
             for p in projects
         ]
     elif projects:
-        names = ", ".join(f"{p['name']} ({p['cost_eur']:.2f} €)" for p in projects)
+        names = ", ".join(f"{p['name']} ({money_up(p['cost_eur'])})" for p in projects)
         limit = projects[0]["threshold_eur"]
         lines.append(f"⚠️ Proyectos por encima de {limit:g} €: {names}.")
     total = alerts["total"]
     if total["exceeded"]:
         lines.append(
-            f"⚠️ El gasto total de IA es {total['cost_eur']:.2f} € "
+            f"⚠️ El gasto total de IA es {money_up(total['cost_eur'])} "
             f"(aviso a partir de {total['threshold_eur']:g} €)."
         )
     return lines

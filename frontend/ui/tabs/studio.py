@@ -48,6 +48,7 @@ from ui.studio_views import (
     euros,
     final_cost,
     final_hint,
+    final_source,
     needs_confirmation,
     render_caption,
     render_detail_md,
@@ -530,6 +531,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 "mode": current_mode,
                 "drafts": n_drafts,
                 "compositions": composition_inputs(project),
+                "final_sources": {  # imagen de partida de cada botón del render final
+                    kind: final_source(project, kind)
+                    for kind in ("render_final", "render_final_actual")
+                },
             },
             selected_draft: str(draft.id) if draft else None,
             selected_composition: str(composition.id) if composition else None,
@@ -580,7 +585,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         # El resto de estimaciones dependen de las opciones elegidas: `hints` (B-104).
         costs = {
             "auditoria": cost_hint(COST_AUDIT, current_mode),
-            "otra_version": cost_hint(final_cost(shown_final.size, prompt=False), current_mode)
+            "otra_version": cost_hint(
+                final_cost(
+                    shown_final.size,
+                    prompt=False,
+                    source=final_source(project, "otra_version", str(shown_final.id)),
+                ),
+                current_mode,
+            )
             if shown_final
             else "",
         }
@@ -603,15 +615,19 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         comp_hint = composition_hint(
             comp_quality_value, context.get("compositions", 1), current_mode
         )
-        final = final_hint(size or DEFAULT_RENDERER_SIZE, current_mode)
+        sources = context.get("final_sources", {})
+
+        def final(kind: str) -> str:
+            return final_hint(size or DEFAULT_RENDERER_SIZE, current_mode, sources.get(kind))
+
         return {
             actions["boceto"].cost: draft_hint(
                 int(n), draft_quality_value, context.get("drafts", 0), current_mode
             ),
             actions["composicion"].cost: comp_hint,
             actions["composicion_actual"].cost: comp_hint,
-            actions["render_final"].cost: final,
-            actions["render_final_actual"].cost: final,
+            actions["render_final"].cost: final("render_final"),
+            actions["render_final_actual"].cost: final("render_final_actual"),
         }
 
     # --- Acciones de IA (confirmación junto al botón en Azure, B-049) ---------------------------
@@ -621,14 +637,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         if kind == "auditoria":
             return COST_AUDIT
         if kind in {"render_final", "render_final_actual"}:
-            return final_cost(action["body"]["size"])
+            return final_cost(action["body"]["size"], source=final_source(project, kind))
         if project is None:
             return 0.0
         if kind == "otra_version":
-            original = next(
-                (r for r in project.renders if str(r.id) == action["body"]["variant_of"]), None
-            )
-            return final_cost(original.size, prompt=False) if original else 0.0
+            variant_of = action["body"]["variant_of"]
+            original = next((r for r in project.renders if str(r.id) == variant_of), None)
+            source = final_source(project, kind, variant_of)
+            return final_cost(original.size, prompt=False, source=source) if original else 0.0
         quality = action.get("quality", "medium")
         if kind == "boceto":
             return draft_cost(action["body"]["n"], quality, draft_inputs(project))
@@ -705,13 +721,13 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 project = None
         cost = estimate(action, project)
         if needs_confirmation(current_mode, cost):
-            gr.Info(f"Pendiente de confirmar: ≈ {cost:.3f} €")
+            gr.Info(f"Pendiente de confirmar: ≈ {euros(cost)}")
             return {
                 area.pending: action,
                 area.confirm_box: gr.update(visible=True),
                 area.confirm_md: (
                     f"⚠️ Vas a **{describe(action)}** en **Azure**: coste estimado ≈ "
-                    f"**{cost:.3f} €**. ¿Confirmas?"
+                    f"**{euros(cost)}**. ¿Confirmas?"
                 ),
                 area.button: gr.update(interactive=False),
             }

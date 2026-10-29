@@ -48,8 +48,8 @@ class MegapixelPricing(_Model):
     initial_mp: float = Field(ge=0)
     additional_mp: float = Field(ge=0)
     reference_mp: float = Field(ge=0)
-    # pixels: según el tamaño de cada referencia | per_image: 1 MP por referencia, sea cual
-    # sea su tamaño (lo observado en la factura de FLUX, B-011)
+    # pixels: según el tamaño de cada referencia (lo que factura FLUX, Paso 39) | per_image:
+    # 1 MP por referencia, sea cual sea su tamaño
     reference_mode: Literal["pixels", "per_image"] = "pixels"
 
 

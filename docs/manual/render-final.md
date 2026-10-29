@@ -24,8 +24,8 @@ día, la iluminación, el ambiente o personas en la escena.
 | **Generar con la composición seleccionada** | Parte de la composición elegida |
 | **Generar con el render final actual** | Parte del render seleccionado, para cambiarle algo conservando lo demás |
 
-Junto a cada botón se ve la estimación del coste, que cambia con la resolución (unos 0,08 € a
-4 MP).
+Junto a cada botón se ve la estimación del coste, que cambia con la resolución y con la imagen de
+partida: a 4 MP, unos 0,09 € desde una composición y 0,11 € desde otro render.
 
 ## Día, atardecer y noche
 
@@ -63,9 +63,9 @@ indicaciones:
 
 !!! note "Si la IA agota el tiempo"
     El primer intento del render de noche superó el tiempo máximo de espera y terminó con un
-    error. **La aplicación no reintenta un tiempo agotado**, porque la llamada pudo facturarse:
-    queda en el registro de costes y tú decides si lanzarla otra vez. El segundo intento salió
-    bien.
+    error. **La aplicación no reintenta un tiempo agotado**, porque la llamada pudo facturarse
+    (en este caso, Azure no la cobró): queda en el registro de costes y tú decides si lanzarla
+    otra vez. El segundo intento salió bien.
 
 ## Otra versión
 

@@ -61,14 +61,15 @@ El objetivo era ver la cocina terminada desde el punto de vista general del sal�
 
 ## Lo que costó
 
-Todo el caso costó **1,57 €** (estimación con los precios de lista; la cifra facturada está en
-Azure Cost Management), en 29 llamadas a la IA:
+El caso se estimó en **1,57 €** en 29 llamadas a la IA; Azure facturó unos **1,40 €**. La
+estimación usa los precios de lista y redondea al céntimo hacia arriba, así que la factura queda
+siempre por debajo:
 
-| Rol | Llamadas | Coste | Para qué |
-|-----|----------|-------|----------|
-| `REFERENCE_ANALYST` | 7 | 0,20 € | Las recetas de las 6 referencias y un nuevo análisis |
-| `PROMPT_ARCHITECT` | 10 | 0,02 € | Un prompt por cada generación |
-| `FAST_DRAFT_MAKER` | 2 | 0,48 € | Dos tandas de 4 bocetos |
+| Rol | Llamadas | Coste estimado | Para qué |
+|-----|----------|----------------|----------|
+| `REFERENCE_ANALYST` | 7 | 0,21 € | Las recetas de las 6 referencias y un nuevo análisis |
+| `PROMPT_ARCHITECT` | 10 | 0,03 € | Un prompt por cada generación |
+| `FAST_DRAFT_MAKER` | 2 | 0,49 € | Dos tandas de 4 bocetos |
 | `GEOMETRY_AUDITOR` | 1 | 0,27 € | La auditoría del boceto |
 | `COMPOSITION_BUILDER` | 3 | 0,21 € | Composición, retoque y otra composición |
 | `REALISTIC_RENDERER` | 6 | 0,39 € | Cinco renders finales y un intento que agotó el tiempo |

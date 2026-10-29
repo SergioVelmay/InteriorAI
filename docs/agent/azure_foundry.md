@@ -113,11 +113,15 @@ Coste real del retoque 1920×1280 (imagen + guía de 1024 px): 0,0873 €. Desde
 
 ## Telemetría y costes (Paso 7, `backend/app/telemetry/`)
 
-Contraste con la factura de octubre de 2026 ([docs](../pasos/mantenimiento-2026-10-factura.md)):
-los tokens coinciden con la telemetría y el precio en euros es la lista × 0,98463
-(`billing_factor`); FLUX factura el MP binario (`megapixel_px: 1048576`) y 1 MP por imagen de
-referencia (`reference_mode: per_image`); `gpt-6.1-sol` salió a 0 €, pero se mantiene su precio
-de lista a propósito. Un timeout no se facturó.
+Contraste con las facturas de octubre de 2026 ([18/10](../pasos/mantenimiento-2026-10-factura.md)
+y [24-27/10, Paso 39](../pasos/paso-39-precios.md)): los tokens coinciden con la telemetría y el
+precio en euros es la lista × 0,98463, pero se estima **sin factor** (`billing_factor` 1.0 por
+defecto; decisión del usuario: la factura siempre por debajo). FLUX factura el MP binario
+(`megapixel_px: 1048576`) y los MP reales de cada referencia (`reference_mode: pixels`, por
+defecto). `gpt-6.1-sol` sale a 0 €, pero se mantiene su precio de lista a propósito (no se
+explica en el README ni en la web). Los timeouts no se facturan: con error solo se cuentan los
+tokens que informe el proveedor (`MeteredFoundryClient._record`). La interfaz redondea
+estimaciones y resúmenes al céntimo hacia arriba (`ui/money.py`); el registro, con 4 decimales.
 
 Renderizador y tamaños (B-020, Paso 16): acepta medidas que no son múltiplo de 16, pero las
 **redondea hacia abajo en silencio** (pedida 1920×1080 → devuelta 1920×1072). Por eso se pide el

@@ -35,6 +35,7 @@ from shared.supports import (
     geometric_references,
     split_supports,
 )
+from ui.money import cents_up, euros_up
 
 # Coste estimado por acción (EUR, límite alto de lo observado en las pruebas reales).
 # Modelos GPT de imagen (Paso 22, medido con 3 imágenes de entrada en calidad media: 4 bocetos
@@ -47,16 +48,20 @@ COST_PROMPT = 0.002  # el PROMPT_ARCHITECT escribe el prompt de cada generación
 # uno): el COMPOSITION_BUILDER factura mucho menos por imagen de entrada que el de bocetos.
 COST_COMPOSITION_INPUT = 0.010
 # Render final (FLUX, precios de config/pricing.yaml): el primer MP de la imagen generada, el
-# resto de MP y la imagen de partida (1 MP por imagen de entrada); el MP de la factura es binario.
+# resto de MP y los MP de la imagen de partida tal como se envía (lado largo de 2048 px como
+# máximo); el MP de la factura es binario (Paso 39).
 COST_RENDER_FIRST_MP = 0.0264
 COST_RENDER_EXTRA_MP = 0.0132
-COST_RENDER_INPUT = 0.0132
+COST_RENDER_INPUT_MP = 0.0132
+RENDER_INPUT_MAX_SIDE = 2048  # `INPUT_MAX_SIDE_PX` del backend
+RENDER_DEFAULT_SOURCE = "2048x1365"  # partida desconocida: la mayor en 3:2
+MEGAPIXEL_PX = 1_048_576
 RATIOS = list(RENDERER_SIZES)  # 16:9, 3:2 (por defecto), 1:1, 2:3, 9:16
 MAX_INPUTS = 1 + MAX_SUPPORTS  # imagen base o de partida + apoyos (Paso 23)
 # Retoque: solo la composición, con máscara nativa (B-038).
-COST_INPAINT = {RenderStage.COMPOSITION: 0.035}
+COST_INPAINT = {RenderStage.COMPOSITION: 0.07}  # medido: 0,069 € (Paso 36)
 INPAINT_STAGES = frozenset(COST_INPAINT)
-COST_AUDIT = 0.25
+COST_AUDIT = 0.30  # la mayor medida, 0,27 € (Paso 36); por encima, nunca por debajo
 CONFIRM_THRESHOLD_EUR = 0.20  # en modo azure, por encima se pide un segundo clic (B-043)
 
 STATUS_ICONS = {RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●"}
@@ -76,17 +81,19 @@ QUALITY_NAMES = {value: label.lower() for label, value in QUALITIES}
 
 
 def euros(value: float | None) -> str:
-    return "sin precio" if value is None else f"{value:.4f} €"
+    """Coste de una imagen o de una acción: al céntimo hacia arriba (Paso 39)."""
+    return euros_up(value)
 
 
 def needs_confirmation(mode: str | None, estimated_eur: float) -> bool:
-    return mode == "azure" and estimated_eur > CONFIRM_THRESHOLD_EUR
+    """Con el importe que ve el usuario (al céntimo hacia arriba, Paso 39)."""
+    return mode == "azure" and cents_up(estimated_eur) > CONFIRM_THRESHOLD_EUR
 
 
 def cost_hint(estimated_eur: float, mode: str | None) -> str:
     if mode != "azure":
         return "Simulación: sin coste"
-    return f"Azure: ≈ {estimated_eur:.3f} €"
+    return f"Azure: ≈ {cents_up(estimated_eur):.2f} €"
 
 
 def draft_hint(n: int, quality: str, inputs: int, mode: str | None) -> str:
@@ -105,11 +112,12 @@ def composition_hint(quality: str, inputs: int, mode: str | None) -> str:
     return f"{cost_hint(composition_cost(quality, inputs), mode)} (1 en calidad {name})"
 
 
-def final_hint(size: str, mode: str | None) -> str:
-    """Estimación junto a los botones del render final, con la resolución elegida (B-104)."""
+def final_hint(size: str, mode: str | None, source: str | None = None) -> str:
+    """Estimación junto a los botones del render final, con la resolución elegida (B-104) y
+    la imagen de partida (Paso 39)."""
     if mode is None:
         return ""
-    return f"{cost_hint(final_cost(size), mode)} (a {megapixels(size):.1f} MP)"
+    return f"{cost_hint(final_cost(size, source=source), mode)} (a {megapixels(size):.1f} MP)"
 
 
 def inpaint_hint(stage: RenderStage | None, mode: str | None) -> str | None:
@@ -230,12 +238,42 @@ def draft_inputs(project: ProjectMetadata) -> int:
     return (base is not None) + len(split_supports(project, base)[0])
 
 
-def final_cost(size: str, *, prompt: bool = True) -> float:
-    """Coste estimado de un render final de `size`; «Otra versión» no escribe prompt."""
+def source_megapixels(size: str | None) -> float:
+    """MP binarios de la imagen de partida del render final tal como se envía (Paso 39)."""
+    width, height = (int(x) for x in (size or RENDER_DEFAULT_SOURCE).split("x"))
+    scale = min(1.0, RENDER_INPUT_MAX_SIDE / max(width, height))
+    return round(width * scale) * round(height * scale) / MEGAPIXEL_PX
+
+
+def final_cost(size: str, *, prompt: bool = True, source: str | None = None) -> float:
+    """Coste estimado de un render final de `size` a partir de una imagen de `source` (la
+    composición o el render de partida); «Otra versión» no escribe prompt."""
     width, height = (int(x) for x in size.split("x"))
-    extra_mp = max(width * height / 1_048_576 - 1, 0)
-    render = COST_RENDER_FIRST_MP + extra_mp * COST_RENDER_EXTRA_MP + COST_RENDER_INPUT
+    extra_mp = max(width * height / MEGAPIXEL_PX - 1, 0)
+    render = (
+        COST_RENDER_FIRST_MP
+        + extra_mp * COST_RENDER_EXTRA_MP
+        + source_megapixels(source) * COST_RENDER_INPUT_MP
+    )
     return (COST_PROMPT if prompt else 0) + render
+
+
+def final_source(
+    project: ProjectMetadata | None, kind: str, variant_of: str | None = None
+) -> str | None:
+    """Tamaño de la imagen de partida de un render final (Paso 39): la composición
+    seleccionada, el render final seleccionado o, en «Otra versión», la partida del original."""
+    if project is None:
+        return None
+    if kind == "render_final":
+        source = selected_render(project, RenderStage.COMPOSITION)
+    elif kind == "render_final_actual":
+        source = selected_render(project, RenderStage.FINAL)
+    else:
+        original = next((r for r in project.renders if str(r.id) == variant_of), None)
+        parent = original and original.parent_render_id
+        source = next((r for r in project.renders if r.id == parent), None)
+    return source.size if source else None
 
 
 def resolution_choices(ratio: str) -> list[tuple[str, str]]:

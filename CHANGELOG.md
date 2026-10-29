@@ -54,14 +54,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   general.
 - **Costes IA:** un clic fuera del registro de llamadas oculta el detalle de la llamada
   seleccionada (Paso 38, B-106).
+- **Costes contrastados con la factura de Azure del 24 al 27/10** (Paso 39, B-098): se estima con
+  los precios de lista tal cual, sin el factor de ajuste (0,98463), para que la factura quede
+  siempre por debajo. Las estimaciones y los resúmenes de la interfaz se muestran **al céntimo
+  hacia arriba** (el umbral de confirmación de 0,20 € se compara con ese importe); el registro de
+  llamadas, su detalle, el CSV y la API conservan el importe exacto. Costes orientativos del
+  README y de la web al día.
 
 ### Corregido
 
 - La **estimación junto a cada botón** ahora sigue las opciones elegidas: variantes y calidad en
   Bocetos, calidad en Composición y resolución en Render final. Antes mostraba siempre la de los
   valores por defecto; la confirmación ya calculaba bien (Paso 38, B-104).
-- El aviso de **Costes IA** sobre las llamadas con error: figuran con lo que se conoce (p. ej. las
-  imágenes enviadas al renderizador), no siempre a 0 € (Paso 38, B-105).
+- **Llamadas con error:** figuran a 0 €, salvo los tokens que el modelo llegara a consumir (una
+  respuesta incompleta sí se cobra). Un tiempo agotado del render final se estimaba con sus
+  imágenes de referencia y Azure no lo cobra; el aviso de Costes IA lo explica (Pasos 38 y 39,
+  B-105).
+- **Render final:** cada imagen de referencia se estima por los megapíxeles de su tamaño real
+  (como factura Azure), no como 1 MP; la estimación junto a los botones tiene en cuenta la imagen
+  de partida (unos 0,09 € desde una composición y 0,11 € desde otro render, a 4 MP). La
+  auditoría se estima en 0,30 € (la mayor medida, 0,27 €) (Paso 39).
 
 ## [3.0.0] — 2026-10-27
 

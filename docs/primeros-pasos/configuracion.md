@@ -78,16 +78,17 @@ segundo clic de confirmación junto al botón.
 
 ### Costes orientativos
 
-Medidos en pruebas reales (precios de lista de octubre de 2026):
+Medidos en pruebas reales con los precios de lista y redondeados al céntimo hacia arriba, como
+los muestra la aplicación (la factura de Azure queda por debajo):
 
 | Acción | Coste aproximado |
 |--------|------------------|
-| Receta de una referencia | 0,03-0,05 € |
-| Prompt automático de una generación | 0,001-0,005 € |
-| 4 bocetos en calidad media | 0,14-0,20 € |
-| Composición o retoque | 0,05-0,06 € |
-| Render final a 4 MP | 0,08 € |
-| Auditoría del boceto | 0,14-0,25 € |
+| Receta de una referencia | 0,03-0,07 € |
+| Prompt automático de una generación | 0,01 € |
+| 4 bocetos en calidad media | 0,20-0,25 € |
+| Composición o retoque | 0,06-0,08 € |
+| Render final a 4 MP | 0,09 € desde una composición; 0,11 € desde otro render |
+| Auditoría del boceto | 0,14-0,27 € |
 
 ## Almacenamiento, red y contenedores
 

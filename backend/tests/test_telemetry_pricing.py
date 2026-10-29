@@ -38,7 +38,8 @@ def test_repo_pricing_file_is_valid_and_complete(table: PricingTable) -> None:
     assert table.deployment_type == "global"
     assert table.long_context_threshold_tokens == 272_000
     assert table.megapixel_rounding == "exact"
-    assert table.megapixel_px == 1_048_576 and table.billing_factor == pytest.approx(0.98463)
+    assert table.megapixel_px == 1_048_576 and table.billing_factor == 1.0  # sin factor
+    assert table.deployments["FLUX.2-pro"].reference_mode == "pixels"
     assert missing_prices(table, DEPLOYMENTS) == []
     assert missing_prices(table, [*DEPLOYMENTS, "otro"]) == ["otro"]
 
@@ -123,30 +124,34 @@ def test_flux_megapixels_ceil_and_references(list_prices: PricingTable) -> None:
     assert cost.parts["reference_mp"] == pytest.approx(2 * 0.0132)
 
 
-def test_repo_pricing_reproduces_the_october_invoice(table: PricingTable) -> None:
-    """Factura real del 18/10/2026 (B-011): mismos tokens, lista por 0,98463; FLUX con MP
-    binario y 1 MP por referencia."""
-    astra = estimate_cost(
+INVOICE_FACTOR = 0.98463  # factura ≈ lista por 0,98463 en todos los medidores (10/2026)
+
+
+def test_repo_pricing_stays_just_above_the_invoices(table: PricingTable) -> None:
+    """Facturas reales (B-011, Paso 39): con los precios de lista, sin factor, la estimación
+    queda un 1,5 % por encima de lo facturado; nunca por debajo."""
+    astra = estimate_cost(  # auditoría del 18/10/2026: 0,290049 € facturados
         table, "gpt-6-astra", Usage(input_tokens=11_861, cache_write_tokens=11_855,
                                     output_tokens=3_730),
     )  # fmt: skip
-    assert astra is not None and astra.total == pytest.approx(0.290049, abs=2e-5)
-    flare = estimate_cost(
+    assert astra is not None and astra.total * INVOICE_FACTOR == pytest.approx(0.290049, abs=2e-5)
+    flare = estimate_cost(  # bocetos del 18/10/2026: 0,109456 € facturados
         table, "gpt-image-2.5-flare",
         Usage(input_text_tokens=666, input_image_tokens=9_048, output_tokens=1_687),
     )  # fmt: skip
-    assert flare is not None and flare.total == pytest.approx(0.109456, abs=2e-5)
+    assert flare is not None and flare.total * INVOICE_FACTOR == pytest.approx(0.109456, abs=2e-5)
+    # FLUX del 26/10/2026: dos renders de 2448x1632 desde composiciones de 1536x1024,
+    # 0,164022 € facturados (cada referencia, por su tamaño en MP binario)
     flux = estimate_cost(
-        table, "FLUX.2-pro", Usage(), images_out=[(1920, 1280)],
-        references=[(1536, 1024), (949, 535)],
-    )  # fmt: skip
-    assert flux is not None
-    assert flux.parts["initial_mp"] == pytest.approx(0.0264 * 0.98463)
-    assert flux.parts["additional_mp"] == pytest.approx(
-        (1920 * 1280 / 1_048_576 - 1) * 0.0132 * 0.98463
+        table, "FLUX.2-pro", Usage(), images_out=[(2448, 1632)], references=[(1536, 1024)]
     )
-    assert flux.parts["reference_mp"] == pytest.approx(2 * 0.0132 * 0.98463)  # 1 MP cada una
+    assert flux is not None
+    assert flux.parts["initial_mp"] == pytest.approx(0.0264)
+    assert flux.parts["additional_mp"] == pytest.approx((2448 * 1632 / 1_048_576 - 1) * 0.0132)
+    assert flux.parts["reference_mp"] == pytest.approx(1.5 * 0.0132)
+    assert 2 * flux.total * INVOICE_FACTOR == pytest.approx(0.164022, abs=2e-5)
     assert flux.tier == "megapixels/exact/1048576px"
+    assert min(astra.total - 0.290049, flare.total - 0.109456, 2 * flux.total - 0.164022) > 0
 
 
 def test_unknown_deployment_or_missing_table_has_no_price(table: PricingTable) -> None:

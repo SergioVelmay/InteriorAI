@@ -91,9 +91,16 @@ Cada llamada se estima con los precios de `config/pricing.yaml` (en euros):
 | `image_tokens` | Millón de tokens: texto de entrada, imagen de entrada y salida | Bocetos y composición |
 | `megapixels` | Primer megapíxel, megapíxeles adicionales y megapíxeles de las imágenes de referencia | Render final |
 
-El resultado se multiplica por `billing_factor` (ajuste al tipo de cambio de la factura) y se
-guarda en la telemetría. Es una **estimación**: la cifra facturada es la de Azure Cost
-Management.
+Se estima con los precios de lista tal cual, sin factor de ajuste: la factura sale algo por
+debajo (por el tipo de cambio), y es mejor ver en Azure menos gasto del previsto que al revés.
+En el render final, el megapíxel es el binario (2²⁰ px) y cada imagen de referencia cuenta los
+megapíxeles de su tamaño real. Una llamada con error solo cuenta los tokens que el proveedor
+informe (una respuesta incompleta se cobra); un tiempo agotado figura a 0 €.
+
+El importe exacto se guarda en la telemetría. La interfaz muestra las estimaciones y los
+resúmenes (indicadores, gráficos, avisos, coste de la cadena) **al céntimo hacia arriba**, y el
+registro de llamadas, su detalle, el CSV y la API, con el importe exacto. Es una
+**estimación**: la cifra facturada es la de Azure Cost Management.
 
 ### Coste de la cadena
 
@@ -104,6 +111,7 @@ aparte.
 
 ### Avisos y confirmaciones
 
-- En modo Azure, cada acción de más de 0,20 € pide un segundo clic de confirmación.
+- En modo Azure, cada acción de más de 0,20 € (ya redondeada al céntimo hacia arriba) pide un
+  segundo clic de confirmación.
 - La cabecera avisa cuando el gasto real de un proyecto o el total supera
   `COST_ALERT_PROJECT_EUR` o `COST_ALERT_TOTAL_EUR`.
