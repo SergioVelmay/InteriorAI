@@ -12,6 +12,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   encima de sus notas; «Cancelar» vacía el formulario. La copia temporal de la subida se borra al
   cancelar, al cambiar de imagen o al subirla, y Gradio borra cada hora las de más de un día.
 
+### Cambiado
+
+- **Botones bloqueados y apagados** (Paso 42, B-110): mientras se ve «procesando» en la pestaña a
+  la vista (la IA genera, se analiza una referencia, se carga una imagen o se guarda algo), sus
+  botones y miniaturas se apagan y no responden; con una confirmación de coste abierta, solo
+  «Confirmar (con coste)» y «Cancelar». Las pestañas y los desplegables siguen libres. Todo botón
+  desactivado se ve gris oscuro, con el texto atenuado (antes se veía casi igual que activo).
+
 ### Corregido
 
 - **Un proyecto podía no crearse** al escribirlo mientras se creaba el anterior: al terminar, el

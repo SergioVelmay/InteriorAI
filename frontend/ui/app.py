@@ -12,6 +12,7 @@ import gradio as gr
 from shared import Settings, get_settings
 from ui.api_client import BackendClient
 from ui.forecast import seed_forecasts
+from ui.locks import BUSY_LOCK_JS
 from ui.tabs.costs import build_costs_tab
 from ui.tabs.projects import build_projects_tab
 from ui.tabs.references import build_references_tab
@@ -19,6 +20,9 @@ from ui.tabs.studio import build_studio_tabs
 from ui.theme import CSS, FORCE_DARK_JS, GRADIO_TEXTS, build_theme
 from ui.uploads import DELETE_CACHE
 from ui.views import header_html
+
+# Al cargar la página: tema oscuro, tooltips, textos y el bloqueo de botones (B-110)
+APP_JS = f"() => {{ ({FORCE_DARK_JS})(); ({BUSY_LOCK_JS})(); }}"
 
 ACTIVE_PROJECT_KEY = "interiorai.active_project"
 
@@ -61,7 +65,7 @@ def launch_kwargs(settings: Settings) -> dict[str, Any]:
         "server_port": settings.network.frontend_port,
         "theme": build_theme(),
         "css": CSS,
-        "js": FORCE_DARK_JS,
+        "js": APP_JS,
         "i18n": gr.I18n(en=GRADIO_TEXTS, es=GRADIO_TEXTS),  # B-063
         # Las portadas se leen del volumen compartido (montado en solo lectura).
         "allowed_paths": [str(settings.storage.data_dir)],

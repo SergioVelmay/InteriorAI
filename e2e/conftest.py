@@ -20,12 +20,26 @@ from uuid import uuid4
 import httpx
 import pytest
 from PIL import Image
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 FRONTEND_URL = os.environ.get("E2E_FRONTEND_URL", "http://127.0.0.1:7860/")
 BACKEND_URL = os.environ.get("E2E_BACKEND_URL", "http://127.0.0.1:8000")
 TIMEOUT_MS = 30_000
 expect.set_options(timeout=TIMEOUT_MS)  # Gradio tarda en actualizar tras cada evento
+
+# B-110: mientras se ve «procesando» o hay una confirmación abierta, la app ignora los clics en
+# sus botones (`data-iai-locked`). Como haría una persona, cada clic espera a que el botón vuelva
+# a estar disponible; `force=True` pulsa igualmente (para comprobar el bloqueo).
+_click = Locator.click
+
+
+def _click_when_unlocked(self: Locator, *args, **kwargs) -> None:
+    if not kwargs.get("force"):
+        expect(self).not_to_have_attribute("data-iai-locked", re.compile(".*"))
+    _click(self, *args, **kwargs)
+
+
+Locator.click = _click_when_unlocked  # type: ignore[method-assign]
 
 
 def png(size: tuple[int, int], color: str) -> bytes:

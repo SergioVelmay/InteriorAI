@@ -11,6 +11,7 @@ from ui.api_client import BackendClient
 from ui.app import build_app, launch_kwargs
 from ui.forecast import FORECAST_S, Forecast
 from ui.tabs.projects import build_projects_tab
+from ui.theme import CSS
 
 
 def fake_backend(projects: list[dict], mode: str = "mock") -> BackendClient:
@@ -75,6 +76,18 @@ def test_launch_kwargs(settings: Settings) -> None:
     assert texts["en"]["upload_text.drop_file"] == "Arrastra el archivo aquí"
     assert texts["en"] == texts["es"]
     assert "procesando" in kwargs["js"] and ".progress-text" in kwargs["js"]
+
+
+def test_buttons_are_locked_and_greyed_while_processing(settings: Settings) -> None:
+    """B-110: el JS de la página bloquea los botones mientras se ve «procesando» o hay una
+    confirmación abierta (salvo pestañas, desplegables, avisos y los de la confirmación), solo
+    los clics del usuario; y el CSS apaga los desactivados y los bloqueados."""
+    js = launch_kwargs(settings)["js"]
+    assert "data-iai-locked" in js and "isTrusted" in js and '[id^="iai-confirm-"]' in js
+    assert all(free in js for free in ('[role=\\"tab\\"]', "button.label-wrap", ".toast-wrap"))
+    assert js.count("=> {") >= 2  # tema oscuro y bloqueo, los dos al cargar
+    rule = CSS[CSS.index("B-110") :]
+    assert ":disabled, [data-iai-locked]" in rule and "cursor: not-allowed" in rule
 
 
 def test_forecasts_are_seeded_until_the_first_real_run(settings: Settings) -> None:
