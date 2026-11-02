@@ -28,6 +28,11 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   al cambiar las variantes, la calidad o la resolución; en modo Azure, por encima de 0,20 € pide
   confirmarlo en un cuadro rojo, que se oculta al pulsar para no confirmar
   dos veces.
+- **Botones bloqueados y apagados (B-110):** mientras se ve «procesando» en la pestaña a la
+  vista, sus botones y miniaturas se apagan y no responden, ni con el ratón ni con el teclado;
+  con una confirmación de coste abierta, solo responden «Confirmar (con coste)» y «Cancelar».
+  Las pestañas, los desplegables y los avisos siguen libres. Todo botón desactivado se ve gris
+  oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
 - **Formularios bloqueados mientras trabajan:** el de nuevo proyecto y el de subir una
   referencia se bloquean en el mismo clic (en el navegador, sin esperar al servidor) y se
   desbloquean al terminar, para no perder lo que se escriba entretanto al vaciarlos.

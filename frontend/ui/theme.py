@@ -217,6 +217,17 @@ CSS = f"""
 .iai-legend li span:not(.iai-swatch) {{ color: #a1a1aa; }}
 .iai-swatch {{ width: 1rem; height: 1rem; border-radius: 3px; flex: none; }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
+/* B-110: un botón desactivado (o bloqueado mientras se procesa algo, `ui.locks.BUSY_LOCK_JS`)
+   se ve apagado: gris oscuro, texto atenuado, sin efecto al pasar el ratón; las miniaturas y los
+   iconos bloqueados, atenuados. Gradio solo bajaba la opacidad y se seguía viendo blanco o rojo. */
+.gradio-container button[data-iai-locked] {{ cursor: not-allowed !important; opacity: 0.4; }}
+.gradio-container button:is(.primary, .secondary, .stop, .iai-danger):is(
+    :disabled, [data-iai-locked], :disabled:hover, [data-iai-locked]:hover
+) {{
+    background: #27272a !important; color: #71717a !important; border-color: #27272a !important;
+    box-shadow: none !important; opacity: 1 !important; cursor: not-allowed !important;
+}}
+.gradio-container button.thumbnail-item[data-iai-locked] {{ filter: grayscale(0.6); }}
 /* Editor de máscaras (B-039): rojo fijo sin control de paleta y el tamaño del pincel como dos
    circunferencias concéntricas (controles internos del ImageEditor: lo comprueba el E2E). */
 #iai-inpaint-editor button[aria-label="Color"] {{ display: none !important; }}

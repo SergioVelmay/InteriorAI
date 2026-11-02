@@ -74,6 +74,12 @@ siempre por debajo:
 | `COMPOSITION_BUILDER` | 3 | 0,21 € | Composición, retoque y otra composición |
 | `REALISTIC_RENDERER` | 6 | 0,39 € | Cinco renders finales y un intento que agotó el tiempo |
 
+!!! info "Mientras la aplicación trabaja"
+    Mientras se ve «procesando» (la IA genera, se analiza una referencia o se carga una imagen),
+    los botones de esa pestaña se ven apagados y no responden, para no lanzar nada dos veces; con
+    una confirmación de coste abierta, solo responden «Confirmar» y «Cancelar». Puedes cambiar de
+    pestaña y abrir o cerrar secciones mientras tanto.
+
 !!! tip "Antes de empezar"
     Si aún no tienes la aplicación en marcha, sigue [Instalación](../primeros-pasos/instalacion.md).
     Puedes recorrer el manual en **modo simulación**, sin coste: las imágenes serán marcos de
