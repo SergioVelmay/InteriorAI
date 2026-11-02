@@ -81,6 +81,7 @@ Después de la 4.0.0:
 | 42 | [Botones bloqueados y apagados](paso-42-botones.md) (B-110) | `feat/paso-42` | ✅ Cerrado |
 | 43 | [Descartes de candidatas](paso-43-descartes.md) (B-109, B-111, B-112) | `feat/paso-43` | ✅ Cerrado |
 | 44 | [Controles bloqueados](paso-44-controles.md) (B-113) | `feat/paso-44` | ✅ Cerrado |
+| 45 | [Versión 4.1.0](paso-45-version-4-1.md) | `feat/paso-45` | ⏳ En revisión |
 
 Versión 4.1.0 (en curso): [plan de acción](plan-version-4-1.md), Pasos 41 a 45, entradas B-107 a
 B-113 del [backlog](BACKLOG.md).

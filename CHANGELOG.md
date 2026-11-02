@@ -6,6 +6,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [4.1.0] — 2026-11-02
+
+Descartar y recuperar candidatas, vista previa al subir una referencia y una interfaz que no se
+puede pulsar dos veces: mientras algo se procesa, sus botones y controles se apagan y no se
+cambia de proyecto. Plan y bitácora: [docs/pasos/plan-version-4-1.md](docs/pasos/plan-version-4-1.md)
+(Pasos 41 a 45).
+
+Actualización desde la 4.0.0: sin cambios en el `.env` ni migración de datos. Las imágenes
+descartadas usan un estado nuevo (`descartado`) que la 4.0.0 no lee.
+
 ### Añadido
 
 - **Descartar y recuperar candidatas** (Paso 43, B-109) en Bocetos, Composición y Render final:
@@ -350,6 +360,7 @@ cada etapa.
   escalada de privilegios, límites de recursos), usuario configurable (`APP_UID`/`APP_GID`) y
   comando de papelera (`listar`, `restaurar`, `vaciar` con confirmación).
 
+[4.1.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.1.0
 [4.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0
 [3.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0
 [2.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v2.0.0
