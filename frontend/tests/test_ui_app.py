@@ -83,7 +83,7 @@ def test_buttons_are_locked_and_greyed_while_processing(settings: Settings) -> N
     confirmación abierta (salvo pestañas, desplegables, avisos y los de la confirmación), solo
     los clics del usuario; y el CSS apaga los desactivados y los bloqueados."""
     js = launch_kwargs(settings)["js"]
-    assert "data-iai-locked" in js and "isTrusted" in js and '[id^="iai-confirm-"]' in js
+    assert "data-iai-locked" in js and "isTrusted" in js and ".iai-cost-confirm" in js
     assert all(free in js for free in ('[role=\\"tab\\"]', "button.label-wrap", ".toast-wrap"))
     assert js.count("=> {") >= 2  # tema oscuro y bloqueo, los dos al cargar
     # B-111: elegir, crear o mover a la papelera un proyecto, bloqueado con algo en marcha en

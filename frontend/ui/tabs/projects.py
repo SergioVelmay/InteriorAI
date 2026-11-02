@@ -102,7 +102,7 @@ def build_projects_tab(
             with gr.Row():
                 confirm_delete = gr.Button(
                     "Confirmar: mover a la papelera", visible=False, elem_classes="iai-danger",
-                    elem_id="iai-confirm-delete",
+                    elem_id="iai-delete-confirm",
                 )  # fmt: skip
                 cancel_delete = gr.Button("Cancelar", visible=False, variant="secondary")
 

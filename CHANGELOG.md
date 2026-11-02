@@ -40,6 +40,9 @@ descartadas usan un estado nuevo (`descartado`) que la 4.0.0 no lee.
 
 ### Corregido
 
+- Con la papelera de un proyecto por confirmar, su «Cancelar» quedaba bloqueado (el bloqueo de
+  B-110 lo tomaba por una confirmación de coste); y pruebas de extremo a extremo intermitentes
+  (Paso 45, B-114).
 - **El botón rojo** («Confirmar (con coste)», «Confirmar: mover a la papelera») se aviva al pasar
   el ratón, como el resto de botones activos (Paso 43, B-112).
 - **Cambiar de proyecto mientras se procesaba algo** (Paso 43, B-111): con una referencia

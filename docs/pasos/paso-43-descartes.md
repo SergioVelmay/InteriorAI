@@ -44,7 +44,7 @@ del proyecto anterior; al guardar su ficha, la aplicación la buscó en el proye
 |-------|---------|
 | Bloqueo (`ui/locks.py`, `PROJECT_SWITCH`) | Elegir otro proyecto, crear uno o moverlo a la papelera se bloquea mientras haya algo procesándose **en cualquier pestaña**, también en las que no están a la vista (Gradio solo deja los «procesando» en la página mientras el evento sigue en marcha) |
 | Defensa en Referencias | El panel recuerda de qué proyecto es lo que muestra (`shown_project`): «Guardar ficha», «Guardar notas» y «Volver a analizar» con el panel de otro proyecto no guardan nada en el activo; avisan y recargan la pestaña con el proyecto activo |
-| Identificadores | `#iai-delete` y `#iai-confirm-delete` en Proyectos |
+| Identificadores | `#iai-delete` y `#iai-delete-confirm` en Proyectos |
 
 ### Y el botón rojo al pasar el ratón (B-112)
 

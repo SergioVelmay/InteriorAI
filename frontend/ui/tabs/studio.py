@@ -187,7 +187,9 @@ def _action(label: str, slug: str, variant: str = "primary") -> Action:
     with gr.Row(equal_height=True):
         button = gr.Button(label, variant=variant, elem_id=f"iai-gen-{slug}")  # type: ignore[arg-type]
         cost = gr.Markdown(elem_classes=["iai-muted", "iai-action-note"])
-    with gr.Column(visible=False, elem_id=f"iai-confirm-{slug}") as confirm_box:
+    with gr.Column(  # `.iai-cost-confirm`: lo que deja libre el bloqueo (B-110)
+        visible=False, elem_id=f"iai-confirm-{slug}", elem_classes="iai-cost-confirm"
+    ) as confirm_box:
         confirm_md = gr.Markdown(elem_classes="iai-action-note")
         with gr.Row():
             confirm_btn = gr.Button("Confirmar (con coste)", elem_classes="iai-danger")
