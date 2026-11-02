@@ -28,6 +28,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Corregido
 
+- **El botón rojo** («Confirmar (con coste)», «Confirmar: mover a la papelera») se aviva al pasar
+  el ratón, como el resto de botones activos (Paso 43, B-112).
 - **Cambiar de proyecto mientras se procesaba algo** (Paso 43, B-111): con una referencia
   subiéndose se podía cambiar de proyecto, y al terminar Referencias mostraba la del proyecto
   anterior y su ficha no se guardaba («Asset no encontrado»). Ahora elegir, crear o mover a la

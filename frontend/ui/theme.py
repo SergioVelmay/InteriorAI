@@ -217,6 +217,8 @@ CSS = f"""
 .iai-legend li span:not(.iai-swatch) {{ color: #a1a1aa; }}
 .iai-swatch {{ width: 1rem; height: 1rem; border-radius: 3px; flex: none; }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
+/* Al pasar el ratón, un rojo más vivo, como el resto de botones activos (no si está apagado). */
+.iai-danger:not(:disabled):not([data-iai-locked]):hover {{ background: #b91c1c !important; }}
 /* B-110: un botón desactivado (o bloqueado mientras se procesa algo, `ui.locks.BUSY_LOCK_JS`)
    se ve apagado: gris oscuro, texto atenuado, sin efecto al pasar el ratón; las miniaturas y los
    iconos bloqueados, atenuados. Gradio solo bajaba la opacidad y se seguía viendo blanco o rojo. */

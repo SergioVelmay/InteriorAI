@@ -46,6 +46,14 @@ del proyecto anterior; al guardar su ficha, la aplicación la buscó en el proye
 | Defensa en Referencias | El panel recuerda de qué proyecto es lo que muestra (`shown_project`): «Guardar ficha», «Guardar notas» y «Volver a analizar» con el panel de otro proyecto no guardan nada en el activo; avisan y recargan la pestaña con el proyecto activo |
 | Identificadores | `#iai-delete` y `#iai-confirm-delete` en Proyectos |
 
+### Y el botón rojo al pasar el ratón (B-112)
+
+Otra observación del usuario: el botón rojo («Confirmar (con coste)», «Confirmar: mover a la
+papelera») no cambiaba al pasar el ratón, a diferencia de los blancos y los grises. Ahora pasa
+de `#7f1d1d` a un rojo más vivo, `#b91c1c` (`theme.CSS`), solo si está activo: apagado o
+bloqueado sigue gris (Paso 42). Comprobado en el navegador (confirmación de 8 bocetos en calidad
+alta, cancelada): `rgb(127, 29, 29)` → `rgb(185, 28, 28)`.
+
 ## 5. Validación
 
 | Prueba | Resultado |

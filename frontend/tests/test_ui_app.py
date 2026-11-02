@@ -91,6 +91,8 @@ def test_buttons_are_locked_and_greyed_while_processing(settings: Settings) -> N
     assert "#iai-projects .thumbnail-item" in js and "#iai-create" in js and "anywhere" in js
     rule = CSS[CSS.index("B-110") :]
     assert ":disabled, [data-iai-locked]" in rule and "cursor: not-allowed" in rule
+    # B-112: el rojo de «Confirmar (con coste)» se aviva al pasar el ratón, si está activo.
+    assert ".iai-danger:not(:disabled):not([data-iai-locked]):hover" in CSS
 
 
 def test_forecasts_are_seeded_until_the_first_real_run(settings: Settings) -> None:
