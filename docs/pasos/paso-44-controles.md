@@ -28,6 +28,7 @@ Todos los controles de la pestaña, bloqueados en el estado «procesando», como
 | Playwright de extremo a extremo (aplicación local en simulación) | ✅ 7 passed |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #62 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (con las esperas al desbloqueo), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
