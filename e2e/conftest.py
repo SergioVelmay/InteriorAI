@@ -30,12 +30,23 @@ expect.set_options(timeout=TIMEOUT_MS)  # Gradio tarda en actualizar tras cada e
 
 # B-110 y B-113: mientras se ve «procesando» o hay una confirmación abierta, la app ignora los
 # clics y lo que se escriba en sus botones y controles (`data-iai-locked`). Como haría una
-# persona, cada acción espera a que el botón o el control vuelvan a estar disponibles;
-# `force=True` actúa igualmente (para comprobar el bloqueo).
+# persona, cada acción espera a que el botón o el control (o lo que lo contiene: el texto de una
+# opción está dentro de su etiqueta) vuelvan a estar disponibles; `force=True` actúa igualmente
+# (para comprobar el bloqueo).
+# Antes, la aplicación en reposo: nada en marcha en dos lecturas seguidas (algunas cargas empiezan
+# una fracción de segundo después de otra, p. ej. al recargar la página).
+IDLE_JS = "() => document.querySelectorAll('.progress-text').length === 0"
+
+
 def _when_unlocked(action):
     def wrapper(self: Locator, *args, **kwargs):
         if not kwargs.get("force"):
-            expect(self).not_to_have_attribute("data-iai-locked", re.compile(".*"))
+            for _ in range(2):
+                self.page.wait_for_function(IDLE_JS, timeout=TIMEOUT_MS)
+                self.page.wait_for_timeout(250)
+            # ni el propio elemento ni ninguno que lo contenga (el texto de una opción)
+            locked = self.locator("xpath=ancestor-or-self::*[@data-iai-locked]")
+            expect(locked).to_have_count(0)
         return action(self, *args, **kwargs)
 
     return wrapper

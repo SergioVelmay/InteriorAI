@@ -26,7 +26,7 @@ FREE_BUTTONS = '[role="tab"], .tab-container button, button.label-wrap, .toast-w
 # bloquea mientras haya algo procesándose en cualquier pestaña, también en las que no están a la
 # vista: su respuesta pintaría datos de un proyecto en otro. Gradio solo deja los «procesando»
 # en la página mientras el evento sigue en marcha, a la vista o no.
-PROJECT_SWITCH = "#iai-projects .thumbnail-item, #iai-create, #iai-delete, #iai-confirm-delete"
+PROJECT_SWITCH = "#iai-projects .thumbnail-item, #iai-create, #iai-delete, #iai-delete-confirm"
 # B-113: también los controles de la pestaña a la vista (casillas, opciones, deslizadores,
 # desplegables, campos de texto y el lienzo del retoque). Sin tocar su `disabled` (lo gobierna
 # Gradio): se marcan, se atenúan y se anulan los clics, el arrastre y las teclas (salvo el
@@ -43,7 +43,7 @@ BUSY_LOCK_JS = f"""() => {{
     const update = () => {{
         scheduled = false;
         const busy = [...document.querySelectorAll('.progress-text')].some(shown);
-        const confirm = [...document.querySelectorAll('[id^="iai-confirm-"]')].find(shown);
+        const confirm = [...document.querySelectorAll('.iai-cost-confirm')].find(shown);
         const lock = busy || !!confirm;
         const anywhere = document.querySelectorAll('.progress-text').length > 0;
         document.querySelectorAll('.gradio-container button').forEach((button) => {{
