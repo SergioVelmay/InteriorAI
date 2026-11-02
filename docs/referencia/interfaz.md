@@ -29,7 +29,9 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   confirmarlo en un cuadro rojo, que se oculta al pulsar para no confirmar
   dos veces.
 - **Botones bloqueados y apagados (B-110):** mientras se ve «procesando» en la pestaña a la
-  vista, sus botones y miniaturas se apagan y no responden, ni con el ratón ni con el teclado;
+  vista, sus botones y miniaturas se apagan y sus controles (casillas, opciones, deslizadores,
+  desplegables, texto y el lienzo del retoque) se atenúan; nada responde, ni con el ratón ni con
+  el teclado (B-113);
   con una confirmación de coste abierta, solo responden «Confirmar (con coste)» y «Cancelar».
   Las pestañas, los desplegables y los avisos siguen libres. Elegir, crear o mover a la papelera
   un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña (B-111). Todo botón

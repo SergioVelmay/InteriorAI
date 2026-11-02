@@ -25,6 +25,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   botones y miniaturas se apagan y no responden; con una confirmación de coste abierta, solo
   «Confirmar (con coste)» y «Cancelar». Las pestañas y los desplegables siguen libres. Todo botón
   desactivado se ve gris oscuro, con el texto atenuado (antes se veía casi igual que activo).
+  También se bloquean y atenúan los controles de la pestaña: casillas, opciones, deslizadores,
+  desplegables, campos de texto y el lienzo del retoque (Paso 44, B-113).
 
 ### Corregido
 
