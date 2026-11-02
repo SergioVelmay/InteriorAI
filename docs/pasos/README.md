@@ -73,6 +73,15 @@ Después de la 3.0.0:
 Versión 4.0.0 (publicada el 2026-10-29): [plan de acción](plan-version-4.md), Pasos 32 a 40, entradas B-054,
 B-056, B-094 a B-102, B-104 a B-106 del [backlog](BACKLOG.md).
 
+Después de la 4.0.0:
+
+| Paso | Documento | Rama | Estado |
+|------|-----------|------|--------|
+| 41 | [Proyectos y referencias](paso-41-proyectos-referencias.md) (B-107, B-108) | `feat/paso-41` | ⏳ En revisión |
+
+Versión 4.1.0 (en curso): [plan de acción](plan-version-4-1.md), Pasos 41 a 44, entradas B-107 a
+B-110 del [backlog](BACKLOG.md).
+
 ## Plantilla de documento de paso
 
 ```markdown

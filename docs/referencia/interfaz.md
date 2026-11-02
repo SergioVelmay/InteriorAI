@@ -28,6 +28,12 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   al cambiar las variantes, la calidad o la resolución; en modo Azure, por encima de 0,20 € pide
   confirmarlo en un cuadro rojo, que se oculta al pulsar para no confirmar
   dos veces.
+- **Formularios bloqueados mientras trabajan:** el de nuevo proyecto y el de subir una
+  referencia se bloquean en el mismo clic (en el navegador, sin esperar al servidor) y se
+  desbloquean al terminar, para no perder lo que se escriba entretanto al vaciarlos.
+- **Subidas temporales:** la imagen elegida para una referencia se ve en grande antes de
+  subirla; su copia temporal (la de Gradio, nunca en `data/`) se borra al cancelar, al cambiarla
+  o al subirla, y Gradio borra cada hora las de más de un día.
 - **Previsión de tiempo:** mientras trabaja la IA se ve «procesando | transcurrido/previsto».
   Gradio solo conoce la media de las ejecuciones anteriores; InteriorAI siembra la previsión
   medida en pruebas reales para que se vea desde la primera vez (`forecast.py`).

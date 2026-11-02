@@ -41,7 +41,8 @@ En el caso del manual:
 > desayunador. El salón y el comedor se amueblan con piezas cuyos colores y materiales combinen
 > con los de la cocina.
 
-Pulsa **Crear proyecto**: aparece en la galería y queda activo.
+Pulsa **Crear proyecto**: aparece en la galería y queda activo. Mientras se crea, el botón dice
+«Creando…» y el formulario queda bloqueado; después se vacía para el siguiente.
 
 ![Proyecto recién creado](img/proyectos-creado.jpg)
 

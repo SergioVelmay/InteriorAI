@@ -14,6 +14,7 @@ from shared.models import ProjectCreate, ProjectMetadata
 from ui.api_client import ApiError, BackendClient, Health
 from ui.cost_views import project_calls_md
 from ui.covers import cover_image
+from ui.locks import lock_js
 from ui.views import (
     calls_label,
     form_values,
@@ -77,8 +78,10 @@ def build_projects_tab(
                 new_name = gr.Textbox(
                     label="Nombre", placeholder="Salón-cocina-comedor", elem_id="iai-new-name"
                 )
-                new_description = gr.Textbox(label="Descripción", lines=4)
-                create = gr.Button("Crear proyecto", variant="primary")
+                new_description = gr.Textbox(
+                    label="Descripción", lines=4, elem_id="iai-new-description"
+                )
+                create = gr.Button("Crear proyecto", variant="primary", elem_id="iai-create")
         with gr.Column(scale=1):
             summary = gr.Markdown(EMPTY_SUMMARY, elem_id="iai-project-summary")
             with gr.Accordion(calls_label(None), open=False) as calls_box:  # B-027
@@ -215,8 +218,25 @@ def build_projects_tab(
     create_outputs = [*all_outputs, new_name, new_description]
     delete_outputs = [*all_outputs, confirm_delete, cancel_delete]
 
+    def lock_form(locked: bool) -> dict:
+        """Mientras se crea, el formulario queda bloqueado: así no se borra lo que se escriba
+        entretanto al vaciarlo (B-107)."""
+        return {
+            new_name: gr.update(interactive=not locked),
+            new_description: gr.update(interactive=not locked),
+            create: gr.update(
+                interactive=not locked, value="Creando…" if locked else "Crear proyecto"
+            ),
+        }
+
+    form = [new_name, new_description, create]
     gallery.select(on_select, inputs=ids, outputs=[active, header, *detail_outputs])
-    create.click(on_create, inputs=[new_name, new_description], outputs=create_outputs)
+    locked = create.click(
+        lambda: lock_form(True), outputs=form, queue=False, show_progress="hidden",
+        js=lock_js("#iai-new-name", "#iai-new-description", "#iai-create"),
+    )  # fmt: skip
+    created = locked.then(on_create, inputs=[new_name, new_description], outputs=create_outputs)
+    created.then(lambda: lock_form(False), outputs=form, queue=False, show_progress="hidden")
     save.click(on_save, inputs=[active, *fields], outputs=all_outputs)
     delete.click(ask_delete, outputs=[confirm_delete, cancel_delete])
     cancel_delete.click(hide_delete, outputs=[confirm_delete, cancel_delete])

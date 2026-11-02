@@ -6,6 +6,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Vista previa al subir una referencia** (Paso 41, B-108): la imagen elegida se ve en grande
+  encima de sus notas; «Cancelar» vacía el formulario. La copia temporal de la subida se borra al
+  cancelar, al cambiar de imagen o al subirla, y Gradio borra cada hora las de más de un día.
+
+### Corregido
+
+- **Un proyecto podía no crearse** al escribirlo mientras se creaba el anterior: al terminar, el
+  formulario se vaciaba y se perdía lo escrito. Ahora el formulario se bloquea en el mismo clic
+  mientras se crea, y el de subir una referencia, mientras sube y analiza (Paso 41, B-107).
+
 ## [4.0.0] — 2026-10-29
 
 Prompts más precisos, sin la compatibilidad con la v1 (esquema de datos v3), documentación

@@ -22,8 +22,10 @@ from shared.supports import MAX_SUPPORTS
 from ui.api_client import ApiError, BackendClient
 from ui.covers import asset_path, placeholder
 from ui.forecast import FORECAST_S
+from ui.locks import lock_js
 from ui.money import euros_up
 from ui.studio_views import excluded_count
+from ui.uploads import discard_upload
 from ui.views import (
     COST_ANALYSIS,
     asset_caption,
@@ -89,14 +91,24 @@ def build_references_tab(
                     label="Imagen (PNG, JPEG o WebP)", file_count="single", file_types=FILE_TYPES,
                     elem_id="iai-reference-file",
                 )  # fmt: skip
+                # La imagen elegida, a todo el ancho, mientras se escriben sus notas (B-108)
+                upload_preview = gr.Image(
+                    show_label=False, interactive=False, buttons=[], visible=False,
+                    elem_id="iai-upload-preview", elem_classes="iai-viewer",
+                )  # fmt: skip
+                pending_upload = gr.State(None)  # copia temporal de la imagen elegida
                 upload_notes = gr.Textbox(
                     label="Notas (opcionales)", lines=3, elem_id="iai-reference-upload-notes",
                     placeholder="p. ej. «quédate con el sofá, por módulos» o «con estas medidas»",
                 )  # fmt: skip
                 gr.Markdown(ANALYSIS_HINT, elem_classes="iai-muted")
-                upload_btn = gr.Button(
-                    "Subir y analizar", variant="primary", elem_id="iai-reference-upload"
-                )
+                with gr.Row():
+                    upload_btn = gr.Button(
+                        "Subir y analizar", variant="primary", elem_id="iai-reference-upload"
+                    )
+                    cancel_upload = gr.Button(
+                        "Cancelar", variant="secondary", elem_id="iai-reference-cancel"
+                    )
         with gr.Column(scale=1):
             selected = gr.State(None)
             info = gr.Markdown(NO_SELECTION)
@@ -238,6 +250,29 @@ def build_references_tab(
         await analyze(active_id, str(asset.id), None)
         return {**await refresh(active_id, keep=str(asset.id)), file: None, upload_notes: ""}
 
+    def on_file(path: str | None, previous: str | None) -> dict:
+        """Vista previa de la imagen elegida (B-108); la copia temporal de la anterior se borra
+        al quitarla, al cambiarla, al cancelar o al subirla (nunca llega a `data/`)."""
+        if previous and previous != path:
+            discard_upload(previous)
+        return {
+            upload_preview: gr.update(value=path, visible=bool(path)),
+            pending_upload: path,
+        }
+
+    def lock_upload(locked: bool) -> dict:
+        """Mientras se sube y se analiza (hasta un minuto), el formulario queda bloqueado: así no
+        se borran las notas que se escriban entretanto al vaciarlo (B-108)."""
+        return {
+            file: gr.update(interactive=not locked),
+            upload_notes: gr.update(interactive=not locked),
+            upload_btn: gr.update(
+                interactive=not locked, value="Subiendo y analizando…" if locked else
+                "Subir y analizar",
+            ),
+            cancel_upload: gr.update(interactive=not locked),
+        }  # fmt: skip
+
     async def on_reanalyze(active_id: str | None, asset_id: str | None, notes_v: str) -> dict:
         if not (active_id and asset_id):
             return unchanged()
@@ -292,10 +327,25 @@ def build_references_tab(
     # --- Eventos ---------------------------------------------------------------------------
 
     gallery.select(on_select, inputs=[ids, active], outputs=panel_outputs)
+    upload_form = [file, upload_notes, upload_btn, cancel_upload]
+    file.change(
+        on_file, inputs=[file, pending_upload], outputs=[upload_preview, pending_upload],
+        queue=False, show_progress="hidden",
+    )  # fmt: skip
+    cancel_upload.click(lambda: (None, ""), outputs=[file, upload_notes], queue=False)
     uploaded = upload_btn.click(
+        lambda: lock_upload(True), outputs=upload_form, queue=False, show_progress="hidden",
+        js=lock_js(
+            "#iai-reference-file", "#iai-reference-upload-notes", "#iai-reference-upload",
+            "#iai-reference-cancel",
+        ),
+    ).then(
         on_upload, inputs=[file, upload_notes, active],
         outputs=[*panel_outputs, file, upload_notes],
     )  # fmt: skip
+    uploaded.then(
+        lambda: lock_upload(False), outputs=upload_form, queue=False, show_progress="hidden"
+    )
     reanalyzed = reanalyze.click(
         on_reanalyze, inputs=[active, selected, notes], outputs=panel_outputs
     )

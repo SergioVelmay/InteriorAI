@@ -9,12 +9,15 @@ inspiran. La IA analiza cada una y tú decides qué se usa de ella.
 ## Subir una referencia con notas
 
 En **Subir una referencia** eliges la imagen (PNG, JPEG o WebP) y escribes **notas**: qué quieres
-de esa imagen. Las notas orientan el análisis: en qué fijarse, qué priorizar y qué ignorar.
+de esa imagen. La imagen elegida se ve en grande justo encima de las notas, para tenerla delante
+mientras las escribes. Las notas orientan el análisis: en qué fijarse, qué priorizar y qué
+ignorar.
 
 ![Subir una referencia con notas](img/referencias-subir.jpg){ width="560" }
 
-Al pulsar **Subir y analizar**, el `REFERENCE_ANALYST` analiza la imagen (de 30 a 60 segundos;
-unos 0,03-0,05 €) y la referencia aparece en la galería:
+**Cancelar** vacía la imagen y las notas sin subir nada. Al pulsar **Subir y analizar**, el
+`REFERENCE_ANALYST` analiza la imagen (de 30 a 60 segundos; unos 0,03-0,07 €); mientras tanto el
+formulario queda bloqueado, y al terminar la referencia aparece en la galería:
 
 ![Analizando la referencia](img/referencias-analizando.jpg)
 
