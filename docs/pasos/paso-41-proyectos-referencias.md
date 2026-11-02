@@ -44,6 +44,7 @@ El formulario de subir una referencia tenía el mismo problema durante la subida
 | Playwright de extremo a extremo (aplicación local en simulación) | ✅ 6 passed |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #59 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
