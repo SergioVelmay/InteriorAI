@@ -28,6 +28,7 @@ en los Pasos 41 a 44 (B-107 a B-113).
 | `uv run pytest` | ✅ (incluye el esquema OpenAPI con la versión nueva) |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #63 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
