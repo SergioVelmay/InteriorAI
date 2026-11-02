@@ -42,6 +42,7 @@ poder recuperarlas.
 | Postman CLI (backend local en simulación) | ✅ 53 peticiones, 95 comprobaciones |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #61 | ✅ lint y tests, gitleaks, Docker con newman (colección con los descartes) y Playwright (7 pruebas, también la de los descartes), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
