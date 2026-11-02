@@ -50,5 +50,9 @@ este arreglo.
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-45`. Tras el merge y con la CI de `main` en verde: etiqueta
-`v4.1.0` y Release de GitHub con el OK del usuario.
+✅ Cerrado — rama `feat/paso-45`, PR #63 revisada y mergeada por el usuario (2026-11-02), con el
+arreglo de B-114 en la PR #64 (`fix/e2e-esperas`). Con la CI de `main` en verde y el OK del
+usuario: etiqueta anotada `v4.1.0` sobre `ed973f2` y
+[Release «InteriorAI 4.1.0»](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.1.0), la
+última, con las notas del CHANGELOG (enlaces relativos a `blob/v4.1.0/`). Docker reconstruido:
+`/health` responde la versión 4.1.0. El enlace de la página Versiones de la web funciona.

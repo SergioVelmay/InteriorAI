@@ -20,7 +20,7 @@ Los datos con descartes no los lee la 4.0.0 (como siempre al volver atrás).
 | 42. Botones bloqueados y apagados ✅ | Estilo «apagado» para todo botón desactivado; mientras se ve «procesando» en la pestaña, sus botones y miniaturas se apagan y no responden (pestañas y desplegables sí); con una confirmación abierta solo responden «Confirmar» y «Cancelar» | B-110 | No |
 | 43. Descartes ✅ | Estado «descartado» con sus transiciones y endpoints; aspa en cada candidato salvo el seleccionado y «Descartar» junto a «Seleccionar»; desplegable «Descartados (n)» al final de cada pestaña, cerrado y solo con alguno, con ✓ para recuperar; la IA no ve los descartados; manual y capturas; además, no se cambia de proyecto mientras algo se procesa (B-111, observación del usuario); y el efecto al pasar el ratón por el botón rojo (B-112) | B-109, B-111, B-112 | No |
 | 44. Controles bloqueados ✅ | Mientras se ve «procesando» o hay una confirmación abierta, también se bloquean y atenúan los controles de la pestaña a la vista: casillas, opciones, deslizadores, desplegables, campos de texto y el lienzo del retoque (observación del usuario) | B-113 | No |
-| 45. Versión 4.1.0 | Versión, CHANGELOG, etiqueta y Release con el OK del usuario | — | No |
+| 45. Versión 4.1.0 ✅ | Versión, CHANGELOG, etiqueta y Release con el OK del usuario | — | No |
 
 ## Decisiones tomadas (usuario, 2026-11-02)
 
