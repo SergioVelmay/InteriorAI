@@ -77,7 +77,7 @@ Después de la 4.0.0:
 
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
-| 41 | [Proyectos y referencias](paso-41-proyectos-referencias.md) (B-107, B-108) | `feat/paso-41` | ⏳ En revisión |
+| 41 | [Proyectos y referencias](paso-41-proyectos-referencias.md) (B-107, B-108) | `feat/paso-41` | ✅ Cerrado |
 
 Versión 4.1.0 (en curso): [plan de acción](plan-version-4-1.md), Pasos 41 a 44, entradas B-107 a
 B-110 del [backlog](BACKLOG.md).

@@ -50,7 +50,9 @@ Coste real del paso: 0 €.
 
 ## 6. Estado final
 
-⏳ En revisión — rama `feat/paso-41`.
+✅ Cerrado — rama `feat/paso-41`, PR #59 revisada y mergeada por el usuario (2026-11-02), junto con
+las de Dependabot #57 (`setup-uv`) y #58 (8 dependencias de Python, Gradio 6.31.0). Docker
+reconstruido.
 
 ## 7. Pendiente / futuro
 
