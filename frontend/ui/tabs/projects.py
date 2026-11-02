@@ -95,11 +95,15 @@ def build_projects_tab(
                 )
             with gr.Row():
                 save = gr.Button("Guardar cambios", variant="primary", interactive=False)
-                delete = gr.Button("Mover a la papelera", variant="secondary", interactive=False)
+                delete = gr.Button(
+                    "Mover a la papelera", variant="secondary", interactive=False,
+                    elem_id="iai-delete",
+                )  # fmt: skip
             with gr.Row():
                 confirm_delete = gr.Button(
-                    "Confirmar: mover a la papelera", visible=False, elem_classes="iai-danger"
-                )
+                    "Confirmar: mover a la papelera", visible=False, elem_classes="iai-danger",
+                    elem_id="iai-confirm-delete",
+                )  # fmt: skip
                 cancel_delete = gr.Button("Cancelar", visible=False, variant="secondary")
 
     fields = [name, description]

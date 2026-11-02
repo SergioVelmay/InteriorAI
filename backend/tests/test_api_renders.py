@@ -631,3 +631,52 @@ def test_render_chain_cost_includes_reference_indexing(api: TestClient, spy: Spy
     assert cost["references"] == 3
     # 3 recetas + prompt y boceto + prompt y composición
     assert cost["simulated_calls"] == 7
+
+
+# --- Descartes (B-109) ------------------------------------------------------------------------
+
+
+def discard(api: TestClient, project: dict, render_id: str, action: str = "discard"):
+    return api.post(f"{project['url']}/renders/{render_id}/{action}")
+
+
+def test_discard_and_restore_candidates(api: TestClient, spy: SpyClient, project: dict) -> None:
+    """La seleccionada no se descarta; una descartada no se selecciona sin recuperarla antes y
+    vuelve a las candidatas con su estado y sus datos (nada se borra)."""
+    first, second = run(api, project, "drafts", n=2)["renders"]
+    select(api, project, first["id"])
+    assert discard(api, project, first["id"]).status_code == 409  # la seleccionada, no
+    discarded = discard(api, project, second["id"])
+    assert discarded.status_code == 200 and discarded.json()["status"] == "descartado"
+    assert discard(api, project, second["id"]).status_code == 409  # ya descartada
+    assert api.post(f"{project['url']}/renders/{second['id']}/select").status_code == 409
+    assert discard(api, project, first["id"], "restore").status_code == 409  # no descartada
+    restored = discard(api, project, second["id"], "restore").json()
+    assert restored["status"] == "generado" and restored["decided_at"] is not None
+    assert {k: v for k, v in restored.items() if k not in {"status", "decided_at"}} == {
+        k: v for k, v in second.items() if k not in {"status", "decided_at"}
+    }
+    select(api, project, second["id"])  # recuperada, ya se puede seleccionar
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert discard(api, project, missing).status_code == 404
+
+
+def test_discarded_images_are_not_used(api: TestClient, spy: SpyClient) -> None:
+    """Ni «Otra versión», ni retoque, ni auditoría de una imagen descartada; y la IA no la ve
+    entre las generaciones anteriores de la etapa."""
+    project, composition = v2_composition(api)
+    other = run(api, project, "compositions")["renders"][0]
+    final = run(api, project, "final")["renders"][0]
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    for render in (other, final, draft):
+        assert discard(api, project, render["id"]).status_code == 200
+    variant = api.post(f"{project['url']}/renders/final", json={"variant_of": final["id"]})
+    assert variant.status_code == 409 and "recupérala" in variant.json()["detail"]
+    mask = zone_mask((1536, 1024), (100, 100, 400, 400))
+    assert inpaint(api, project, other["id"], mask, instruction="Una planta").status_code == 409
+    assert api.post(f"{project['url']}/renders/{draft['id']}/audit").status_code == 409
+    texts = len(spy.texts)
+    run(api, project, "compositions")
+    context = spy.texts[texts][1].input
+    assert f"Composición {composition['id'][:8]}" in str(context)  # la seleccionada, sí
+    assert other["id"][:8] not in str(context)  # la descartada (la más reciente), no

@@ -9,6 +9,10 @@ La pestaña se desbloquea cuando hay un boceto seleccionado.
 Tiene dos secciones opcionales plegables, **Auditoría** y **Retoque**, y la sección **Crear
 composición**. La auditoría se abre sola si el boceto seleccionado ya tiene una.
 
+Como en los bocetos, las composiciones que no quieras usar se apartan con el aspa o con
+**Descartar** y se recuperan desde **Descartados** ([Descartar y
+recuperar](bocetos.md#descartar-y-recuperar)).
+
 ## Auditoría del boceto (opcional)
 
 El `GEOMETRY_AUDITOR` compara el boceto con **todas las referencias activas que marcan perspectiva

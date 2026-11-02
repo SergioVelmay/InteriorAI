@@ -91,6 +91,15 @@ seleccionado, en **16:9** y con estas indicaciones:
 
 ![Panorámica a partir del render de día](img/render-panoramica.jpg)
 
+## Descartar y recuperar
+
+Los renders que no quieras usar se apartan con el aspa o con **Descartar** y se recuperan desde
+**Descartados**, al final de la pestaña, como en los
+[bocetos](bocetos.md#descartar-y-recuperar). Así queda el atardecer que cambió el comedor una vez
+descartado:
+
+![El atardecer descartado](img/render-descartados.jpg)
+
 ## El render elegido
 
 ![Galería de renders finales](img/render-galeria.jpg)

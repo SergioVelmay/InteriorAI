@@ -198,11 +198,13 @@ class RenderStage(StrEnum):
 
 
 class RenderStatus(StrEnum):
-    """Sin estados de rechazo ni descarte desde la v2 (B-048): las imágenes se generan y,
-    como mucho, se seleccionan."""
+    """Las imágenes se generan y, como mucho, se seleccionan (sin rechazos desde la v2, B-048).
+    Desde la 4.1.0 (B-109) el usuario puede apartar una candidata a «Descartados» y recuperarla:
+    no se borra, pero no se usa hasta recuperarla."""
 
     GENERATED = "generado"
     SELECTED = "seleccionado"  # elegido por el usuario: puede alimentar la etapa siguiente
+    DISCARDED = "descartado"  # apartada por el usuario: fuera de las candidatas, recuperable
 
 
 # --- Auditoría geométrica (GEOMETRY_AUDITOR) --------------------------------------------

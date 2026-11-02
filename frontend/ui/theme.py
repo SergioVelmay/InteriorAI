@@ -217,6 +217,8 @@ CSS = f"""
 .iai-legend li span:not(.iai-swatch) {{ color: #a1a1aa; }}
 .iai-swatch {{ width: 1rem; height: 1rem; border-radius: 3px; flex: none; }}
 .iai-danger {{ background: #7f1d1d !important; color: #fef2f2 !important; }}
+/* Al pasar el ratón, un rojo más vivo, como el resto de botones activos (no si está apagado). */
+.iai-danger:not(:disabled):not([data-iai-locked]):hover {{ background: #b91c1c !important; }}
 /* B-110: un botón desactivado (o bloqueado mientras se procesa algo, `ui.locks.BUSY_LOCK_JS`)
    se ve apagado: gris oscuro, texto atenuado, sin efecto al pasar el ratón; las miniaturas y los
    iconos bloqueados, atenuados. Gradio solo bajaba la opacidad y se seguía viendo blanco o rojo. */
@@ -228,6 +230,18 @@ CSS = f"""
     box-shadow: none !important; opacity: 1 !important; cursor: not-allowed !important;
 }}
 .gradio-container button.thumbnail-item[data-iai-locked] {{ filter: grayscale(0.6); }}
+/* B-109: el aspa (descartar) y el ✓ (recuperar) de cada miniatura, arriba a la derecha. Las
+   descartadas no se abren en grande: sin cursor de enlace. */
+.iai-gallery .thumbnail-item {{ position: relative; }}
+.iai-thumb-action {{
+    position: absolute; top: 6px; right: 6px; z-index: 3; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; border-radius: 50%;
+    background: rgba(10, 10, 10, 0.75); border: 1px solid #52525b; color: {TEXT};
+    font-size: 15px; line-height: 1; cursor: pointer;
+}}
+.iai-thumb-action[data-action="discard"]:hover {{ background: #7f1d1d; border-color: #7f1d1d; }}
+.iai-thumb-action[data-action="restore"]:hover {{ background: #14532d; border-color: #14532d; }}
+[id$="-discarded"] .thumbnail-item {{ cursor: default; }}
 /* Editor de máscaras (B-039): rojo fijo sin control de paleta y el tamaño del pincel como dos
    circunferencias concéntricas (controles internos del ImageEditor: lo comprueba el E2E). */
 #iai-inpaint-editor button[aria-label="Color"] {{ display: none !important; }}

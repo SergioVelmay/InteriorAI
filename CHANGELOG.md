@@ -8,6 +8,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- **Descartar y recuperar candidatas** (Paso 43, B-109) en Bocetos, Composición y Render final:
+  un aspa en cada miniatura (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la
+  apartan al desplegable «Descartados (n)», al final de la pestaña (cerrado, solo si hay alguna),
+  con un ✓ para recuperarla. No se borra nada; una descartada no se selecciona, retoca, audita ni
+  repite hasta recuperarla, ni la IA la tiene en cuenta. API: `POST …/renders/{id}/discard` y
+  `…/restore`; estado nuevo `descartado` (los datos con descartes no los lee la 4.0.0).
 - **Vista previa al subir una referencia** (Paso 41, B-108): la imagen elegida se ve en grande
   encima de sus notas; «Cancelar» vacía el formulario. La copia temporal de la subida se borra al
   cancelar, al cambiar de imagen o al subirla, y Gradio borra cada hora las de más de un día.
@@ -22,6 +28,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Corregido
 
+- **El botón rojo** («Confirmar (con coste)», «Confirmar: mover a la papelera») se aviva al pasar
+  el ratón, como el resto de botones activos (Paso 43, B-112).
+- **Cambiar de proyecto mientras se procesaba algo** (Paso 43, B-111): con una referencia
+  subiéndose se podía cambiar de proyecto, y al terminar Referencias mostraba la del proyecto
+  anterior y su ficha no se guardaba («Asset no encontrado»). Ahora elegir, crear o mover a la
+  papelera un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña, y
+  Referencias no guarda nada en el proyecto activo si lo que muestra es de otro: avisa y recarga.
 - **Un proyecto podía no crearse** al escribirlo mientras se creaba el anterior: al terminar, el
   formulario se vaciaba y se perdía lo escrito. Ahora el formulario se bloquea en el mismo clic
   mientras se crea, y el de subir una referencia, mientras sube y analiza (Paso 41, B-107).

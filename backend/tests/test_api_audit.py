@@ -172,13 +172,10 @@ def test_incomplete_audit_is_502_but_billed(api: TestClient, spy: SpyClient, cha
     assert all(r["audits"] == [] for r in renders)
 
 
-# --- Sin rechazo ni descarte (B-048) ------------------------------------------------------------
+# --- Sin rechazo (B-048); el descarte vuelve en la 4.1.0 (B-109) ---------------------------------
 
 
-@pytest.mark.parametrize("action", ["reject", "discard"])
-def test_reject_and_discard_were_removed(
-    api: TestClient, spy: SpyClient, chain: dict, action: str
-) -> None:
-    url = f"{chain['url']}/renders/{chain['final']['id']}/{action}"
+def test_reject_was_removed(api: TestClient, spy: SpyClient, chain: dict) -> None:
+    url = f"{chain['url']}/renders/{chain['final']['id']}/reject"
     assert api.post(url, json={"feedback": "No"}).status_code in {404, 405}
     assert spy.edits == []

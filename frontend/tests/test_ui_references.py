@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import gradio as gr
 import httpx
+import pytest
 
 from shared.models import (
     RECIPE_GROUPS,
@@ -178,3 +179,31 @@ async def test_references_tab_refresh(tmp_path: Path) -> None:
         "sofa.png\n949x535 · Activa · 1 marcado(s)",
         "sofa.png\n949x535 · Sin analizar",
     ]
+
+
+async def test_sheet_of_another_project_is_not_saved(tmp_path: Path) -> None:
+    """B-111: si el panel muestra una referencia de otro proyecto (la respuesta de una subida
+    que terminó tras cambiar de proyecto), no se guarda en el activo: se avisa y se recarga."""
+    shown_project, active_project = str(uuid4()), str(uuid4())
+    seen: list[httpx.Request] = []
+    now = utc_now()
+    project = ProjectMetadata(id=active_project, name="Otro", created_at=now, updated_at=now)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("/assets"):
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, json=project.model_dump(mode="json"))
+
+    client = BackendClient("http://backend.test", transport=httpx.MockTransport(handler))
+    with gr.Blocks() as demo:
+        build_references_tab(client, tmp_path, gr.BrowserState(None))
+    fns = {f.name: f.fn for f in demo.fns.values()}
+    for name, extra in (("on_save_sheet", []), ("on_save_notes", ["x"]), ("on_reanalyze", ["x"])):
+        seen.clear()
+        with pytest.warns(UserWarning, match="era de otro proyecto"):  # el aviso al usuario
+            result = await fns[name](active_project, shown_project, str(uuid4()), *extra)
+        assert all(r.method == "GET" for r in seen), name  # nada guardado ni analizado
+        assert active_project in next(  # recargado con el proyecto activo
+            v for k, v in result.items() if isinstance(k, gr.State) and v == active_project
+        )

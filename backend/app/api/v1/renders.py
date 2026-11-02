@@ -18,6 +18,7 @@ from app.pipelines.renders import (
     generate_final,
     inpaint_render,
     select_render,
+    set_discarded,
 )
 from app.telemetry import current_request_id, request_cost, telemetry_scope
 from shared.models import AssetKind, RenderAudit, RenderRecord, RenderStage
@@ -191,6 +192,19 @@ async def list_renders(
 async def select(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
     """El usuario elige este render: puede alimentar la etapa siguiente."""
     return await select_render(repo, project_id, render_id)
+
+
+@router.post("/{render_id}/discard", response_model=RenderRecord)
+async def discard(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
+    """El usuario aparta una candidata a «Descartados» (B-109): no se borra ni se usa; la
+    seleccionada no se puede descartar (409)."""
+    return await set_discarded(repo, project_id, render_id, discarded=True)
+
+
+@router.post("/{render_id}/restore", response_model=RenderRecord)
+async def restore(project_id: UUID, render_id: UUID, repo: RepositoryDep) -> RenderRecord:
+    """El usuario recupera una imagen descartada: vuelve a las candidatas (B-109)."""
+    return await set_discarded(repo, project_id, render_id, discarded=False)
 
 
 @router.post("/{render_id}/audit", response_model=AuditResponse)

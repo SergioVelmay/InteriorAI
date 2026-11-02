@@ -1355,6 +1355,114 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/renders/{render_id}/discard": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Discard",
+        "description": "El usuario aparta una candidata a «Descartados» (B-109): no se borra ni se usa; la\nseleccionada no se puede descartar (409).",
+        "operationId": "discard_api_v1_projects__project_id__renders__render_id__discard_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/renders/{render_id}/restore": {
+      "post": {
+        "tags": [
+          "renders"
+        ],
+        "summary": "Restore",
+        "description": "El usuario recupera una imagen descartada: vuelve a las candidatas (B-109).",
+        "operationId": "restore_api_v1_projects__project_id__renders__render_id__restore_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "render_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Render Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/renders/{render_id}/audit": {
       "post": {
         "tags": [
@@ -3970,10 +4078,11 @@
         "type": "string",
         "enum": [
           "generado",
-          "seleccionado"
+          "seleccionado",
+          "descartado"
         ],
         "title": "RenderStatus",
-        "description": "Sin estados de rechazo ni descarte desde la v2 (B-048): las imágenes se generan y,\ncomo mucho, se seleccionan."
+        "description": "Las imágenes se generan y, como mucho, se seleccionan (sin rechazos desde la v2, B-048).\nDesde la 4.1.0 (B-109) el usuario puede apartar una candidata a «Descartados» y recuperarla:\nno se borra, pero no se usa hasta recuperarla."
       },
       "Role": {
         "type": "string",

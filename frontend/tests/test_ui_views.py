@@ -155,6 +155,14 @@ def test_cover_shows_the_most_advanced_image() -> None:
     assert cover_asset(project()) is None  # sin imágenes: relleno
 
 
+def test_cover_skips_discarded_images() -> None:
+    """B-109: una imagen descartada no es portada; si todas lo están, la etapa anterior."""
+    draft, final = asset(AssetKind.RENDER), asset(AssetKind.RENDER)
+    renders = [render(draft.id, RenderStage.DRAFT, RenderStatus.SELECTED),
+               render(final.id, RenderStage.FINAL, RenderStatus.DISCARDED, minutes=1)]  # fmt: skip
+    assert cover_asset(project(assets=[draft, final], renders=renders)) == draft
+
+
 def test_cover_image_path_or_placeholder(tmp_path: Path) -> None:
     capture = asset(AssetKind.REFERENCIA)
     p = project(assets=[capture])

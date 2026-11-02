@@ -51,8 +51,11 @@ diseño. La que tiene marcada la perspectiva es la **imagen base** de los boceto
 | `composicion` | `COMPOSITION_BUILDER` | El boceto seleccionado o la composición seleccionada |
 | `render_final` | `REALISTIC_RENDERER` | La composición seleccionada o el render final seleccionado |
 
-Cada imagen está `generado` o `seleccionado`, con **una sola seleccionada por etapa**: al
-seleccionar otra, la anterior vuelve a `generado`. Solo el usuario selecciona.
+Cada imagen está `generado`, `seleccionado` o `descartado`, con **una sola seleccionada por
+etapa**: al seleccionar otra, la anterior vuelve a `generado`. Una candidata (no la
+seleccionada) se puede descartar y recuperar: no se borra, pero no se selecciona, retoca, audita
+ni repite hasta recuperarla, y el `PROMPT_ARCHITECT` no la ve entre las generaciones anteriores.
+Solo el usuario cambia estos estados.
 
 ## La carpeta `data/`
 

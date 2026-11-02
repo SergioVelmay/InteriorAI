@@ -249,6 +249,16 @@ class BackendClient:
         )
         return RenderRecord.model_validate(response.json())
 
+    async def discard_render(
+        self, project_id: UUID | str, render_id: UUID | str, *, restore: bool = False
+    ) -> RenderRecord:
+        """Aparta una candidata a «Descartados» o la recupera (B-109)."""
+        action = "restore" if restore else "discard"
+        response = await self._request(
+            "POST", f"{self._project(project_id)}/renders/{render_id}/{action}"
+        )
+        return RenderRecord.model_validate(response.json())
+
     async def audit_render(
         self, project_id: UUID | str, render_id: UUID | str, notes: str = ""
     ) -> dict[str, Any]:

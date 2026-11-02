@@ -82,6 +82,7 @@ data/
 | POST | `/projects/{id}/renders/final` | `{composition_id?, source=composicion\|render_final, variant_of?, size=2448x1632, extra_instructions, n=1}` (solo la imagen de partida y el prompt; `variant_of`: «Otra versión», repite prompt, partida y tamaño) → 201 | 9 · 24 ✅ |
 | GET | `/projects/{id}/renders?stage=` | `[RenderRecord]` (imagen en `/assets/{id}/content`) | 9 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/select` | `RenderRecord` (la seleccionada antes en la etapa vuelve a `generado`) | 9 · 17 ✅ |
+| POST | `/projects/{id}/renders/{render_id}/discard` · `/restore` | `RenderRecord` (`descartado` ↔ `generado`; la seleccionada no se descarta: 409) | 43 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/audit` | `{notes?}` → `{render, audit, cost_eur, request_id}` (boceto, composición o final; las imágenes nuevas, frente a todas las referencias del espacio) | 10 · 23 ✅ |
 | POST | `/projects/{id}/renders/{render_id}/inpaint` | multipart `mask` (imagen con la proporción del render; lo pintado = zona) + `instruction` [+ `quality`, `extra_instructions`, `use_audit`, `audit_notes`] → 201 `{renders, cost_eur}` (solo composiciones, B-038; prompt del PROMPT_ARCHITECT, Paso 23) | 13b · 17 ✅ |
 | GET | `/projects/{id}/renders/{render_id}/inpaint/mascara` | Máscara del retoque | 13b · 17 ✅ |
@@ -167,8 +168,11 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   del modelo (sin recomponer) y `{id}-mascara.png` (`RenderInpaint`).
 - `ProjectRepository.add_render` guarda imagen + `{id}.json` (trazabilidad) en
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
-- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado` (acción del usuario) y
-  `seleccionado → generado` (al seleccionar otra de la etapa). Sin rechazos ni descartes (B-048).
+- Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado` (acción del usuario),
+  `seleccionado → generado` (al seleccionar otra de la etapa) y, desde el Paso 43 (B-109),
+  `generado ↔ descartado` (`set_discarded`). Sin rechazos (B-048). Una descartada no se usa
+  (`hitl.ensure_usable`, 409): ni «Otra versión», ni retoque, ni auditoría; `previous_section`
+  la deja fuera del contexto del `PROMPT_ARCHITECT`.
 - Esquema de `metadatos.json` (`SCHEMA_VERSION = 3`, Paso 33): la v2 se migra sola
   (`app/storage/migrations.py`) al arrancar y al restaurar de la papelera, con copia previa en
   `metadatos.v2.json`; las imágenes de la v1 quedan sueltas (sin brief, rechazos, salidas en
