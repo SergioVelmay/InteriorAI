@@ -67,6 +67,7 @@ alta, cancelada): `rgb(127, 29, 29)` → `rgb(185, 28, 28)`.
 | pre-commit | ✅ |
 | CI de la PR #61 | ✅ lint y tests, gitleaks, Docker con newman (colección con los descartes) y Playwright (7 pruebas, también la de los descartes), y la construcción de la documentación |
 | CI de la PR #61 con B-111 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
+| CI de la PR #61 con B-112 | ✅ lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
