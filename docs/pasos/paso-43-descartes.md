@@ -32,7 +32,21 @@ poder recuperarlas.
 | Manual | Bocetos: «Descartar y recuperar», con tres capturas; Composición y Render final remiten a ella; galerías de Composición y Render final con el aspa y el atardecer descartado. En la copia local, el render de noche vuelve a estar seleccionado y sin las tres pruebas posteriores del usuario (con personas y un perro, fuera del caso) |
 | Documentación | Referencia (datos, API e interfaz), `docs/agent/fast_api_specs.md` y `docs/agent/gradio_ui.md` |
 
-## 4. Validación
+## 4. Además: cambio de proyecto mientras se procesa (B-111)
+
+Observación del usuario durante la revisión: subiendo una referencia (hasta un minuto) cambió
+de proyecto, porque las pestañas siguen libres y el bloqueo del Paso 42 solo actúa en la
+pestaña a la vista. Al terminar, la respuesta de la subida pintó en Referencias la referencia
+del proyecto anterior; al guardar su ficha, la aplicación la buscó en el proyecto activo
+(«Asset no encontrado») y el cambio se perdió.
+
+| Parte | Cambios |
+|-------|---------|
+| Bloqueo (`ui/locks.py`, `PROJECT_SWITCH`) | Elegir otro proyecto, crear uno o moverlo a la papelera se bloquea mientras haya algo procesándose **en cualquier pestaña**, también en las que no están a la vista (Gradio solo deja los «procesando» en la página mientras el evento sigue en marcha) |
+| Defensa en Referencias | El panel recuerda de qué proyecto es lo que muestra (`shown_project`): «Guardar ficha», «Guardar notas» y «Volver a analizar» con el panel de otro proyecto no guardan nada en el activo; avisan y recargan la pestaña con el proyecto activo |
+| Identificadores | `#iai-delete` y `#iai-confirm-delete` en Proyectos |
+
+## 5. Validación
 
 | Prueba | Resultado |
 |--------|-----------|
@@ -40,16 +54,17 @@ poder recuperarlas.
 | Navegador (aplicación local en simulación, copia de los datos) | ✅ Aspa en las 7 candidatas y no en la seleccionada; al descartar, «Descartados (1)» aparece cerrado; un clic en la descartada no la abre; el ✓ la devuelve y el desplegable desaparece; «Descartar» desde el visor muestra la seleccionada; igual en Composición y Render final |
 | Playwright de extremo a extremo (aplicación local en simulación) | ✅ 7 passed (nuevo `test_e2e_discards.py`) |
 | Postman CLI (backend local en simulación) | ✅ 53 peticiones, 95 comprobaciones |
+| B-111 en el navegador (simulación, red lenta) | ✅ Con la subida en marcha en Referencias, en Proyectos la galería aparece apagada y el clic en otro proyecto se ignora; al terminar, el cambio funciona y Referencias muestra las del proyecto nuevo. Test nuevo: con el panel de otro proyecto, guardar ficha, notas o volver a analizar no escriben nada y recargan. E2E: 7 passed |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
 | CI de la PR #61 | ✅ lint y tests, gitleaks, Docker con newman (colección con los descartes) y Playwright (7 pruebas, también la de los descartes), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
-## 5. Estado final
+## 6. Estado final
 
 ⏳ En revisión — rama `feat/paso-43`.
 
-## 6. Pendiente / futuro
+## 7. Pendiente / futuro
 
 - Paso 44: versión 4.1.0.

@@ -111,6 +111,7 @@ def build_references_tab(
                     )
         with gr.Column(scale=1):
             selected = gr.State(None)
+            shown_project = gr.State(None)  # el proyecto de lo que se ve en el panel (B-111)
             info = gr.Markdown(NO_SELECTION)
             # Ancho de la columna y altura según la imagen (B-061)
             preview = gr.Image(
@@ -149,7 +150,7 @@ def build_references_tab(
     group_outputs = [c for g in groups for c in (group_boxes[g], element_boxes[g], group_ids[g])]
     detail_outputs = [selected, info, preview, notes, save_notes, reanalyze, status, save_sheet,
                       tips, *group_outputs]  # fmt: skip
-    panel_outputs = [notice, supports_warning, gallery, ids, *detail_outputs]
+    panel_outputs = [notice, supports_warning, gallery, ids, shown_project, *detail_outputs]
 
     # --- Manejadores ---------------------------------------------------------------------
 
@@ -186,7 +187,7 @@ def build_references_tab(
 
     async def refresh(active_id: str | None, keep: str | None = None) -> dict:
         if not active_id:
-            return {notice: gr.update(visible=True), gallery: [], ids: [],
+            return {notice: gr.update(visible=True), gallery: [], ids: [], shown_project: None,
                     supports_warning: gr.update(visible=False), **detail(None, None)}  # fmt: skip
         try:
             assets = await client.list_assets(active_id, AssetKind.REFERENCIA)
@@ -212,6 +213,7 @@ def build_references_tab(
                 value=items, selected_index=asset_ids.index(keep) if current else None
             ),
             ids: asset_ids,
+            shown_project: active_id,
             **detail(current, active_id),
         }
 
@@ -273,13 +275,32 @@ def build_references_tab(
             cancel_upload: gr.update(interactive=not locked),
         }  # fmt: skip
 
-    async def on_reanalyze(active_id: str | None, asset_id: str | None, notes_v: str) -> dict:
+    async def on_reanalyze(
+        active_id: str | None, shown_id: str | None, asset_id: str | None, notes_v: str
+    ) -> dict:
+        if (reloaded := await stale(active_id, shown_id)) is not None:
+            return reloaded
         if not (active_id and asset_id):
             return unchanged()
         await analyze(active_id, asset_id, (notes_v or "").strip())
         return await refresh(active_id, keep=asset_id)
 
-    async def on_save_notes(active_id: str | None, asset_id: str | None, notes_v: str) -> dict:
+    async def stale(active_id: str | None, shown_id: str | None) -> dict | None:
+        """B-111: si lo que se ve es de otro proyecto (p. ej. la respuesta de una subida que
+        terminó tras cambiar de proyecto), no se guarda en el activo: se avisa y se recarga."""
+        if shown_id is None or shown_id == active_id:
+            return None
+        gr.Warning(
+            "Lo que se veía era de otro proyecto y no se ha guardado: la pestaña se ha recargado "
+            "con el proyecto activo"
+        )
+        return await refresh(active_id)
+
+    async def on_save_notes(
+        active_id: str | None, shown_id: str | None, asset_id: str | None, notes_v: str
+    ) -> dict:
+        if (reloaded := await stale(active_id, shown_id)) is not None:
+            return reloaded
         if not (active_id and asset_id):
             return unchanged()
         try:
@@ -290,7 +311,11 @@ def build_references_tab(
         gr.Info("Notas guardadas (para que cambie la ficha, vuelve a analizar)")
         return await refresh(active_id, keep=asset_id)
 
-    async def on_save_sheet(active_id: str | None, asset_id: str | None, *values: Any) -> dict:
+    async def on_save_sheet(
+        active_id: str | None, shown_id: str | None, asset_id: str | None, *values: Any
+    ) -> dict:
+        if (reloaded := await stale(active_id, shown_id)) is not None:
+            return reloaded
         if not (active_id and asset_id):
             return unchanged()
         chosen = selected_ids(list(values))
@@ -347,12 +372,14 @@ def build_references_tab(
         lambda: lock_upload(False), outputs=upload_form, queue=False, show_progress="hidden"
     )
     reanalyzed = reanalyze.click(
-        on_reanalyze, inputs=[active, selected, notes], outputs=panel_outputs
+        on_reanalyze, inputs=[active, shown_project, selected, notes], outputs=panel_outputs
     )
-    save_notes.click(on_save_notes, inputs=[active, selected, notes], outputs=panel_outputs)
+    save_notes.click(
+        on_save_notes, inputs=[active, shown_project, selected, notes], outputs=panel_outputs
+    )
     save_sheet.click(
         on_save_sheet,
-        inputs=[active, selected, *(element_boxes[g] for g in groups)],
+        inputs=[active, shown_project, selected, *(element_boxes[g] for g in groups)],
         outputs=panel_outputs,
     )
 

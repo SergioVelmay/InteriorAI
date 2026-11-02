@@ -28,6 +28,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Corregido
 
+- **Cambiar de proyecto mientras se procesaba algo** (Paso 43, B-111): con una referencia
+  subiéndose se podía cambiar de proyecto, y al terminar Referencias mostraba la del proyecto
+  anterior y su ficha no se guardaba («Asset no encontrado»). Ahora elegir, crear o mover a la
+  papelera un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña, y
+  Referencias no guarda nada en el proyecto activo si lo que muestra es de otro: avisa y recarga.
 - **Un proyecto podía no crearse** al escribirlo mientras se creaba el anterior: al terminar, el
   formulario se vaciaba y se perdía lo escrito. Ahora el formulario se bloquea en el mismo clic
   mientras se crea, y el de subir una referencia, mientras sube y analiza (Paso 41, B-107).

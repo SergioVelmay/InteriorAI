@@ -86,6 +86,9 @@ def test_buttons_are_locked_and_greyed_while_processing(settings: Settings) -> N
     assert "data-iai-locked" in js and "isTrusted" in js and '[id^="iai-confirm-"]' in js
     assert all(free in js for free in ('[role=\\"tab\\"]', "button.label-wrap", ".toast-wrap"))
     assert js.count("=> {") >= 2  # tema oscuro y bloqueo, los dos al cargar
+    # B-111: elegir, crear o mover a la papelera un proyecto, bloqueado con algo en marcha en
+    # cualquier pestaña (aunque no esté a la vista).
+    assert "#iai-projects .thumbnail-item" in js and "#iai-create" in js and "anywhere" in js
     rule = CSS[CSS.index("B-110") :]
     assert ":disabled, [data-iai-locked]" in rule and "cursor: not-allowed" in rule
 

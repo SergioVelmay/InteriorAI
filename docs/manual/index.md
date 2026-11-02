@@ -78,7 +78,8 @@ siempre por debajo:
     Mientras se ve «procesando» (la IA genera, se analiza una referencia o se carga una imagen),
     los botones de esa pestaña se ven apagados y no responden, para no lanzar nada dos veces; con
     una confirmación de coste abierta, solo responden «Confirmar» y «Cancelar». Puedes cambiar de
-    pestaña y abrir o cerrar secciones mientras tanto.
+    pestaña y abrir o cerrar secciones mientras tanto, pero no de proyecto: la galería de
+    Proyectos espera a que termine.
 
 !!! tip "Antes de empezar"
     Si aún no tienes la aplicación en marcha, sigue [Instalación](../primeros-pasos/instalacion.md).

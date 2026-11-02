@@ -31,8 +31,9 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
 - **Botones bloqueados y apagados (B-110):** mientras se ve «procesando» en la pestaña a la
   vista, sus botones y miniaturas se apagan y no responden, ni con el ratón ni con el teclado;
   con una confirmación de coste abierta, solo responden «Confirmar (con coste)» y «Cancelar».
-  Las pestañas, los desplegables y los avisos siguen libres. Todo botón desactivado se ve gris
-  oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
+  Las pestañas, los desplegables y los avisos siguen libres. Elegir, crear o mover a la papelera
+  un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña (B-111). Todo botón
+  desactivado se ve gris oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
 - **Descartes (B-109):** en Bocetos, Composición y Render final, un aspa en cada candidata
   (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la apartan al desplegable
   «Descartados (n)», al final de la pestaña, cerrado y solo con alguna; su ✓ la recupera.
