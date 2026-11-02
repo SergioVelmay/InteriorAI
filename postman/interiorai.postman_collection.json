@@ -1025,7 +1025,8 @@
                   "  pm.expect(r.parent_render_id).to.eql(pm.collectionVariables.get(\"finalId\"));",
                   "  pm.expect(r.input_asset_ids).to.eql([pm.collectionVariables.get(\"finalId\")]);",
                   "  pm.expect(r.size).to.eql(\"1536x864\");",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set(\"otherFinalId\", r.id);"
                 ]
               }
             }
@@ -1046,6 +1047,84 @@
           }
         },
         {
+          "name": "Descartar el render final seleccionado (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409: la seleccionada no se descarta (B-109)\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{finalId}}/discard"
+          }
+        },
+        {
+          "name": "Descartar otro render final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"descartado, sin borrar (B-109)\", () => pm.expect(pm.response.json().status).to.eql(\"descartado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{otherFinalId}}/discard"
+          }
+        },
+        {
+          "name": "Seleccionar un render descartado (no permitido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409: antes hay que recuperarlo\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{otherFinalId}}/select"
+          }
+        },
+        {
+          "name": "Recuperar el render descartado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"vuelve a las candidatas (B-109)\", () => pm.expect(pm.response.json().status).to.eql(\"generado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/renders/{{otherFinalId}}/restore"
+          }
+        },
+        {
           "name": "Rechazar render (eliminado en la v2)",
           "event": [
             {
@@ -1053,7 +1132,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"sin rechazos ni descartes (B-048)\", () => {",
+                  "pm.test(\"sin rechazos (B-048)\", () => {",
                   "  pm.expect(pm.response.code).to.be.oneOf([404, 405]);",
                   "});"
                 ]
@@ -1494,6 +1573,10 @@
     },
     {
       "key": "finalId",
+      "value": ""
+    },
+    {
+      "key": "otherFinalId",
       "value": ""
     }
   ]

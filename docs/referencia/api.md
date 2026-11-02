@@ -68,6 +68,8 @@ interfaz y la que puedes usar para integrar InteriorAI o automatizar tareas.
     | `POST` | `/api/v1/projects/{project_id}/renders/final` | Render final desde la composición seleccionada o el render final actual; `variant_of` repite uno («Otra versión») |
     | `GET` | `/api/v1/projects/{project_id}/renders` | Historial (`?stage=boceto\|composicion\|render_final`) |
     | `POST` | `/api/v1/projects/{project_id}/renders/{render_id}/select` | Seleccionar (la anterior de la etapa deja de estarlo) |
+    | `POST` | `/api/v1/projects/{project_id}/renders/{render_id}/discard` | Descartar una candidata (la seleccionada no: 409) |
+    | `POST` | `/api/v1/projects/{project_id}/renders/{render_id}/restore` | Recuperar una descartada |
     | `POST` | `/api/v1/projects/{project_id}/renders/{render_id}/audit` | Auditar frente a las referencias del espacio, con observaciones |
     | `POST` | `/api/v1/projects/{project_id}/renders/{render_id}/inpaint` | Retocar una zona de una composición (máscara + instrucción) |
     | `GET` | `/api/v1/projects/{project_id}/renders/{render_id}/inpaint/{file}` | Máscara de un retoque |

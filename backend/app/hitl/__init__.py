@@ -10,6 +10,12 @@ class TransitionError(Exception):
     """Transición de estado no permitida (HTTP 409)."""
 
 
+def ensure_usable(status: StrEnum, what: str) -> None:
+    """Una imagen descartada (B-109) no se usa hasta que el usuario la recupere."""
+    if status == "descartado":
+        raise TransitionError(f"{what} está descartada: recupérala antes de usarla")
+
+
 def ensure_transition(
     table: Mapping[StrEnum, frozenset[StrEnum]], current: StrEnum, target: StrEnum, what: str
 ) -> None:

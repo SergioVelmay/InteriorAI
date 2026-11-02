@@ -18,11 +18,13 @@ from ui.tabs.projects import build_projects_tab
 from ui.tabs.references import build_references_tab
 from ui.tabs.studio import build_studio_tabs
 from ui.theme import CSS, FORCE_DARK_JS, GRADIO_TEXTS, build_theme
+from ui.thumb_actions import THUMB_ACTIONS_JS
 from ui.uploads import DELETE_CACHE
 from ui.views import header_html
 
-# Al cargar la página: tema oscuro, tooltips, textos y el bloqueo de botones (B-110)
-APP_JS = f"() => {{ ({FORCE_DARK_JS})(); ({BUSY_LOCK_JS})(); }}"
+# Al cargar la página: tema oscuro, tooltips, textos, el bloqueo de botones (B-110) y, después
+# (para que el bloqueo actúe antes), el aspa y el ✓ de las miniaturas (B-109)
+APP_JS = f"() => {{ ({FORCE_DARK_JS})(); ({BUSY_LOCK_JS})(); ({THUMB_ACTIONS_JS})(); }}"
 
 ACTIVE_PROJECT_KEY = "interiorai.active_project"
 

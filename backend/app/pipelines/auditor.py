@@ -14,6 +14,7 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.foundry import FoundryClient, TextRequest
+from app.hitl import ensure_usable
 from app.pipelines.errors import PipelineError, PipelineInputError
 from app.pipelines.images import prepare_image
 from app.pipelines.prompts import load_prompt
@@ -86,6 +87,7 @@ async def audit_render(
     render = next((r for r in project.renders if r.id == render_id), None)
     if render is None:
         raise RenderNotFoundError(str(render_id))
+    ensure_usable(render.status, "La imagen")
     if render.stage not in AUDITABLE:
         raise PipelineInputError("Esta imagen no se puede auditar")
     references = geometric_references(project)

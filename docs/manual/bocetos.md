@@ -63,6 +63,29 @@ hay **una seleccionada por etapa**; al elegir otra, la anterior deja de estarlo.
 
 ![El boceto elegido](img/bocetos-elegido.jpg)
 
+## Descartar y recuperar
+
+Para que las candidatas que no te convencen no estorben, apártalas a **Descartados**. No se
+borra nada: lo que costaron sigue en Costes IA y las puedes recuperar.
+
+- El **aspa** de cada miniatura la descarta. La seleccionada no tiene aspa.
+- **Descartar**, junto a **Seleccionar**, descarta la que se ve en grande. Con la seleccionada solo
+  queda **Seleccionada ●**, apagado.
+
+![Candidatas con el aspa para descartarlas](img/bocetos-descartar.jpg)
+
+![Seleccionar y Descartar en la imagen en grande](img/bocetos-visor-descartar.jpg)
+
+Las descartadas van al desplegable **Descartados (n)**, al final de la pestaña, cerrado; solo
+aparece si hay alguna. Ahí no se abren en grande: su **✓** las devuelve a las candidatas, en su
+sitio, y desde ahí se pueden ver y seleccionar.
+
+![Desplegable de descartados con el ✓ para recuperarlos](img/bocetos-descartados.jpg)
+
+Una imagen descartada no se usa: no se puede seleccionar, retocar, auditar ni repetir con «Otra
+versión» sin recuperarla antes, y la IA no la tiene en cuenta como generación anterior al
+escribir los prompts. Composición y Render final funcionan igual.
+
 ## La trazabilidad de cada imagen
 
 Debajo de la imagen está todo lo que la explica:

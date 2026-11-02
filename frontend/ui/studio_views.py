@@ -64,7 +64,9 @@ INPAINT_STAGES = frozenset(COST_INPAINT)
 COST_AUDIT = 0.30  # la mayor medida, 0,27 € (Paso 36); por encima, nunca por debajo
 CONFIRM_THRESHOLD_EUR = 0.20  # en modo azure, por encima se pide un segundo clic (B-043)
 
-STATUS_ICONS = {RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●"}
+STATUS_ICONS = {
+    RenderStatus.GENERATED: "○", RenderStatus.SELECTED: "●", RenderStatus.DISCARDED: "✕"
+}  # fmt: skip
 CHECK_ICONS = {"ok": "✅", "aviso": "⚠️", "fallo": "❌"}
 VERDICTS = {
     "conforme": "✅ Conforme",
@@ -300,9 +302,21 @@ def composition_inputs(project: ProjectMetadata) -> int:
 
 
 def renders_of(project: ProjectMetadata, stage: RenderStage) -> list[RenderRecord]:
+    """Las candidatas de la etapa (sin las descartadas, B-109), de la más reciente a la más
+    antigua."""
     return sorted(
-        (r for r in project.renders if r.stage is stage), key=lambda r: r.created_at, reverse=True
-    )
+        (r for r in project.renders if r.stage is stage and r.status is not RenderStatus.DISCARDED),
+        key=lambda r: r.created_at, reverse=True,
+    )  # fmt: skip
+
+
+def discarded_of(project: ProjectMetadata, stage: RenderStage) -> list[RenderRecord]:
+    """Las descartadas de la etapa (B-109), en el mismo orden que las candidatas: al
+    recuperarlas vuelven a su sitio."""
+    return sorted(
+        (r for r in project.renders if r.stage is stage and r.status is RenderStatus.DISCARDED),
+        key=lambda r: r.created_at, reverse=True,
+    )  # fmt: skip
 
 
 def render_caption(render: RenderRecord) -> str:

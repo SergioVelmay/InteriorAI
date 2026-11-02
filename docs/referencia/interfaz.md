@@ -33,6 +33,11 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   con una confirmación de coste abierta, solo responden «Confirmar (con coste)» y «Cancelar».
   Las pestañas, los desplegables y los avisos siguen libres. Todo botón desactivado se ve gris
   oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
+- **Descartes (B-109):** en Bocetos, Composición y Render final, un aspa en cada candidata
+  (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la apartan al desplegable
+  «Descartados (n)», al final de la pestaña, cerrado y solo con alguna; su ✓ la recupera.
+  Gradio no admite botones en las miniaturas: los añade `ui.thumb_actions` y pulsan un botón
+  oculto por pestaña.
 - **Formularios bloqueados mientras trabajan:** el de nuevo proyecto y el de subir una
   referencia se bloquean en el mismo clic (en el navegador, sin esperar al servidor) y se
   desbloquean al terminar, para no perder lo que se escriba entretanto al vaciarlos.

@@ -34,9 +34,11 @@ def _candidates(project: ProjectMetadata) -> list[RenderRecord]:
     el último; en los bocetos, el primero (el de la vista de partida del lote inicial)."""
     ordered: list[RenderRecord] = []
     for stage in (RenderStage.FINAL, RenderStage.COMPOSITION, RenderStage.DRAFT):
-        renders = sorted(
-            (r for r in project.renders if r.stage is stage), key=lambda r: r.created_at
-        )
+        renders = sorted(  # sin las descartadas (B-109)
+            (r for r in project.renders
+             if r.stage is stage and r.status is not RenderStatus.DISCARDED),
+            key=lambda r: r.created_at,
+        )  # fmt: skip
         ordered += [r for r in renders if r.status is RenderStatus.SELECTED]
         ordered += renders if stage is RenderStage.DRAFT else renders[::-1]
     return ordered

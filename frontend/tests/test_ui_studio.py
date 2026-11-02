@@ -35,6 +35,7 @@ from ui.studio_views import (
     composition_hint,
     composition_inputs,
     cost_hint,
+    discarded_of,
     draft_cost,
     draft_hint,
     draft_inputs,
@@ -372,6 +373,35 @@ def tabs(result: dict) -> dict[str, bool]:
 
 def texts(result: dict) -> str:
     return "\n".join(v for v in result.values() if isinstance(v, str))
+
+
+def test_candidates_and_discarded_of_a_stage() -> None:
+    """B-109: las descartadas salen de las candidatas y van a su galería, en el mismo orden."""
+    old, kept, newest = (render(RenderStage.DRAFT, minutes=m) for m in (0, 1, 2))
+    gone = [r.model_copy(update={"status": RenderStatus.DISCARDED}) for r in (old, newest)]
+    p = project(renders=[gone[0], kept, gone[1], render(RenderStage.FINAL)])
+    assert renders_of(p, RenderStage.DRAFT) == [kept]
+    assert discarded_of(p, RenderStage.DRAFT) == [gone[1], gone[0]]
+    assert render_caption(gone[0]) == "✕ descartado · 0.02 €"
+
+
+async def test_discarded_gallery_and_viewer_buttons(tmp_path: Path) -> None:
+    """B-109: «Descartar» junto a «Seleccionar» salvo en la seleccionada; el desplegable
+    «Descartados (n)» solo con alguna."""
+    chosen = render(RenderStage.DRAFT, RenderStatus.SELECTED)
+    other = render(RenderStage.DRAFT, minutes=1)
+    gone = render(RenderStage.DRAFT, RenderStatus.DISCARDED, minutes=2)
+    p = project(assets=[reference("vista.png", ["perspectiva"])], renders=[chosen, other, gone])
+    tab = studio_tab(p, tmp_path)
+    result = await tab.refresh_all(str(p.id))
+    assert by_id(result, "iai-discard-drafts")["visible"] is False  # se ve la seleccionada
+    box = by_id(result, "iai-discarded-box-drafts")
+    assert box["visible"] is True and box["label"] == "Descartados (1)"
+    assert len(by_id(result, "iai-drafts")["value"]) == 2
+    assert [c for _, c in by_id(result, "iai-drafts-discarded")] == ["✕ descartado · 0.02 €"]
+    shown = await tab.show_render(str(p.id), str(other.id))
+    assert by_id(shown, "iai-discard-drafts")["visible"] is True
+    assert by_id(shown, "iai-discarded-box-compositions")["visible"] is False  # sin ninguna
 
 
 async def test_studio_tab_without_project(tmp_path: Path) -> None:

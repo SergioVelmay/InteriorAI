@@ -40,6 +40,7 @@ from ui.studio_views import (
     composition_hint,
     composition_inputs,
     cost_hint,
+    discarded_of,
     draft_cost,
     draft_hint,
     draft_inputs,
@@ -75,6 +76,13 @@ RETOUCH_BRIDGE_JS = """() => {
     const retouch = document.querySelector('#iai-use-retouch input')?.checked;
     const target = retouch ? '#iai-retouch-bridge' : '#iai-gen-current-plain';
     setTimeout(() => document.querySelector(target)?.click(), 0);
+}"""
+# El aspa o el ✓ de una miniatura (B-109): la acción que dejó `ui.thumb_actions`, como primera
+# entrada del puente.
+THUMB_BRIDGE_JS = """(...args) => {
+    const action = window.__iaiThumbAction || '';
+    window.__iaiThumbAction = '';
+    return [action, ...args.slice(1)];
 }"""
 # Acciones con coste: su botón, la etapa cuya imagen se muestra después y su descripción.
 ACTION_STAGES = {
@@ -157,14 +165,22 @@ class Panel:
     viewer: gr.Image
     title: gr.Markdown
     select_btn: gr.Button
+    discard_btn: gr.Button
     more_md: gr.Markdown
     inputs: gr.Gallery
     chain_md: gr.Markdown
     shown: gr.State
+    # Descartes (B-109): desplegable al final de la pestaña y el puente del aspa y el ✓
+    discarded_box: gr.Accordion
+    discarded_gallery: gr.Gallery
+    discarded_ids: gr.State
+    bridge: gr.Button
+    bridge_value: gr.Textbox
 
     def components(self) -> list[gr.components.Component]:
-        return [self.gallery, self.ids, self.viewer, self.title, self.select_btn, self.more_md,
-                self.inputs, self.chain_md, self.shown]  # fmt: skip
+        return [self.gallery, self.ids, self.viewer, self.title, self.select_btn,
+                self.discard_btn, self.more_md, self.inputs, self.chain_md, self.shown,
+                self.discarded_box, self.discarded_gallery, self.discarded_ids]  # fmt: skip
 
 
 def _action(label: str, slug: str, variant: str = "primary") -> Action:
@@ -199,7 +215,12 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
     title = gr.Markdown()
-    select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
+    with gr.Row():
+        select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
+        # B-109: junto a «Seleccionar», salvo en la seleccionada
+        discard_btn = gr.Button(
+            "Descartar", variant="secondary", visible=False, elem_id=f"iai-discard-{slug}"
+        )
     if after_select is not None:
         after_select()
     more_md = gr.Markdown(elem_id=f"iai-more-{slug}")
@@ -210,8 +231,26 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         elem_id=f"iai-inputs-{slug}",
     )  # fmt: skip
     chain_md = gr.Markdown(elem_id=f"iai-chain-{slug}")
-    return {"viewer": viewer, "title": title, "select_btn": select_btn, "more_md": more_md,
-            "inputs": inputs, "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
+    return {"viewer": viewer, "title": title, "select_btn": select_btn,
+            "discard_btn": discard_btn, "more_md": more_md, "inputs": inputs,
+            "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
+
+
+def _discarded(slug: str, columns: int = 4) -> dict[str, Any]:
+    """Al final de la pestaña (B-109): las descartadas, en un desplegable cerrado que solo
+    aparece si hay alguna, con el mismo estilo de galería; su ✓ las devuelve a candidatas y no se
+    abren en grande. El aspa y el ✓ (`ui.thumb_actions`) pulsan el botón oculto del puente."""
+    with gr.Accordion(
+        "Descartados", open=False, visible=False, elem_id=f"iai-discarded-box-{slug}"
+    ) as box:
+        gallery = gr.Gallery(
+            show_label=False, columns=columns, height="auto", object_fit="cover",
+            allow_preview=False, buttons=[], elem_classes=["iai-gallery", f"iai-cols-{columns}"],
+            elem_id=f"iai-{slug}-discarded",
+        )  # fmt: skip
+    bridge = gr.Button(slug, elem_id=f"iai-thumb-bridge-{slug}", elem_classes="iai-hidden")
+    return {"discarded_box": box, "discarded_gallery": gallery, "discarded_ids": gr.State([]),
+            "bridge": bridge, "bridge_value": gr.Textbox(visible=False)}  # fmt: skip
 
 
 def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserState) -> StudioTabs:
@@ -249,7 +288,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         actions["boceto"] = _action("Generar bocetos", "drafts")
         draft_gallery = _thumbnails("drafts")
         draft_view = _viewer("drafts")
-        panels[RenderStage.DRAFT] = Panel(RenderStage.DRAFT, **draft_gallery, **draft_view)
+        panels[RenderStage.DRAFT] = Panel(
+            RenderStage.DRAFT, **draft_gallery, **draft_view, **_discarded("drafts")
+        )
 
     # ② Composición -----------------------------------------------------------------------------
     with gr.Tab("Composición", interactive=False) as composition_tab:
@@ -368,7 +409,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         comp_gallery = _thumbnails("compositions")
         comp_view = _viewer("compositions")
         panels[RenderStage.COMPOSITION] = Panel(
-            RenderStage.COMPOSITION, **comp_gallery, **comp_view
+            RenderStage.COMPOSITION, **comp_gallery, **comp_view, **_discarded("compositions")
         )
 
     # ③ Render Final -----------------------------------------------------------------------------
@@ -419,7 +460,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             actions["otra_version"] = _action("Otra versión", "finals-variant", "secondary")
 
         final_view = _viewer("finals", after_select=variant_controls)
-        panels[RenderStage.FINAL] = Panel(RenderStage.FINAL, **final_gallery, **final_view)
+        panels[RenderStage.FINAL] = Panel(
+            RenderStage.FINAL, **final_gallery, **final_view, **_discarded("finals")
+        )
 
     shown_states = [panels[s].shown for s in STAGES]
     common = [active, mode, *shown_states]
@@ -449,15 +492,19 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             updates |= {panel.gallery: [], panel.ids: [], panel.viewer: None, panel.title: "",
                         panel.more_md: "", panel.inputs: [], panel.chain_md: "",
                         panel.shown: None,
-                        panel.select_btn: gr.update(interactive=False)}  # fmt: skip
+                        panel.select_btn: gr.update(interactive=False),
+                        panel.discard_btn: gr.update(visible=False),
+                        panel.discarded_box: gr.update(visible=False),
+                        panel.discarded_gallery: [], panel.discarded_ids: []}  # fmt: skip
         return updates
 
     async def panel_updates(
         project: ProjectMetadata, stage: RenderStage, render_id: str | None
     ) -> dict:
         panel = panels[stage]
-        renders = {str(r.id): r for r in project.renders if r.stage is stage}
-        items = renders_of(project, stage)
+        items = renders_of(project, stage)  # las candidatas: sin las descartadas (B-109)
+        renders = {str(r.id): r for r in items}
+        discarded = discarded_of(project, stage)
         if render_id not in renders:
             chosen = selected_render(project, stage) or (items[0] if items else None)
             render_id = str(chosen.id) if chosen else None
@@ -484,9 +531,17 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 interactive=render is not None and not is_selected,
                 value="Seleccionada ●" if is_selected else "Seleccionar",
             ),
+            panel.discard_btn: gr.update(visible=render is not None and not is_selected),
             panel.more_md: render_detail_md(project, render),
             panel.inputs: render_inputs(project, render, data_dir),
             panel.chain_md: chain,
+            panel.discarded_box: gr.update(
+                visible=bool(discarded), label=f"Descartados ({len(discarded)})"
+            ),
+            panel.discarded_gallery: [
+                (image_of(project, str(r.id)), render_caption(r)) for r in discarded
+            ],
+            panel.discarded_ids: [str(r.id) for r in discarded],
         }
 
     async def view(active_id: str | None, *shown: str | None) -> dict:
@@ -800,6 +855,41 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
 
         return handler
 
+    async def set_discarded(
+        active_id: str | None, render_id: str | None, *, restore: bool = False
+    ) -> None:
+        if not (active_id and render_id):
+            return
+        try:
+            await client.discard_render(active_id, render_id, restore=restore)
+            gr.Info("Imagen recuperada" if restore else "Imagen descartada")
+        except ApiError as exc:
+            gr.Warning(exc.detail)
+
+    def discard_handler(stage: RenderStage):
+        """«Descartar» junto a «Seleccionar» (B-109): la imagen mostrada pasa a «Descartados» y
+        se muestra la seleccionada (o la más reciente)."""
+
+        async def handler(active_id, current_mode, *shown):
+            await set_discarded(active_id, shown[STAGES.index(stage)])
+            return await view(active_id, *shown)
+
+        return handler
+
+    def thumb_handler(stage: RenderStage):
+        """El aspa de una candidata o el ✓ de una descartada (B-109): `ui.thumb_actions` deja en
+        `bridge_value` «discard:índice» o «restore:índice» y pulsa el botón oculto del puente."""
+
+        async def handler(action: str | None, active_id, current_mode, *values):
+            shown, ids, discarded = values[: len(STAGES)], values[-2], values[-1]
+            kind, _, index = (action or "").partition(":")
+            pool = discarded if kind == "restore" else ids
+            if kind in {"discard", "restore"} and index.isdigit() and int(index) < len(pool):
+                await set_discarded(active_id, pool[int(index)], restore=kind == "restore")
+            return await view(active_id, *shown)
+
+        return handler
+
     def confirm_handler(key: str):
         async def handler(action, active_id, current_mode, *shown):
             if not action:
@@ -960,6 +1050,12 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         )
     for stage, panel in panels.items():
         panel.select_btn.click(select_handler(stage), inputs=common, outputs=outputs)
+        panel.discard_btn.click(discard_handler(stage), inputs=common, outputs=outputs)
+        panel.bridge.click(
+            thumb_handler(stage),
+            inputs=[panel.bridge_value, *common, panel.ids, panel.discarded_ids],
+            outputs=outputs, js=THUMB_BRIDGE_JS,
+        )  # fmt: skip
         panel.gallery.select(gallery_handler(stage), inputs=[*common, panel.ids], outputs=outputs)
 
     def remount(nonce: int) -> int:

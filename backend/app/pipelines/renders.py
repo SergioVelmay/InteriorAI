@@ -17,7 +17,7 @@ import anyio
 from PIL import Image
 
 from app.foundry import FoundryClient, ImageEditRequest, ImageResult, InputImage
-from app.hitl import TransitionError, ensure_transition
+from app.hitl import TransitionError, ensure_transition, ensure_usable
 from app.pipelines import masks
 from app.pipelines.errors import PipelineInputError
 from app.pipelines.images import VISION_MIME_TYPES, prepare_image
@@ -68,10 +68,12 @@ _SIZE = re.compile(r"^(\d{3,4})x(\d{3,4})$")
 Quality = Literal["low", "medium", "high", "auto"]
 
 # Solo el usuario selecciona. Una imagen seleccionada vuelve a `generado` cuando se selecciona
-# otra de la misma etapa (sin rechazos ni descartes desde la v2, B-048).
+# otra de la misma etapa (sin rechazos desde la v2, B-048). Una candidata (no la seleccionada) se
+# puede descartar y recuperar (B-109); descartada, no se puede seleccionar sin recuperarla antes.
 RENDER_TRANSITIONS = {
-    RenderStatus.GENERATED: frozenset({RenderStatus.SELECTED}),
+    RenderStatus.GENERATED: frozenset({RenderStatus.SELECTED, RenderStatus.DISCARDED}),
     RenderStatus.SELECTED: frozenset({RenderStatus.GENERATED}),
+    RenderStatus.DISCARDED: frozenset({RenderStatus.GENERATED}),
 }
 
 # Rol y formato de salida de cada etapa. Todo en PNG (sin pérdida): el render final también,
@@ -441,6 +443,7 @@ async def _final_variant(
     original = next((r for r in project.renders if r.id == variant_of), None)
     if original is None:
         raise RenderNotFoundError(str(variant_of))
+    ensure_usable(original.status, "La imagen")
     if original.stage is not RenderStage.FINAL:
         raise PipelineInputError("Solo se hacen versiones de un render final")
     if original.prompt_info is None:  # imágenes de la v1: su prompt dependía de otras entradas
@@ -474,6 +477,27 @@ async def select_render(repo: ProjectRepository, project_id: UUID, render_id: UU
                         renders[j] = other.model_copy(
                             update={"status": RenderStatus.GENERATED, "decided_at": now}
                         )
+                return metadata.model_copy(update={"renders": renders}), renders[i]
+        raise RenderNotFoundError(str(render_id))
+
+    return await repo.mutate(project_id, change)
+
+
+async def set_discarded(
+    repo: ProjectRepository, project_id: UUID, render_id: UUID, discarded: bool
+) -> RenderRecord:
+    """El usuario aparta una candidata a «Descartados» o la recupera (B-109). Sin borrar nada;
+    la seleccionada no se puede descartar."""
+    target = RenderStatus.DISCARDED if discarded else RenderStatus.GENERATED
+
+    def change(metadata: ProjectMetadata) -> tuple[ProjectMetadata, RenderRecord]:
+        renders = list(metadata.renders)
+        for i, render in enumerate(renders):
+            if render.id == render_id:
+                if not discarded and render.status is not RenderStatus.DISCARDED:
+                    raise TransitionError("Esta imagen no está descartada")
+                ensure_transition(RENDER_TRANSITIONS, render.status, target, "el render")
+                renders[i] = render.model_copy(update={"status": target, "decided_at": utc_now()})
                 return metadata.model_copy(update={"renders": renders}), renders[i]
         raise RenderNotFoundError(str(render_id))
 
@@ -533,6 +557,7 @@ async def inpaint_render(
     source = next((r for r in project.renders if r.id == render_id), None)
     if source is None:
         raise RenderNotFoundError(str(render_id))
+    ensure_usable(source.status, "La composición")
     if source.stage not in INPAINT_STAGES:
         raise PipelineInputError("Solo se pueden retocar composiciones")
 

@@ -146,10 +146,12 @@ def previous_section(
 ) -> list[dict]:
     """Generaciones anteriores de la etapa (B-094): la seleccionada y la más reciente, con su
     prompt, lo que se entendió y sus dudas, para dar continuidad y resolverlas. Sin las que ya
-    son entradas de esta generación (la imagen de partida va en el historial)."""
+    son entradas de esta generación (la imagen de partida va en el historial) ni las que el
+    usuario ha descartado (B-109)."""
     used = {item.asset.id for item in inputs}
     own = [r for r in project.renders
-           if r.stage is stage and r.prompt_info is not None and r.id not in used]  # fmt: skip
+           if r.stage is stage and r.prompt_info is not None and r.id not in used
+           and r.status is not RenderStatus.DISCARDED]  # fmt: skip
     chosen = [r for r in own if r.status is RenderStatus.SELECTED]
     latest = max(own, key=lambda r: r.created_at, default=None)
     if latest is not None and latest not in chosen:

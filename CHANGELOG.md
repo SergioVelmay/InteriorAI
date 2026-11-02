@@ -8,6 +8,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- **Descartar y recuperar candidatas** (Paso 43, B-109) en Bocetos, Composición y Render final:
+  un aspa en cada miniatura (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la
+  apartan al desplegable «Descartados (n)», al final de la pestaña (cerrado, solo si hay alguna),
+  con un ✓ para recuperarla. No se borra nada; una descartada no se selecciona, retoca, audita ni
+  repite hasta recuperarla, ni la IA la tiene en cuenta. API: `POST …/renders/{id}/discard` y
+  `…/restore`; estado nuevo `descartado` (los datos con descartes no los lee la 4.0.0).
 - **Vista previa al subir una referencia** (Paso 41, B-108): la imagen elegida se ve en grande
   encima de sus notas; «Cancelar» vacía el formulario. La copia temporal de la subida se borra al
   cancelar, al cambiar de imagen o al subirla, y Gradio borra cada hora las de más de un día.

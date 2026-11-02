@@ -80,6 +80,12 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
     references = [a for a in project.assets if a.kind is AssetKind.REFERENCIA]
     active = sum(1 for a in references if a.sheet is not None and a.sheet.active)
     stages = Counter(r.stage for r in project.renders)
+    discarded = Counter(r.stage for r in project.renders if r.status is RenderStatus.DISCARDED)
+
+    def generated(stage: RenderStage) -> str:  # con las descartadas aparte (B-109)
+        aside = f" ({discarded[stage]} descartada(s))" if discarded[stage] else ""
+        return f"**{stages[stage]}**{aside}"
+
     selected_final = any(
         r.stage is RenderStage.FINAL and r.status is RenderStatus.SELECTED for r in project.renders
     )
@@ -89,9 +95,9 @@ def project_summary_md(project: ProjectMetadata, costs: dict[str, Any] | None) -
         "",
         f"- Imágenes de referencia: **{len(references)}**",
         f"- Referencias activas: **{active} de {len(references)}**",
-        f"- Bocetos generados: **{stages[RenderStage.DRAFT]}**",
-        f"- Composiciones generadas: **{stages[RenderStage.COMPOSITION]}**",
-        f"- Renders finales generados: **{stages[RenderStage.FINAL]}**",
+        f"- Bocetos generados: {generated(RenderStage.DRAFT)}",
+        f"- Composiciones generadas: {generated(RenderStage.COMPOSITION)}",
+        f"- Renders finales generados: {generated(RenderStage.FINAL)}",
         f"- Render final elegido: **{'SÍ' if selected_final else 'NO'}**",
     ]
     if costs is not None:
