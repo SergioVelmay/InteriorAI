@@ -47,6 +47,7 @@ Sirve igual para los botones nuevos de los descartes (Paso 43).
 | Playwright de extremo a extremo (aplicación local en simulación) | ✅ 6 passed (con el clic que espera al desbloqueo; sin él, fallaban 4 por pulsar mientras cargaba) |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #60 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (en Chromium, con el bloqueo), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
