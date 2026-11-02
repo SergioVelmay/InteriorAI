@@ -230,6 +230,11 @@ CSS = f"""
     box-shadow: none !important; opacity: 1 !important; cursor: not-allowed !important;
 }}
 .gradio-container button.thumbnail-item[data-iai-locked] {{ filter: grayscale(0.6); }}
+/* B-113: los controles bloqueados (casillas, opciones, deslizadores, desplegables, texto y
+   lienzo del retoque), atenuados y con el cursor de prohibido. */
+.gradio-container :is(input, textarea, select, label, [role=listbox], canvas)[data-iai-locked] {{
+    opacity: 0.45; cursor: not-allowed !important;
+}}
 /* B-109: el aspa (descartar) y el ✓ (recuperar) de cada miniatura, arriba a la derecha. Las
    descartadas no se abren en grande: sin cursor de enlace. */
 .iai-gallery .thumbnail-item {{ position: relative; }}

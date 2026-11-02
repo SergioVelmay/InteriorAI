@@ -27,19 +27,22 @@ BACKEND_URL = os.environ.get("E2E_BACKEND_URL", "http://127.0.0.1:8000")
 TIMEOUT_MS = 30_000
 expect.set_options(timeout=TIMEOUT_MS)  # Gradio tarda en actualizar tras cada evento
 
-# B-110: mientras se ve «procesando» o hay una confirmación abierta, la app ignora los clics en
-# sus botones (`data-iai-locked`). Como haría una persona, cada clic espera a que el botón vuelva
-# a estar disponible; `force=True` pulsa igualmente (para comprobar el bloqueo).
-_click = Locator.click
+
+# B-110 y B-113: mientras se ve «procesando» o hay una confirmación abierta, la app ignora los
+# clics y lo que se escriba en sus botones y controles (`data-iai-locked`). Como haría una
+# persona, cada acción espera a que el botón o el control vuelvan a estar disponibles;
+# `force=True` actúa igualmente (para comprobar el bloqueo).
+def _when_unlocked(action):
+    def wrapper(self: Locator, *args, **kwargs):
+        if not kwargs.get("force"):
+            expect(self).not_to_have_attribute("data-iai-locked", re.compile(".*"))
+        return action(self, *args, **kwargs)
+
+    return wrapper
 
 
-def _click_when_unlocked(self: Locator, *args, **kwargs) -> None:
-    if not kwargs.get("force"):
-        expect(self).not_to_have_attribute("data-iai-locked", re.compile(".*"))
-    _click(self, *args, **kwargs)
-
-
-Locator.click = _click_when_unlocked  # type: ignore[method-assign]
+for _name in ("click", "fill", "check", "uncheck", "press_sequentially", "set_input_files"):
+    setattr(Locator, _name, _when_unlocked(getattr(Locator, _name)))
 
 
 def png(size: tuple[int, int], color: str) -> bytes:

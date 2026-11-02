@@ -89,6 +89,10 @@ def test_buttons_are_locked_and_greyed_while_processing(settings: Settings) -> N
     # B-111: elegir, crear o mover a la papelera un proyecto, bloqueado con algo en marcha en
     # cualquier pestaña (aunque no esté a la vista).
     assert "#iai-projects .thumbnail-item" in js and "#iai-create" in js and "anywhere" in js
+    # B-113: también casillas, opciones, deslizadores, desplegables, texto y el lienzo; se
+    # anulan las teclas (salvo el tabulador) y lo que se escriba, pegue o suelte.
+    assert "#iai-inpaint-editor canvas" in js and "textarea" in js and "beforeinput" in js
+    assert "event.key !== 'Tab'" in js
     rule = CSS[CSS.index("B-110") :]
     assert ":disabled, [data-iai-locked]" in rule and "cursor: not-allowed" in rule
     # B-112: el rojo de «Confirmar (con coste)» se aviva al pasar el ratón, si está activo.

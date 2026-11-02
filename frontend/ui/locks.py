@@ -27,9 +27,17 @@ FREE_BUTTONS = '[role="tab"], .tab-container button, button.label-wrap, .toast-w
 # vista: su respuesta pintaría datos de un proyecto en otro. Gradio solo deja los «procesando»
 # en la página mientras el evento sigue en marcha, a la vista o no.
 PROJECT_SWITCH = "#iai-projects .thumbnail-item, #iai-create, #iai-delete, #iai-confirm-delete"
+# B-113: también los controles de la pestaña a la vista (casillas, opciones, deslizadores,
+# desplegables, campos de texto y el lienzo del retoque). Sin tocar su `disabled` (lo gobierna
+# Gradio): se marcan, se atenúan y se anulan los clics, el arrastre y las teclas (salvo el
+# tabulador) y lo que se escriba, pegue o suelte en ellos.
+CONTROLS = (
+    "input:not([type=hidden]), textarea, select, label, [role=listbox], #iai-inpaint-editor canvas"
+)
 BUSY_LOCK_JS = f"""() => {{
     const free = {json.dumps(FREE_BUTTONS)};
     const projectSwitch = {json.dumps(PROJECT_SWITCH)};
+    const controls = {json.dumps(CONTROLS)};
     const shown = (el) => !!(el && el.offsetParent);
     let scheduled = false;
     const update = () => {{
@@ -45,20 +53,27 @@ BUSY_LOCK_JS = f"""() => {{
                 button.toggleAttribute('data-iai-locked', locked);
             }}
         }});
+        document.querySelectorAll('.gradio-container').forEach((root) => {{
+            root.querySelectorAll(controls).forEach((control) => {{
+                const locked = lock && shown(control) && !(confirm && confirm.contains(control));
+                if (locked !== control.hasAttribute('data-iai-locked')) {{
+                    control.toggleAttribute('data-iai-locked', locked);
+                }}
+            }});
+        }});
     }};
     const schedule = () => {{
         if (!scheduled) {{ scheduled = true; requestAnimationFrame(update); }}
     }};
     const block = (event) => {{
         const locked = event.isTrusted && event.target.closest
-            && event.target.closest('button[data-iai-locked]');
+            && event.target.closest('[data-iai-locked]');
         if (locked) {{ event.preventDefault(); event.stopImmediatePropagation(); }}
     }};
-    ['pointerdown', 'mousedown', 'click'].forEach((type) => {{
-        document.addEventListener(type, block, {{capture: true}});
-    }});
+    ['pointerdown', 'mousedown', 'click', 'dblclick', 'beforeinput', 'paste', 'drop']
+        .forEach((type) => document.addEventListener(type, block, {{capture: true}}));
     document.addEventListener('keydown', (event) => {{
-        if (event.key === 'Enter' || event.key === ' ') block(event);
+        if (event.key !== 'Tab') block(event);
     }}, {{capture: true}});
     new MutationObserver(schedule).observe(document.body, {{
         childList: true, subtree: true, characterData: true, attributes: true,
