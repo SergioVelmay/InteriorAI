@@ -44,7 +44,8 @@ tres de cuatro pasadas) y con dos causas:
 | Las pruebas: esperaban a que el botón estuviera libre, pero algunas cargas empiezan una fracción de segundo después (p. ej. al recargar la página) y el clic caía ya bloqueado; y el texto de una opción («16:9») no está marcado, lo está su etiqueta | Cada acción espera a que no haya nada en marcha en dos lecturas seguidas y a que ni el elemento ni lo que lo contiene estén bloqueados (`e2e/conftest.py`) |
 
 Validación: con la papelera por confirmar, «Cancelar» y «Confirmar» libres (navegador); E2E en
-local 4 de 4 pasadas sin fallos; `uv run pytest` ✅. La etiqueta `v4.1.0` irá sobre el merge de
+local 4 de 4 pasadas sin fallos; `uv run pytest` ✅; CI de la PR #64 ✅ dos veces (la segunda,
+relanzando el trabajo de Docker y extremo a extremo). La etiqueta `v4.1.0` irá sobre el merge de
 este arreglo.
 
 ## 6. Estado final
