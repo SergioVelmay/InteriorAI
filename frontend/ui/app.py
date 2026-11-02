@@ -17,6 +17,7 @@ from ui.tabs.projects import build_projects_tab
 from ui.tabs.references import build_references_tab
 from ui.tabs.studio import build_studio_tabs
 from ui.theme import CSS, FORCE_DARK_JS, GRADIO_TEXTS, build_theme
+from ui.uploads import DELETE_CACHE
 from ui.views import header_html
 
 ACTIVE_PROJECT_KEY = "interiorai.active_project"
@@ -26,7 +27,7 @@ def build_app(settings: Settings, client: BackendClient | None = None) -> gr.Blo
     client = client or BackendClient(settings.network.backend_url)
     data_dir = settings.storage.data_dir
 
-    with gr.Blocks(title="InteriorAI", analytics_enabled=False) as demo:
+    with gr.Blocks(title="InteriorAI", analytics_enabled=False, delete_cache=DELETE_CACHE) as demo:
         active = gr.BrowserState(None, storage_key=ACTIVE_PROJECT_KEY)
         header = gr.HTML(header_html(None, None))
         with gr.Tabs():
