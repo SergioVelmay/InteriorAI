@@ -63,6 +63,15 @@ hay **una seleccionada por etapa**; al elegir otra, la anterior deja de estarlo.
 
 ![El boceto elegido](img/bocetos-elegido.jpg)
 
+## Superponer el esquema 3D
+
+Si la imagen base es un esquema 3D (por ejemplo, de SketchUp, con aristas negras), marca
+**Superponer el esquema 3D** bajo la imagen en grande: sus aristas aparecen en rojo encima, con
+la opacidad que elijas, para ver qué volúmenes coinciden. La imagen no cambia. Cada imagen indica
+también su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3 y ±8 px (en el pie
+de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda. Funciona igual en
+Composición y Render final.
+
 ## Descartar y recuperar
 
 Para que las candidatas que no te convencen no estorben, apártalas a **Descartados**. No se

@@ -9,6 +9,7 @@ dependencies = [
     "httpx>=0.27",
     "pandas>=2.0",  # tablas de los gráficos y del registro de costes
     "altair>=5.5",  # gráficos de Costes IA con leyenda y etiquetas legibles (B-032)
+    "opencv-python-headless>=4.10",  # aristas del esquema 3D: superposición y fidelidad (B-116)
 ]
 
 [tool.uv.sources]

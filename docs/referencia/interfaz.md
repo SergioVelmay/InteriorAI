@@ -36,6 +36,10 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   Las pestañas, los desplegables y los avisos siguen libres. Elegir, crear o mover a la papelera
   un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña (B-111). Todo botón
   desactivado se ve gris oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
+- **Esquema 3D (B-116):** bajo la imagen en grande, «Superponer el esquema 3D» muestra en una
+  vista aparte las aristas de la imagen base sobre la imagen (`ui/geometry.py`, OpenCV); la
+  fidelidad (aristas del esquema con una arista de la imagen a ±3 y ±8 px) va en el título y en
+  el pie de cada miniatura.
 - **Descartes (B-109):** en Bocetos, Composición y Render final, un aspa en cada candidata
   (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la apartan al desplegable
   «Descartados (n)», al final de la pestaña, cerrado y solo con alguna; su ✓ la recupera.
