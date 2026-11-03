@@ -53,6 +53,7 @@ que el detector de la imagen suaviza): es el techo práctico de la medida.
 | Playwright de extremo a extremo | ✅ 8 passed |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #67 | ✅ lint y tests, gitleaks, Docker (con OpenCV en el frontend) con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
