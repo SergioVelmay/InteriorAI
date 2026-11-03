@@ -91,7 +91,7 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
 | 46 | [Cuadros de texto](paso-46-textos.md) (B-115) | `feat/paso-46` | ✅ Cerrado |
-| 47 | [Superponer el esquema 3D y medir la geometría](paso-47-geometria.md) (B-116) | `feat/paso-47` | ⏳ En revisión |
+| 47 | [Superponer el esquema 3D y medir la geometría](paso-47-geometria.md) (B-116) | `feat/paso-47` | ✅ Cerrado |
 
 ## Plantilla de documento de paso
 
