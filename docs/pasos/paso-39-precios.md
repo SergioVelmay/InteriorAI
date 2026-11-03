@@ -89,3 +89,33 @@ Coste real del paso: 0 €. Las estimaciones ya registradas no se recalculan.
 
 - Paso 40: versión 4.0.0 (etiqueta y Release con el OK del usuario).
 - Volver a contrastar si cambia mucho el tipo de cambio o si `gpt-6.1-sol` empieza a cobrarse.
+
+## 8. Actualización con la factura completa (2026-11-03)
+
+Nuevo análisis de costes del usuario (17/10 → 02/11, en EUR; no se versiona), contrastado con la
+telemetría de la aplicación:
+
+| Periodo | Facturado | Estimado por la aplicación |
+|---------|----------:|---------------------------:|
+| 24/10 → 02/11 | 17,72 € | 18,63 € |
+
+- **`gpt-6.1-sol` ya se cobra**, a precio de lista: Azure ha revalorizado los días que antes
+  salían a 0 €. La estimación ya lo contaba (se mantuvo su precio de lista a propósito), así
+  que en esos días cuadra con la factura (p. ej. 0,60 € frente a 0,61 € el 02/11).
+- Los demás despliegues siguen la regla de este paso: la factura queda algo por debajo de la
+  estimación. Las diferencias del 25/10 y el 27/10 (facturado por encima) son de pruebas de
+  pasos anteriores en copias locales que ya no existen.
+- El 03/11 (laboratorios del Paso 48, 2,83 € estimados) aún no figuraba en el análisis.
+
+### Gasto ajeno a la aplicación: 18 al 22 de octubre
+
+Azure facturó ≈ 103,7 € de `gpt-6.1-sol` entre el 18 y el 22/10 (6,81 €, 22,93 €, 31,49 €,
+28,16 € y 14,26 €), casi todo con contexto largo (más de 272.000 tokens) y caché. En esos días
+la aplicación hizo solo 2 llamadas a ese despliegue (0,06 €, el 18/10) y ninguna del 19 al 22.
+El usuario identificó el origen: el mismo despliegue usado para generar código desde GitHub
+Copilot en VS Code y por un compañero con las mismas claves. **Claves rotadas por el usuario
+(2026-11-03).**
+
+Lecciones: el despliegue y las claves de InteriorAI conviene que sean solo de InteriorAI (así la
+telemetría explica toda la factura), y un presupuesto con avisos en Cost Management habría
+detectado el gasto ese mismo día.
