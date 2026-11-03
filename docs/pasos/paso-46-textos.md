@@ -62,6 +62,7 @@ auditoría; las indicaciones de bocetos, composiciones y renders no quedaban con
 | Playwright de extremo a extremo (aplicación local en simulación) | ✅ 8 passed, dos veces. Nuevo `test_e2e_texts.py`: tras generar, el cuadro vacío y «Tus indicaciones» en la trazabilidad; tras auditar, las observaciones en el informe; lo escrito sin enviar no pasa a otro proyecto (cambiando desde la galería, sin recargar) y «Usar la auditoría» se desmarca. En el retoque: instrucción vacía y «Usar el retoque» desmarcado tras enviarlo |
 | `mkdocs build --strict` | ✅ |
 | pre-commit | ✅ |
+| CI de la PR #66 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (8 pruebas, también la de los textos), y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
