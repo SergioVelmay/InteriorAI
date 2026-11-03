@@ -81,6 +81,13 @@ siempre por debajo:
     «Confirmar» y «Cancelar». Puedes cambiar de pestaña y abrir o cerrar secciones mientras tanto,
     pero no de proyecto: la galería de Proyectos espera a que termine.
 
+!!! tip "Lo que escribes, para cada imagen"
+    Las indicaciones, el cambio de un retoque y las observaciones de la auditoría se vacían al
+    enviarse con éxito (si algo falla o cancelas, se quedan para reintentar) y quedan guardadas
+    con la imagen o la auditoría. Al cambiar de proyecto, todos esos cuadros empiezan vacíos y
+    «Usar la auditoría» y «Usar el retoque», desmarcadas; la calidad, el formato y las demás
+    opciones se mantienen.
+
 !!! tip "Antes de empezar"
     Si aún no tienes la aplicación en marcha, sigue [Instalación](../primeros-pasos/instalacion.md).
     Puedes recorrer el manual en **modo simulación**, sin coste: las imágenes serán marcos de

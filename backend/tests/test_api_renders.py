@@ -680,3 +680,49 @@ def test_discarded_images_are_not_used(api: TestClient, spy: SpyClient) -> None:
     context = spy.texts[texts][1].input
     assert f"Composición {composition['id'][:8]}" in str(context)  # la seleccionada, sí
     assert other["id"][:8] not in str(context)  # la descartada (la más reciente), no
+
+
+# --- Indicaciones guardadas con cada imagen (B-115) ------------------------------------------
+
+
+def test_user_indications_are_kept_with_each_image(api: TestClient, spy: SpyClient) -> None:
+    """Lo que escribió el usuario queda con la imagen: el cuadro se vacía al enviarlo."""
+    project = new_project(api)
+    draft = run(api, project, "drafts", n=1, extra_instructions="  Más cálido  ")["renders"][0]
+    assert draft["indications"] == "Más cálido"
+    select(api, project, draft["id"])
+    composition = run(api, project, "compositions", extra_instructions="Sillas de roble")
+    composition = composition["renders"][0]
+    assert composition["indications"] == "Sillas de roble"
+    select(api, project, composition["id"])
+    final = run(api, project, "final", extra_instructions="De noche")["renders"][0]
+    variant = run(api, project, "final", variant_of=final["id"])["renders"][0]
+    assert final["indications"] == variant["indications"] == "De noche"  # la versión, igual
+    plain = run(api, project, "drafts", n=1)["renders"][0]
+    assert plain["indications"] == ""
+    mask = zone_mask((1536, 1024), (100, 100, 400, 400))
+    response = inpaint(api, project, composition["id"], mask, instruction="Una planta",
+                       extra_instructions="Maceta gris")  # fmt: skip
+    assert response.status_code == 201, response.text
+    retouch = response.json()["renders"][0]
+    assert retouch["indications"] == "Maceta gris"
+    assert retouch["inpaint"]["instruction"] == "Una planta"
+
+
+def test_composition_uses_the_observations_saved_with_the_audit(
+    api: TestClient, spy: SpyClient
+) -> None:
+    """B-115: con «Usar la auditoría», también las observaciones guardadas con la última
+    auditoría (el cuadro de la interfaz se vacía al auditar)."""
+    project = new_project(api)
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    audited = api.post(
+        f"{project['url']}/renders/{draft['id']}/audit", json={"notes": "Falta la lámpara"}
+    )
+    assert audited.status_code == 200, audited.text
+    texts = len(spy.texts)
+    run(api, project, "compositions", use_audit=True, audit_notes="Y el sofá más largo")
+    context = str(spy.texts[texts][1].input)
+    assert "Observaciones del usuario en la auditoría: Falta la lámpara" in context
+    assert "Notas del usuario: Y el sofá más largo" in context

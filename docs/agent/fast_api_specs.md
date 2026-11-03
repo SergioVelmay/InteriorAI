@@ -170,7 +170,9 @@ VACIAR (o `--si`). Lo que no sigue esos formatos nunca se toca.
   `renders_historico/` + asset `render` + `RenderRecord` (id del render = id del asset).
 - Transiciones (`RENDER_TRANSITIONS`): `generado → seleccionado` (acción del usuario),
   `seleccionado → generado` (al seleccionar otra de la etapa) y, desde el Paso 43 (B-109),
-  `generado ↔ descartado` (`set_discarded`). Sin rechazos (B-048). Una descartada no se usa
+  `generado ↔ descartado` (`set_discarded`). `RenderRecord.indications` (B-115) guarda las
+  indicaciones del usuario tal cual («Otra versión» hereda las de la original);
+  `audit_corrections` añade las observaciones guardadas con la última auditoría. Sin rechazos (B-048). Una descartada no se usa
   (`hitl.ensure_usable`, 409): ni «Otra versión», ni retoque, ni auditoría; `previous_section`
   la deja fuera del contexto del `PROMPT_ARCHITECT`.
 - Esquema de `metadatos.json` (`SCHEMA_VERSION = 3`, Paso 33): la v2 se migra sola

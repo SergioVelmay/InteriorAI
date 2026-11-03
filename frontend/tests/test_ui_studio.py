@@ -404,6 +404,47 @@ async def test_discarded_gallery_and_viewer_buttons(tmp_path: Path) -> None:
     assert by_id(shown, "iai-discarded-box-compositions")["visible"] is False  # sin ninguna
 
 
+def test_user_indications_and_audit_observations_are_shown() -> None:
+    """B-115: lo que escribió el usuario se ve con la imagen y con la auditoría."""
+    draft = render(RenderStage.DRAFT, indications="Más <cálido>")
+    assert "**Tus indicaciones:** «Más &lt;cálido&gt;»" in render_detail_md(project(), draft)
+    assert "Tus indicaciones" not in render_detail_md(project(), render(RenderStage.DRAFT))
+    noted = audit().model_copy(update={"notes": "Falta la lámpara"})
+    assert "**Tus observaciones:** «Falta la lámpara»" in audit_markdown(noted)
+    assert "Tus observaciones" not in audit_markdown(audit())
+
+
+def test_texts_start_clean_on_another_project_or_draft(tmp_path: Path) -> None:
+    """B-115: al cambiar de proyecto se vacían los textos y se desmarcan «Usar la auditoría» y
+    «Usar el retoque»; al cambiar de boceto, las observaciones de la auditoría."""
+    body = project().model_dump(mode="json")
+    client = BackendClient(
+        "http://backend.test",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body)),
+    )
+    with gr.Blocks() as demo:
+        build_studio_tabs(client, tmp_path, gr.BrowserState(None))
+    ids = {"iai-draft-indications", "iai-composition-indications", "iai-final-indications",
+           "iai-audit-notes", "iai-inpaint-instruction"}  # fmt: skip
+    for fn in demo.fns.values():
+        outputs = {getattr(o, "elem_id", None) for o in fn.outputs}
+        if ids <= outputs and len(fn.outputs) == 7:
+            cleared = fn.fn()
+            break
+    else:
+        raise AssertionError("sin el evento que vacía los textos")
+    assert sorted(v for k, v in cleared.items() if k.elem_id in ids) == [""] * 5
+    assert all(v == {"__type__": "update", "value": False}
+               for k, v in cleared.items() if k.elem_id not in ids)  # fmt: skip
+    only_notes = ["iai-audit-notes"]
+    audit_only = [
+        f
+        for f in demo.fns.values()
+        if [getattr(o, "elem_id", None) for o in f.outputs] == only_notes
+    ]
+    assert [f.fn() for f in audit_only] == [""]
+
+
 async def test_studio_tab_without_project(tmp_path: Path) -> None:
     tab = studio_tab(project(), tmp_path)
     result = await tab.refresh_all(None)

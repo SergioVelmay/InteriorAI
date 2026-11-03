@@ -41,6 +41,12 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   «Descartados (n)», al final de la pestaña, cerrado y solo con alguna; su ✓ la recupera.
   Gradio no admite botones en las miniaturas: los añade `ui.thumb_actions` y pulsan un botón
   oculto por pestaña.
+- **Cuadros de texto (B-115):** las indicaciones, el cambio del retoque y las observaciones de
+  la auditoría se vacían al enviarse con éxito y quedan guardadas con la imagen
+  (`indications`, en su trazabilidad) o con la auditoría; con error o cancelando, se conservan.
+  Al cambiar de proyecto se vacían todos y se desmarcan «Usar la auditoría» y «Usar el retoque»;
+  al cambiar de boceto, las observaciones. Las opciones (calidad, formato, variantes,
+  proporción y resolución) se conservan.
 - **Formularios bloqueados mientras trabajan:** el de nuevo proyecto y el de subir una
   referencia se bloquean en el mismo clic (en el navegador, sin esperar al servidor) y se
   desbloquean al terminar, para no perder lo que se escriba entretanto al vaciarlos.

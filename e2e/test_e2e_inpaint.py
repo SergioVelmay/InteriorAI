@@ -62,6 +62,9 @@ def test_inpaint_composition(ui: UI, projects: Projects, api: httpx.Client) -> N
     ui.toast("Retoque generado", timeout=60_000)
     retouched = page.locator("#iai-compositions .thumbnail-item", has_text="retoque")
     expect(retouched).to_have_count(1)
+    # B-115: enviado el retoque, su instrucción se vacía y «Usar el retoque» se desmarca.
+    expect(page.locator("#iai-inpaint-instruction textarea")).to_have_value("")
+    expect(page.locator("#iai-use-retouch input")).not_to_be_checked()
     stage = api.get(f"{url}/renders", params={"stage": "composicion"}).json()
     retouch = next(r for r in stage if r.get("inpaint"))
     assert "method" not in retouch["inpaint"]  # solo con máscara nativa (Paso 33)

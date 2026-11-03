@@ -219,9 +219,11 @@ async def _run_stage(
     *,
     written: WrittenPrompt | None = None,
     variant_of: UUID | None = None,
+    indications: str | None = None,
 ) -> list[RenderRecord]:
     """Llama al modelo de la etapa con sus entradas (la primera, la imagen de partida) y guarda
-    las imágenes con el prompt que se escribió para ellas (`written`)."""
+    las imágenes con el prompt que se escribió para ellas (`written`) y las indicaciones del
+    usuario (B-115: por defecto, las de `options`)."""
     role, output_format = _STAGE_ROLES[stage]
     images = [await _load(repo, project, asset_id) for asset_id in inputs]
     quality = options.quality or "auto"
@@ -252,6 +254,9 @@ async def _run_stage(
             prompt=prompt,
             prompt_info=written.prompt if written else None,
             prompt_version=written.version if written else None,
+            indications=(
+                options.extra_instructions.strip() if indications is None else indications
+            ),
             input_asset_ids=inputs,
             parent_render_id=parent.id if parent else None,
             variant_of_id=variant_of,
@@ -322,14 +327,18 @@ def _render_asset(project: ProjectMetadata, render: RenderRecord) -> Asset:
 
 
 def audit_corrections(project: ProjectMetadata, draft: RenderRecord | None, notes: str = "") -> str:
-    """Correcciones para la composición (B-046): las de la última auditoría con IA del boceto y
-    las notas del usuario («auditoría manual»)."""
+    """Correcciones para la composición (B-046): las de la última auditoría con IA del boceto,
+    con las observaciones que se guardaron con ella (B-115: el cuadro se vacía al auditar), y las
+    notas del usuario escritas después («auditoría manual»)."""
     parts = []
     if draft is not None and draft.audits:
-        report = draft.audits[-1].report
+        audit = draft.audits[-1]
+        report = audit.report
         parts.append(f"Auditoría con IA ({report.verdict}, {report.score}/100): {report.summary}")
         if report.suggested_prompt_adjustments.strip():
             parts.append(f"Correcciones propuestas: {report.suggested_prompt_adjustments.strip()}")
+        if audit.notes.strip():
+            parts.append(f"Observaciones del usuario en la auditoría: {audit.notes.strip()}")
     if notes.strip():
         parts.append(f"Notas del usuario: {notes.strip()}")
     return "\n".join(parts)
@@ -454,6 +463,7 @@ async def _final_variant(
     return await _run_stage(
         repo, client, project, RenderStage.FINAL, original.input_asset_ids[:1], parent,
         original.prompt, original.size, repeat, written=written, variant_of=original.id,
+        indications=original.indications,  # repite también las indicaciones de la original
     )  # fmt: skip
 
 
@@ -613,6 +623,7 @@ async def inpaint_render(
         prompt=request.prompt,
         prompt_info=written.prompt,
         prompt_version=written.version,
+        indications=indications.strip(),
         input_asset_ids=[r.asset.id for r in roles],
         parent_render_id=source.parent_render_id,
         batch_id=uuid4(),
