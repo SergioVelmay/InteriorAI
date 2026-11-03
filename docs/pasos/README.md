@@ -90,7 +90,7 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
-| 46 | [Cuadros de texto](paso-46-textos.md) (B-115) | `feat/paso-46` | ⏳ En revisión |
+| 46 | [Cuadros de texto](paso-46-textos.md) (B-115) | `feat/paso-46` | ✅ Cerrado |
 
 ## Plantilla de documento de paso
 
