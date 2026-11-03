@@ -66,7 +66,23 @@ causa principal de la diferencia: **el modelo aleja la cámara** (como con un ob
 angular): toda la escena sale más pequeña y desplazada hacia arriba y a la izquierda. No es que
 cada volumen esté mal dibujado; hay un zum y un desplazamiento globales.
 
-Total del laboratorio: **2,09 €** (de 5 € autorizados).
+### Tercera prueba: dos puntos de fuga y focal de 60 mm en SketchUp
+
+Copia **«Laboratorio geometría 3 · Cocina y Sofá Jattebo (dos puntos, 60 mm)»**, con la vista
+sacada en SketchUp con perspectiva de dos puntos y focal de 60 mm (encuadre más cerrado):
+
+| Prueba | Fidelidad a ±8 px | La escena sale al | Coste |
+|--------|-------------------|-------------------|------:|
+| Análisis de la base | — | — | 0,06 € |
+| 4 bocetos | 53 %, 43 %, 44 %, 51 % (media 48 %) | 68–76 % | 0,46 € |
+| Composición desde el mejor | 53 % | 75 % | 0,13 € |
+| Render final | 50 % | 85 % | 0,09 € |
+
+Mejor que la vista a 50° (42–43 %) y parecida a la picada (50–52 %). Los modelos siguen sacando
+la escena más pequeña (al 68–85 % de su tamaño en el esquema) y desplazada: con cualquier
+encuadre, abren el plano. Ajustado ese zum, el error medio de las aristas baja a 6–8 px.
+
+Total del laboratorio: **2,83 €** (de 5 € autorizados).
 
 ## 5. Opciones para seguir (para decidir)
 
@@ -82,8 +98,8 @@ Laboratorio: medidas con `ui/geometry.py` (Paso 47) sobre las imágenes generada
 experimental `input_fidelity` se probó en una rama de trabajo y se retiró del código al ver que
 el modelo de bocetos la rechaza: el paso solo deja este documento.
 
-Coste real del paso: 2,09 € (1,36 € de la primera prueba y 0,73 € de la segunda; por debajo de los
-5 € autorizados; se avisó al pasar de 1 €).
+Coste real del paso: 2,83 € (1,36 €, 0,73 € y 0,74 € de las tres pruebas; por debajo de los 5 €
+autorizados; se avisó al pasar de 1 €).
 
 ## 7. Estado final
 
