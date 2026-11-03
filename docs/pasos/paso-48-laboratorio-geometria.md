@@ -43,6 +43,31 @@ análisis sí, retocar las imágenes no). Presupuesto: hasta 5 €.
    la escena aunque reciban el esquema como base, y la opción de máxima fidelidad a la imagen no
    está disponible en el de bocetos.
 
+### Segunda prueba: el esquema a dos puntos de fuga
+
+Observación del usuario: los renders convertían las vistas picadas (tres puntos de fuga) en vistas
+de dos puntos, con las verticales paralelas. Parte de la causa estaba en el prompt de sistema del
+render final, que pide «verticales rectas»; además, los modelos tienden a enderezarlas. El
+usuario sacó la misma vista en SketchUp con la perspectiva de dos puntos (campo de visión
+vertical de 50°, ≈ 26 mm) y se repitió la cadena en una segunda copia, **«Laboratorio geometría
+2 · Cocina y Sofá Jattebo (dos puntos de fuga)»**, con solo la base cambiada (analizada de nuevo
+con sus notas):
+
+| Prueba | Fidelidad a ±8 px | Coste |
+|--------|-------------------|------:|
+| Análisis de la base nueva | — | 0,05 € |
+| 4 bocetos como hoy | 41 %, 44 %, 43 %, 40 % (media 42 %) | 0,46 € |
+| Composición desde el mejor | 43 % | 0,13 € |
+| Render final | 43 % | 0,09 € |
+| **Total** | 7 llamadas | **0,73 €** |
+
+Las verticales ya coinciden y la cadena no pierde geometría, pero la superposición muestra la
+causa principal de la diferencia: **el modelo aleja la cámara** (como con un objetivo más
+angular): toda la escena sale más pequeña y desplazada hacia arriba y a la izquierda. No es que
+cada volumen esté mal dibujado; hay un zum y un desplazamiento globales.
+
+Total del laboratorio: **2,09 €** (de 5 € autorizados).
+
 ## 5. Opciones para seguir (para decidir)
 
 | Opción | Qué | Coste |
@@ -57,7 +82,8 @@ Laboratorio: medidas con `ui/geometry.py` (Paso 47) sobre las imágenes generada
 experimental `input_fidelity` se probó en una rama de trabajo y se retiró del código al ver que
 el modelo de bocetos la rechaza: el paso solo deja este documento.
 
-Coste real del paso: 1,36 € (por debajo de los 5 € autorizados; se avisó al pasar de 1 €).
+Coste real del paso: 2,09 € (1,36 € de la primera prueba y 0,73 € de la segunda; por debajo de los
+5 € autorizados; se avisó al pasar de 1 €).
 
 ## 7. Estado final
 
