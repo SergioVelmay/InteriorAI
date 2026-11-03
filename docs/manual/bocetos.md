@@ -23,7 +23,7 @@ sobrantes aparecerían con el pie en rojo.
 | **Calidad** | Baja, media o alta. Media es un buen equilibrio; alta tarda y cuesta más |
 | **Formato** | Horizontal 3:2 (1536 × 1024), cuadrado o vertical |
 | **Variantes** | De 1 a 8 imágenes por tanda (4 por defecto): todas con el mismo prompt, el modelo varía el resultado |
-| **Indicaciones** | Lo que quieres en esta tanda, en texto libre (opcional) |
+| **Indicaciones** | Lo que quieres en esta tanda, en texto libre (opcional). Al generar, el cuadro se vacía y lo escrito queda con cada imagen («Tus indicaciones», en su trazabilidad) |
 
 Junto al botón se ve la **estimación del coste**, que cambia con las variantes y la calidad. En
 modo Azure, si pasa de 0,20 €, el botón pide una **confirmación** en rojo antes de llamar a la IA:
@@ -92,6 +92,7 @@ Debajo de la imagen está todo lo que la explica:
 
 ![Lo que ha entendido la IA y el prompt enviado](img/bocetos-trazabilidad.jpg)
 
+- **Tus indicaciones:** lo que escribiste para esa generación, tal cual.
 - **Lo que ha entendido la IA:** cómo ha interpretado tus referencias, notas e indicaciones, y las
   decisiones que ha tomado. Aquí, por ejemplo, que ha hecho la cocina «sin desayunador» y que, sin
   una altura de encimera escrita, usa «aproximadamente 90 cm como medida habitual».

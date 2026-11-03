@@ -86,6 +86,12 @@ Después de la 4.0.0:
 Versión 4.1.0 (publicada el 2026-11-02): [plan de acción](plan-version-4-1.md), Pasos 41 a 45, entradas B-107 a
 B-113 del [backlog](BACKLOG.md).
 
+Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versión):
+
+| Paso | Documento | Rama | Estado |
+|------|-----------|------|--------|
+| 46 | [Cuadros de texto](paso-46-textos.md) (B-115) | `feat/paso-46` | ⏳ En revisión |
+
 ## Plantilla de documento de paso
 
 ```markdown

@@ -31,7 +31,9 @@ Al pulsar **Auditar con IA** se pide confirmación, por su coste:
 
 ![Confirmación de la auditoría](img/composicion-auditoria-confirmacion.jpg)
 
-Al cabo de un minuto, más o menos, llega el informe:
+Al cabo de un minuto, más o menos, llega el informe, con tus observaciones («Tus
+observaciones»); el cuadro se vacía. Las observaciones son de ese boceto: al seleccionar otro, el
+cuadro empieza vacío.
 
 ![Informe de la auditoría](img/composicion-auditoria-informe.jpg)
 

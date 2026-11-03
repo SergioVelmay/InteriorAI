@@ -6,6 +6,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Tus indicaciones, con cada imagen** (Paso 46, B-115): lo que escribes al generar bocetos,
+  composiciones y renders finales queda guardado con cada imagen (`indications`) y se ve en su
+  trazabilidad; las observaciones de la auditoría, en su informe.
+
+### Corregido
+
+- **Cuadros de texto que no se vaciaban** (Paso 46, B-115): las indicaciones, el cambio del
+  retoque y las observaciones de la auditoría seguían escritos tras enviarse, al cambiar de
+  imagen y al cambiar de proyecto, y se podían enviar por error con otra. Ahora se vacían al
+  enviarse con éxito (con error o cancelando se conservan) y al cambiar de proyecto, que también
+  desmarca «Usar la auditoría» y «Usar el retoque»; las observaciones, también al cambiar de
+  boceto. Tras un retoque, «Usar el retoque» se desmarca.
+
 ## [4.1.0] — 2026-11-02
 
 Descartar y recuperar candidatas, vista previa al subir una referencia y una interfaz que no se

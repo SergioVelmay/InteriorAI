@@ -291,6 +291,7 @@ class RenderRecord(_Model):
     deployment: str
     prompt: str  # prompt exacto enviado al modelo
     prompt_info: StagePrompt | None = None  # cómo se escribió el prompt (Paso 22)
+    indications: str = ""  # indicaciones del usuario para esta generación, tal cual (B-115)
     prompt_version: str | None = None  # versión del prompt de sistema que lo escribió
     input_asset_ids: list[UUID]  # imagen base y referencias, en orden
     parent_render_id: UUID | None = None  # render de la etapa anterior del que deriva

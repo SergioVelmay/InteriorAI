@@ -378,6 +378,8 @@ def render_detail_md(project: ProjectMetadata, render: RenderRecord | None) -> s
     labels = {r.id: f"{r.stage.label} {r.id.hex[:8]}" for r in project.renders}
     inputs = ", ".join(labels.get(i) or names.get(i, str(i)[:8]) for i in render.input_asset_ids)
     lines = []
+    if render.indications:  # lo que escribió el usuario, tal cual (B-115)
+        lines.append(f"**Tus indicaciones:** «{html.escape(render.indications)}»")
     info = render.prompt_info
     if info is not None:
         lines.append(f"**Lo que ha entendido la IA:** {html.escape(info.interpretation)}")
@@ -441,6 +443,7 @@ def audit_markdown(audit: RenderAudit | None, project: ProjectMetadata | None = 
         f"#### Auditoría: {VERDICTS[r.verdict]} · {r.score}/100",
         f"{audit.reasoning_effort} · {euros(audit.cost_eur)} · {audit.created_at:%d/%m %H:%M} UTC"
         + (f" · comparado con: {html.escape(compared)}" if compared else ""),
+        *([f"**Tus observaciones:** «{html.escape(audit.notes)}»"] if audit.notes else []),
         html.escape(r.summary),
         "| Aspecto | | Hallazgo |\n|---|---|---|\n" + checks,
     ]

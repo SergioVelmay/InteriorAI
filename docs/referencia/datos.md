@@ -27,7 +27,7 @@ erDiagram
 | `ReferenceSheet` | La **receta** de una referencia y lo que marcaste en su **ficha** | `recipe`, `selected` (`"grupo:índice"`), las notas con que se analizó, el despliegue y la petición |
 | `ReferenceRecipe` | Lo útil de la imagen en 12 grupos fijos | `summary` y una lista de `RecipeElement` por grupo |
 | `RecipeElement` | Un «ingrediente» | `label`, `detail`, `dimensions_cm`, `dimensions_source` (`nota_usuario`, `cota_imagen`, `estimada` o `ninguna`) |
-| `RenderRecord` | Una imagen generada, con toda su trazabilidad | `stage`, `status`, `role`, `deployment`, `prompt` exacto, `prompt_info`, `prompt_version`, `input_asset_ids`, `parent_render_id`, `size`, `quality`, `cost_eur`, `audits`, `inpaint`, `request_id` |
+| `RenderRecord` | Una imagen generada, con toda su trazabilidad | `stage`, `status`, `role`, `deployment`, `prompt` exacto, `prompt_info`, `prompt_version`, `indications` (lo que escribió el usuario), `input_asset_ids`, `parent_render_id`, `size`, `quality`, `cost_eur`, `audits`, `inpaint`, `request_id` |
 | `StagePrompt` | Lo que escribió el PROMPT_ARCHITECT | `prompt` (en inglés), `interpretation` y `open_questions` (en español) |
 | `RenderAudit` | Una auditoría de la imagen | `report` (veredicto, puntuación, comprobaciones, desviaciones y correcciones), referencias comparadas, tus observaciones, coste |
 | `RenderInpaint` | Un retoque con máscara | imagen retocada, instrucción, archivo de la máscara y fracción pintada |

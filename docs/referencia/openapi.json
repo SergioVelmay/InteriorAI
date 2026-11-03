@@ -3886,6 +3886,11 @@
               }
             ]
           },
+          "indications": {
+            "type": "string",
+            "title": "Indications",
+            "default": ""
+          },
           "prompt_version": {
             "anyOf": [
               {

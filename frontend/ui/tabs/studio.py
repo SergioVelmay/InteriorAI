@@ -271,6 +271,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         # Modo e imágenes de entrada de bocetos y composición: con las opciones de cada
         # formulario dan la estimación junto a los botones (B-104).
         hint_context = gr.State(None)
+        # Proyecto de los textos escritos: al cambiar, se vacían (B-115)
+        text_project = gr.State(None)
         selected_draft = gr.State(None)  # id del boceto seleccionado
         selected_composition = gr.State(None)  # composición seleccionada (la que se retoca)
         editor_nonce = gr.State(0)
@@ -285,7 +287,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         draft_extra = gr.Textbox(
             label="Indicaciones (opcionales)", lines=2,
             placeholder="p. ej. «más cálido, tarde de otoño, alfombra de yute»",
-            elem_id="iai-draft-indications",
+            elem_id="iai-draft-indications", interactive=True,
         )  # fmt: skip
         actions["boceto"] = _action("Generar bocetos", "drafts")
         draft_gallery = _thumbnails("drafts")
@@ -313,7 +315,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             audit_notes = gr.Textbox(
                 label="Auditoría manual: tus observaciones sobre el boceto (opcional)", lines=2,
                 placeholder="p. ej. «la ventana está más a la izquierda; falta la lámpara de pie»",
-                elem_id="iai-audit-notes",
+                elem_id="iai-audit-notes", interactive=True,
             )  # fmt: skip
             actions["auditoria"] = _action("Auditar con IA", "audit", variant="secondary")
             audit_md = gr.Markdown(elem_id="iai-audit-report")
@@ -366,7 +368,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             retouch_instruction = gr.Textbox(
                 label="Cambio en la zona pintada", lines=2,
                 placeholder="p. ej. «una planta alta en la esquina, maceta de barro»",
-                elem_id="iai-inpaint-instruction",
+                elem_id="iai-inpaint-instruction", interactive=True,
             )  # fmt: skip
 
         gr.Markdown("### Crear composición")
@@ -390,7 +392,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             visible=False, elem_id="iai-retouch-hint", elem_classes="iai-muted",
         )  # fmt: skip
         comp_extra = gr.Textbox(
-            label="Indicaciones (opcionales)", lines=2, elem_id="iai-composition-indications"
+            label="Indicaciones (opcionales)",
+            lines=2,
+            elem_id="iai-composition-indications",
+            interactive=True,
         )
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
@@ -434,7 +439,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         final_extra = gr.Textbox(
             label="Indicaciones globales (opcionales)", lines=2,
             placeholder="p. ej. «de noche con las lámparas encendidas» o «una pareja leyendo»",
-            elem_id="iai-final-indications",
+            elem_id="iai-final-indications", interactive=True,
         )  # fmt: skip
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
@@ -479,7 +484,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         return str(path) if path.is_file() else placeholder(asset.original_name)
 
     def empty_view() -> dict:
-        updates: dict = {mode: None, hint_context: None, refs: "", refs_md: "",
+        updates: dict = {mode: None, hint_context: None, text_project: None, refs: "", refs_md: "",
                          selected_draft: None, selected_composition: None, audit_images: "",
                          audit_md: "",
                          retouch_md: "", supports_md: "", supports: "", start_draft: "",
@@ -584,6 +589,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             None,
         )
         updates |= {
+            text_project: active_id,
             hint_context: {
                 "mode": current_mode,
                 "drafts": n_drafts,
@@ -749,6 +755,22 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             first,
         )
 
+    def sent(action: dict[str, Any]) -> dict:
+        """B-115: tras enviarse con éxito, se vacía lo que se escribió para esa acción (queda
+        guardado con la imagen o con la auditoría); con error, se conserva para reintentar."""
+        kind, cleared = action["kind"], {}
+        if kind == "boceto":
+            cleared = {draft_extra: ""}
+        elif kind == "auditoria":
+            cleared = {audit_notes: ""}
+        elif kind in {"composicion", "composicion_actual"}:
+            cleared = {comp_extra: ""}
+            if action.get("retouch"):
+                cleared |= {retouch_instruction: "", use_retouch: gr.update(value=False)}
+        elif kind in {"render_final", "render_final_actual"}:
+            cleared = {final_extra: ""}
+        return cleared
+
     async def execute(action: dict[str, Any], active_id: str | None, *shown: str | None) -> dict:
         area = actions[action["kind"]]
         if not active_id:
@@ -765,7 +787,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         updated = list(shown)
         if new_render:
             updated[STAGES.index(ACTION_STAGES[action["kind"]])] = new_render
-        return {**await view(active_id, *updated), **hide_confirm(area)}
+        return {**await view(active_id, *updated), **hide_confirm(area), **sent(action)}
 
     async def request(action: dict[str, Any], active_id: str | None, current_mode: str | None,
                       *shown: str | None) -> dict:  # fmt: skip
@@ -903,7 +925,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     # --- Salidas y eventos -----------------------------------------------------------------------
 
     outputs: list[gr.components.Component] = [
-        *notices, mode, hint_context, refs, refs_md, selected_draft, selected_composition,
+        *notices, mode, hint_context, text_project, refs, refs_md, selected_draft,
+        selected_composition, draft_extra, comp_extra, final_extra, audit_notes,
+        retouch_instruction,
         composition_tab, audit_box,
         final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
         start_draft, start_composition, selected_final, start_final_composition,
@@ -1021,6 +1045,16 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         inputs=final_ratio,
         outputs=final_size,
     )
+
+    # B-115: los textos son de un proyecto y, las observaciones, de un boceto: al cambiar, se
+    # empieza limpio (calidad, formato, variantes, proporción y resolución se conservan).
+    texts = [draft_extra, comp_extra, final_extra, audit_notes, retouch_instruction]
+    text_project.change(
+        lambda: {**dict.fromkeys(texts, ""), use_audit: gr.update(value=False),
+                 use_retouch: gr.update(value=False)},
+        outputs=[*texts, use_audit, use_retouch], queue=False, show_progress="hidden",
+    )  # fmt: skip
+    selected_draft.change(lambda: "", outputs=audit_notes, queue=False, show_progress="hidden")
 
     hint_inputs = [hint_context, draft_n, draft_quality, comp_quality, final_size]
     hint_outputs = [
