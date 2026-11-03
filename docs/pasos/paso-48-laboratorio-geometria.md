@@ -103,4 +103,5 @@ autorizados; se avisó al pasar de 1 €).
 
 ## 7. Estado final
 
-⏳ En revisión — rama `feat/paso-48`.
+✅ Cerrado — rama `feat/paso-48`, PR #68 revisada y mergeada por el usuario (2026-11-03). El usuario
+decide no seguir por este camino de momento; las tres copias del laboratorio se conservan.

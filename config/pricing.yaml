@@ -27,8 +27,9 @@ megapixel_px: 1048576
 
 deployments:
   # --- Texto: precio por 1M de tokens --------------------------------------------------
-  # En la factura de octubre de 2026 este modelo salió a 0 € (¿versión preliminar?). Se mantiene
-  # su precio de lista a propósito para no subestimar si empieza a cobrarse (decisión del usuario).
+  # Las primeras facturas de octubre de 2026 lo daban a 0 €, pero Azure lo cobra a precio de lista
+  # (revalorizado; contraste del 2026-11-03, Paso 39). Siempre se estimó a precio de lista
+  # (decisión del usuario): la estimación ya cuadra con la factura.
   gpt-6.1-sol:
     type: tokens
     rates:

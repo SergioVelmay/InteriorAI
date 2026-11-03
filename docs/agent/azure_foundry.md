@@ -118,7 +118,7 @@ y [24-27/10, Paso 39](../pasos/paso-39-precios.md)): los tokens coinciden con la
 precio en euros es la lista × 0,98463, pero se estima **sin factor** (`billing_factor` 1.0 por
 defecto; decisión del usuario: la factura siempre por debajo). FLUX factura el MP binario
 (`megapixel_px: 1048576`) y los MP reales de cada referencia (`reference_mode: pixels`, por
-defecto). `gpt-6.1-sol` sale a 0 €, pero se mantiene su precio de lista a propósito (no se
+defecto). `gpt-6.1-sol` salió a 0 € en las primeras facturas y Azure lo ha revalorizado a precio de lista (contraste del 2026-11-03); se mantiene su precio de lista (no se
 explica en el README ni en la web). Los timeouts no se facturan: con error solo se cuentan los
 tokens que informe el proveedor (`MeteredFoundryClient._record`). La interfaz redondea
 estimaciones y resúmenes al céntimo hacia arriba (`ui/money.py`); el registro, con 4 decimales.
