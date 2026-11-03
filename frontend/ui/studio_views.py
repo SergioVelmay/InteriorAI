@@ -319,6 +319,12 @@ def discarded_of(project: ProjectMetadata, stage: RenderStage) -> list[RenderRec
     )  # fmt: skip
 
 
+def geometry_caption(render: RenderRecord, fit: Any) -> str:
+    """Pie de la miniatura con la fidelidad al esquema 3D a ±8 px (B-116), si hay esquema."""
+    caption = render_caption(render)
+    return f"{caption} · geometría {fit.loose:.0%}" if fit is not None else caption
+
+
 def render_caption(render: RenderRecord) -> str:
     audit = ""
     if render.audits:

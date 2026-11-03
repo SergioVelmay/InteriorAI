@@ -19,16 +19,18 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+import anyio
 import gradio as gr
 from PIL import Image
 
 from shared.models import ProjectMetadata, RenderStage, RenderStatus
 from shared.sizes import DEFAULT_RATIO, DEFAULT_RENDERER_SIZE
-from shared.supports import MAX_SUPPORTS, active_references
+from shared.supports import MAX_SUPPORTS, active_references, draft_base
 from ui.api_client import ApiError, BackendClient
 from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.forecast import FORECAST_S
+from ui.geometry import Fidelity, fidelity, overlay
 from ui.studio_views import (
     COST_AUDIT,
     DRAFT_SIZES,
@@ -50,6 +52,7 @@ from ui.studio_views import (
     final_cost,
     final_hint,
     final_source,
+    geometry_caption,
     needs_confirmation,
     render_caption,
     render_detail_md,
@@ -166,6 +169,10 @@ class Panel:
     title: gr.Markdown
     select_btn: gr.Button
     discard_btn: gr.Button
+    # B-116: el esquema 3D superpuesto (una vista aparte, la imagen no cambia)
+    overlay_on: gr.Checkbox
+    overlay_opacity: gr.Slider
+    overlay_view: gr.Image
     more_md: gr.Markdown
     inputs: gr.Gallery
     chain_md: gr.Markdown
@@ -216,7 +223,20 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
+    overlay_view = gr.Image(
+        show_label=False, interactive=False, buttons=["download", "fullscreen"], visible=False,
+        elem_id=f"iai-overlay-view-{slug}", elem_classes="iai-viewer",
+    )  # fmt: skip
     title = gr.Markdown()
+    with gr.Row(equal_height=True):  # B-116
+        overlay_on = gr.Checkbox(
+            label="Superponer el esquema 3D (las aristas de la imagen base, en rojo)",
+            value=False, elem_id=f"iai-overlay-{slug}",
+        )  # fmt: skip
+        overlay_opacity = gr.Slider(
+            0.2, 1.0, value=0.8, step=0.1, label="Opacidad de las aristas",
+            elem_id=f"iai-overlay-opacity-{slug}",
+        )  # fmt: skip
     with gr.Row():
         select_btn = gr.Button("Seleccionar", variant="primary", elem_id=f"iai-select-{slug}")
         # B-109: junto a «Seleccionar», salvo en la seleccionada
@@ -235,6 +255,8 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
     chain_md = gr.Markdown(elem_id=f"iai-chain-{slug}")
     return {"viewer": viewer, "title": title, "select_btn": select_btn,
             "discard_btn": discard_btn, "more_md": more_md, "inputs": inputs,
+            "overlay_on": overlay_on, "overlay_opacity": overlay_opacity,
+            "overlay_view": overlay_view,
             "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
 
 
@@ -505,6 +527,20 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                         panel.discarded_gallery: [], panel.discarded_ids: []}  # fmt: skip
         return updates
 
+    def sketch_of(project: ProjectMetadata) -> Path | None:
+        """La imagen base (la referencia con perspectiva): el esquema 3D frente al que se mide."""
+        base = draft_base(project)
+        path = asset_path(data_dir, project.id, base) if base else None
+        return path if path and path.is_file() else None
+
+    def geometry_of(project: ProjectMetadata, render_id: str) -> Fidelity | None:
+        sketch = sketch_of(project)
+        asset = next((a for a in project.assets if str(a.id) == render_id), None)
+        image = asset_path(data_dir, project.id, asset) if asset else None
+        if sketch is None or image is None or not image.is_file():
+            return None
+        return fidelity(sketch, image)
+
     async def panel_updates(
         project: ProjectMetadata, stage: RenderStage, render_id: str | None
     ) -> dict:
@@ -526,14 +562,25 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         return {
             panel.shown: render_id,
             panel.gallery: gr.update(
-                value=[(image_of(project, str(r.id)), render_caption(r)) for r in items],
+                value=[
+                    (
+                        image_of(project, str(r.id)),
+                        geometry_caption(r, geometry_of(project, str(r.id))),
+                    )
+                    for r in items
+                ],
                 selected_index=next(
                     (i for i, r in enumerate(items) if str(r.id) == render_id), None
                 ),
             ),
             panel.ids: [str(r.id) for r in items],
             panel.viewer: image_of(project, render_id) if render else None,
-            panel.title: render_title_md(render),
+            panel.title: render_title_md(render)
+            + (
+                f"\n\n**Fidelidad al esquema 3D:** {fit.label()}"
+                if render and (fit := geometry_of(project, render_id))
+                else ""
+            ),
             panel.select_btn: gr.update(
                 interactive=render is not None and not is_selected,
                 value="Seleccionada ●" if is_selected else "Seleccionar",
@@ -1084,7 +1131,41 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             },
             outputs=[action.pending, action.confirm_box, action.button],
         )
+
+    def overlay_handler(stage: RenderStage):
+        """B-116: la imagen mostrada con las aristas del esquema encima (vista aparte)."""
+
+        async def handler(active_id, render_id, on, opacity) -> dict:
+            panel = panels[stage]
+            plain = {panel.viewer: gr.update(visible=True),
+                     panel.overlay_view: gr.update(value=None, visible=False)}  # fmt: skip
+            if not (on and active_id and render_id):
+                return plain
+            try:
+                project = await client.get_project(active_id)
+            except ApiError as exc:
+                gr.Warning(exc.detail)
+                return plain
+            sketch = sketch_of(project)
+            asset = next((a for a in project.assets if str(a.id) == render_id), None)
+            image = asset_path(data_dir, project.id, asset) if asset else None
+            if sketch is None or image is None or not image.is_file():
+                gr.Warning("Falta la imagen base: marca la perspectiva en una referencia")
+                return {**plain, panel.overlay_on: gr.update(value=False)}
+            picture = await anyio.to_thread.run_sync(overlay, sketch, image, float(opacity))
+            return {panel.viewer: gr.update(visible=False),
+                    panel.overlay_view: gr.update(value=picture, visible=True)}  # fmt: skip
+
+        return handler
+
     for stage, panel in panels.items():
+        overlay_inputs = [active, panel.shown, panel.overlay_on, panel.overlay_opacity]
+        overlay_outputs = [panel.viewer, panel.overlay_view, panel.overlay_on]
+        for trigger in (panel.overlay_on.change, panel.overlay_opacity.release, panel.shown.change):
+            trigger(
+                overlay_handler(stage), inputs=overlay_inputs, outputs=overlay_outputs,
+                show_progress="hidden",
+            )  # fmt: skip
         panel.select_btn.click(select_handler(stage), inputs=common, outputs=outputs)
         panel.discard_btn.click(discard_handler(stage), inputs=common, outputs=outputs)
         panel.bridge.click(

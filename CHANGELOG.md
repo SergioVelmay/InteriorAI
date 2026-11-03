@@ -8,6 +8,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 
+- **Superponer el esquema 3D y medir la geometría** (Paso 47, B-116): en Bocetos, Composición y
+  Render final, la casilla «Superponer el esquema 3D» muestra las aristas de la imagen base (el
+  esquema de SketchUp con la perspectiva) en rojo sobre la imagen, con su opacidad, sin tocarla;
+  y cada imagen indica su fidelidad al esquema (aristas que coinciden a ±3 y ±8 px), en su pie y
+  en su título.
+
 - **Tus indicaciones, con cada imagen** (Paso 46, B-115): lo que escribes al generar bocetos,
   composiciones y renders finales queda guardado con cada imagen (`indications`) y se ve en su
   trazabilidad; las observaciones de la auditoría, en su informe.
