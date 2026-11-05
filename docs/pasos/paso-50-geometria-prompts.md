@@ -62,6 +62,7 @@ esquema pasa a ir en segundo lugar en vez de perdido entre los apoyos.
 | Orden de entrada | ✅ Con los valores por defecto, la lista de imágenes es idéntica a la de antes del paso (el esquema ya era el primero de los apoyos) |
 | Interfaz | ✅ La aplicación construye las cuatro casillas nuevas (`iai-use-draft`, `iai-use-scheme-draft`, `iai-use-current`, `iai-use-scheme-current`) |
 | `ruff` y `mkdocs build --strict` | ✅ |
+| CI de la PR #71 | ⚠️ A la primera falló el extremo a extremo: al añadir las dos opciones a `composition_body` se rompió la llamada del retoque, que seguía con la firma antigua y nunca llegaba a generar. Los tests unitarios no alcanzan ese camino; lo cazó Playwright. Arreglado separando las imágenes elegidas (`chosen_images`) del cuerpo común, que vuelve a su firma: el retoque no elige imágenes, porque edita la zona pintada |
 
 Coste real del paso: 0 €.
 

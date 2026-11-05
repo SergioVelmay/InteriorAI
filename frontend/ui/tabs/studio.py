@@ -1068,18 +1068,23 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         audit_notes,
     )
 
-    def composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on) -> dict:
+    def composition_body(quality, size, extra, audit_on, notes) -> dict:
         return {"quality": quality, "size": size, "extra_instructions": extra or "",
-                "use_audit": bool(audit_on), "audit_notes": (notes or "").strip(),
-                "use_start": bool(start_on), "use_scheme": bool(scheme_on)}  # fmt: skip
+                "use_audit": bool(audit_on), "audit_notes": (notes or "").strip()}  # fmt: skip
+
+    def chosen_images(start_on, scheme_on) -> dict:
+        """Qué imágenes se envían (Paso 50). Aparte del cuerpo común: el retoque no las elige,
+        porque edita la zona pintada de la composición."""
+        return {"use_start": bool(start_on), "use_scheme": bool(scheme_on)}
 
     def from_draft(draft_id, quality, size, extra, audit_on, notes, start_on, scheme_on):
         if not draft_id:
             return {"error": "Selecciona un boceto para componer"}
         if not (start_on or scheme_on):
             return {"error": "Marca el boceto, el esquema 3D o los dos"}
-        body = composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on)
-        return {"quality": quality, "body": {**body, "draft_id": draft_id, "source": "boceto"}}
+        body = composition_body(quality, size, extra, audit_on, notes)
+        return {"quality": quality, "body": {**body, **chosen_images(start_on, scheme_on),
+                                             "draft_id": draft_id, "source": "boceto"}}  # fmt: skip
 
     wire(
         "composicion", from_draft,
@@ -1093,8 +1098,9 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             return {"error": "Selecciona una composición para generar a partir de ella"}
         if not (start_on or scheme_on):
             return {"error": "Marca la composición actual, el esquema 3D o los dos"}
-        body = composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on)
-        return {"quality": quality, "body": {**body, "source": "composicion"}}
+        body = composition_body(quality, size, extra, audit_on, notes)
+        return {"quality": quality, "body": {**body, **chosen_images(start_on, scheme_on),
+                                             "source": "composicion"}}  # fmt: skip
 
     wire(
         "composicion_actual", from_composition,
