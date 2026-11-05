@@ -40,6 +40,7 @@ El desplazamiento se da en píxeles a la escala del esquema, con el signo visto 
 | Verdad conocida sobre un render real | ✅ Se desplaza un boceto real una cantidad conocida y se vuelve a medir: +90/+50 → detecta +90/+50; −120/0 → −116/−24 sobre su base; 0/−70 → +0/−70. Error de 2 a 4 px |
 | Las tres copias del laboratorio (24 imágenes) | ✅ Sin excepción, el ajustado mejora o iguala a ±8 px: bocetos del 43–54 % al 50–60 %, composiciones del 43–53 % al 51–61 %, renders finales del 43–51 % al 48–54 %. De 4 a 8 puntos de media |
 | Tiempo | ✅ 0,1–0,2 s por imagen, con caché |
+| CI de la PR #70 | ✅ Lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 | Interfaz | ✅ La aplicación construye las seis casillas y las seis vistas; el bloqueo de controles al procesar (B-113) las cubre sin tocar nada, porque su selector es genérico |
 
 Coste real del paso: 0 €.
