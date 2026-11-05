@@ -62,7 +62,10 @@ está validado y es útil por sí solo, este paso entrega eso y deja el zum **ab
 
 ## 6. Estado final
 
-⏳ En curso — rama `feat/paso-49`.
+✅ Cerrado — rama `feat/paso-49`, PR #70 revisada y mergeada por el usuario (2026-11-05). Docker
+reconstruido y comprobado en el navegador: con las dos casillas marcadas salen las dos vistas, y
+en «Cocina y Sofá Jattebo (dos puntos, 60 mm)» la composición pasa de 53 % a 61 % a ±8 px con un
+desplazamiento de 4 px a la derecha y 24 px arriba.
 
 ## 7. Pendiente / futuro
 

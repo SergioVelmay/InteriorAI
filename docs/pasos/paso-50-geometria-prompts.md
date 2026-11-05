@@ -62,13 +62,16 @@ esquema pasa a ir en segundo lugar en vez de perdido entre los apoyos.
 | Orden de entrada | ✅ Con los valores por defecto, la lista de imágenes es idéntica a la de antes del paso (el esquema ya era el primero de los apoyos) |
 | Interfaz | ✅ La aplicación construye las cuatro casillas nuevas (`iai-use-draft`, `iai-use-scheme-draft`, `iai-use-current`, `iai-use-scheme-current`) |
 | `ruff` y `mkdocs build --strict` | ✅ |
+| Navegador (datos del usuario, modo `mock`) | ✅ Cada botón con sus dos miniaturas («Boceto seleccionado» y «Esquema 3D · …»; «Composición actual» y el esquema) y sus dos casillas marcadas |
 | CI de la PR #71 | ⚠️ A la primera falló el extremo a extremo: al añadir las dos opciones a `composition_body` se rompió la llamada del retoque, que seguía con la firma antigua y nunca llegaba a generar. Los tests unitarios no alcanzan ese camino; lo cazó Playwright. Arreglado separando las imágenes elegidas (`chosen_images`) del cuerpo común, que vuelve a su firma: el retoque no elige imágenes, porque edita la zona pintada. A la segunda, todo en verde: lint y tests, gitleaks, Docker con newman y Playwright, y la construcción de la documentación |
 
 Coste real del paso: 0 €.
 
 ## 6. Estado final
 
-⏳ En curso — rama `feat/paso-50`.
+✅ Cerrado — rama `feat/paso-50`, PR #71 revisada y mergeada por el usuario (2026-11-05). Docker
+reconstruido; extremo a extremo en local (8 pruebas) y las cuatro casillas comprobadas en el
+navegador, con sus dos miniaturas por botón.
 
 ## 7. Pendiente / futuro
 
