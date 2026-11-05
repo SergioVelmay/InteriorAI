@@ -30,7 +30,7 @@ from ui.api_client import ApiError, BackendClient
 from ui.cost_views import alert_lines, chain_cost_md
 from ui.covers import asset_path, placeholder
 from ui.forecast import FORECAST_S
-from ui.geometry import Fidelity, fidelity, overlay
+from ui.geometry import Fidelity, alignment, fidelity, overlay
 from ui.studio_views import (
     COST_AUDIT,
     DRAFT_SIZES,
@@ -169,10 +169,13 @@ class Panel:
     title: gr.Markdown
     select_btn: gr.Button
     discard_btn: gr.Button
-    # B-116: el esquema 3D superpuesto (una vista aparte, la imagen no cambia)
-    overlay_on: gr.Checkbox
+    # B-116: el esquema 3D superpuesto (vistas aparte, la imagen no cambia), tal cual y con el
+    # desplazamiento del encuadre ya corregido (Paso 49); la opacidad es la misma para las dos
+    overlay_plain: gr.Checkbox
+    overlay_fitted: gr.Checkbox
     overlay_opacity: gr.Slider
-    overlay_view: gr.Image
+    overlay_plain_view: gr.Image
+    overlay_fitted_view: gr.Image
     more_md: gr.Markdown
     inputs: gr.Gallery
     chain_md: gr.Markdown
@@ -223,15 +226,23 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         show_label=False, interactive=False, buttons=["download", "fullscreen"],
         elem_id=f"iai-viewer-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
-    overlay_view = gr.Image(
+    overlay_plain_view = gr.Image(
         show_label=False, interactive=False, buttons=["download", "fullscreen"], visible=False,
         elem_id=f"iai-overlay-view-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
+    overlay_fitted_view = gr.Image(
+        show_label=False, interactive=False, buttons=["download", "fullscreen"], visible=False,
+        elem_id=f"iai-overlay-fitted-view-{slug}", elem_classes="iai-viewer",
+    )  # fmt: skip
     title = gr.Markdown()
     with gr.Row(equal_height=True):  # B-116
-        overlay_on = gr.Checkbox(
+        overlay_plain = gr.Checkbox(
             label="Superponer el esquema 3D (las aristas de la imagen base, en rojo)",
             value=False, elem_id=f"iai-overlay-{slug}",
+        )  # fmt: skip
+        overlay_fitted = gr.Checkbox(
+            label="Superponerlo corrigiendo el desplazamiento del encuadre",
+            value=False, elem_id=f"iai-overlay-fitted-{slug}",
         )  # fmt: skip
         overlay_opacity = gr.Slider(
             0.2, 1.0, value=0.8, step=0.1, label="Opacidad de las aristas",
@@ -255,8 +266,9 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
     chain_md = gr.Markdown(elem_id=f"iai-chain-{slug}")
     return {"viewer": viewer, "title": title, "select_btn": select_btn,
             "discard_btn": discard_btn, "more_md": more_md, "inputs": inputs,
-            "overlay_on": overlay_on, "overlay_opacity": overlay_opacity,
-            "overlay_view": overlay_view,
+            "overlay_plain": overlay_plain, "overlay_fitted": overlay_fitted,
+            "overlay_opacity": overlay_opacity, "overlay_plain_view": overlay_plain_view,
+            "overlay_fitted_view": overlay_fitted_view,
             "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
 
 
@@ -1133,35 +1145,56 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         )
 
     def overlay_handler(stage: RenderStage):
-        """B-116: la imagen mostrada con las aristas del esquema encima (vista aparte)."""
+        """B-116: la imagen mostrada con las aristas del esquema encima (vistas aparte). La de
+        «tal cual» lleva el porcentaje; la ajustada, el desplazamiento del encuadre y el
+        porcentaje con él. Ambas en rojo sobre la imagen (Paso 49)."""
 
-        async def handler(active_id, render_id, on, opacity) -> dict:
+        async def handler(active_id, render_id, plain_on, fitted_on, opacity) -> dict:
             panel = panels[stage]
-            plain = {panel.viewer: gr.update(visible=True),
-                     panel.overlay_view: gr.update(value=None, visible=False)}  # fmt: skip
-            if not (on and active_id and render_id):
-                return plain
+            nothing = {panel.viewer: gr.update(visible=True),
+                       panel.overlay_plain_view: gr.update(value=None, visible=False),
+                       panel.overlay_fitted_view: gr.update(value=None, visible=False)}  # fmt: skip
+            if not ((plain_on or fitted_on) and active_id and render_id):
+                return nothing
             try:
                 project = await client.get_project(active_id)
             except ApiError as exc:
                 gr.Warning(exc.detail)
-                return plain
+                return nothing
             sketch = sketch_of(project)
             asset = next((a for a in project.assets if str(a.id) == render_id), None)
             image = asset_path(data_dir, project.id, asset) if asset else None
             if sketch is None or image is None or not image.is_file():
                 gr.Warning("Falta la imagen base: marca la perspectiva en una referencia")
-                return {**plain, panel.overlay_on: gr.update(value=False)}
-            picture = await anyio.to_thread.run_sync(overlay, sketch, image, float(opacity))
-            return {panel.viewer: gr.update(visible=False),
-                    panel.overlay_view: gr.update(value=picture, visible=True)}  # fmt: skip
+                return {**nothing, panel.overlay_plain: gr.update(value=False),
+                        panel.overlay_fitted: gr.update(value=False)}  # fmt: skip
+            updates: dict[Any, Any] = {panel.viewer: gr.update(visible=False)}
+            for on, view, fit, prefix in (
+                (plain_on, panel.overlay_plain_view, None, "Tal cual"),
+                (fitted_on, panel.overlay_fitted_view, True, "Ajustado"),
+            ):
+                if not on:
+                    updates[view] = gr.update(value=None, visible=False)
+                    continue
+                measure = await anyio.to_thread.run_sync(
+                    alignment if fit else fidelity, sketch, image
+                )
+                picture = await anyio.to_thread.run_sync(
+                    overlay, sketch, image, float(opacity),
+                    measure if fit else None, f"{prefix}: {measure.label()}",
+                )  # fmt: skip
+                updates[view] = gr.update(value=picture, visible=True)
+            return updates
 
         return handler
 
     for stage, panel in panels.items():
-        overlay_inputs = [active, panel.shown, panel.overlay_on, panel.overlay_opacity]
-        overlay_outputs = [panel.viewer, panel.overlay_view, panel.overlay_on]
-        for trigger in (panel.overlay_on.change, panel.overlay_opacity.release, panel.shown.change):
+        overlay_inputs = [active, panel.shown, panel.overlay_plain, panel.overlay_fitted,
+                          panel.overlay_opacity]  # fmt: skip
+        overlay_outputs = [panel.viewer, panel.overlay_plain_view, panel.overlay_fitted_view,
+                           panel.overlay_plain, panel.overlay_fitted]  # fmt: skip
+        for trigger in (panel.overlay_plain.change, panel.overlay_fitted.change,
+                        panel.overlay_opacity.release, panel.shown.change):  # fmt: skip
             trigger(
                 overlay_handler(stage), inputs=overlay_inputs, outputs=overlay_outputs,
                 show_progress="hidden",

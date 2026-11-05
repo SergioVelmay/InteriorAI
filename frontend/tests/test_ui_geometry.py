@@ -1,11 +1,11 @@
-"""Geometría frente al esquema 3D (B-116): aristas, fidelidad y superposición."""
+"""Geometría frente al esquema 3D (B-116): aristas, fidelidad, encuadre y superposición."""
 
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
 
-from ui.geometry import fidelity, overlay, sketch_edges
+from ui.geometry import EDGE_COLOR, alignment, fidelity, overlay, sketch_edges
 
 
 def scheme(path: Path, shift: int = 0, filled: bool = True) -> Path:
@@ -38,11 +38,50 @@ def test_fidelity_is_full_on_itself_and_drops_when_geometry_moves(tmp_path: Path
     assert "a ±3 px" in same.label() and "a ±8 px" in same.label()
 
 
+def moved(path: Path, source: Path, dx: int, dy: int) -> Path:
+    """La misma escena desplazada entera, como cuando el modelo cambia el encuadre."""
+    with Image.open(source) as image:
+        canvas = Image.new("RGB", image.size, (240, 240, 240))
+        canvas.paste(image, (dx, dy))
+    canvas.save(path)
+    return path
+
+
 def test_overlay_paints_the_sketch_edges_at_the_image_size(tmp_path: Path) -> None:
     sketch = scheme(tmp_path / "esquema.png")
     photo = tmp_path / "foto.png"
     Image.new("RGB", (900, 600), (120, 120, 120)).save(photo)  # mayor que el esquema
     result = np.asarray(overlay(sketch, photo, opacity=1.0))
     assert result.shape == (600, 900, 3)
-    assert tuple(result[180, 300]) == (239, 68, 68)  # arista superior de la caja, escalada
+    assert tuple(result[180, 300]) == EDGE_COLOR  # arista superior de la caja, escalada
     assert tuple(result[300, 300]) == (120, 120, 120)  # el resto, intacto
+
+
+def test_alignment_finds_the_shift_and_stays_put_when_there_is_none(tmp_path: Path) -> None:
+    sketch = scheme(tmp_path / "esquema.png")
+    same = alignment(sketch, sketch)
+    assert (same.dx, same.dy) == (0, 0)  # al empatar, el encuadre que no toca nada
+    assert same.fit.loose > 0.95
+    found = alignment(sketch, moved(tmp_path / "corrida.png", sketch, 30, -20))
+    assert abs(found.dx - 30) <= 4 and abs(found.dy + 20) <= 4
+    assert found.fit.loose > 0.9  # al moverlo vuelve a encajar
+    assert "px a la derecha" in found.label() and "px arriba" in found.label()
+
+
+def test_alignment_never_measures_worse_than_the_scheme_as_it_is(tmp_path: Path) -> None:
+    sketch = scheme(tmp_path / "esquema.png")
+    for dx, dy in ((0, 0), (12, 0), (-25, 18)):
+        image = moved(tmp_path / f"c{dx}_{dy}.png", sketch, dx, dy)
+        assert alignment(sketch, image).fit.loose >= fidelity(sketch, image).loose
+
+
+def test_overlay_moves_the_edges_with_the_encuadre_and_writes_the_caption(tmp_path: Path) -> None:
+    sketch = scheme(tmp_path / "esquema.png")
+    image = moved(tmp_path / "corrida.png", sketch, 30, 0)
+    fit = alignment(sketch, image)
+    plain = np.asarray(overlay(sketch, image, opacity=1.0))
+    fitted = np.asarray(overlay(sketch, image, opacity=1.0, fit=fit, caption="Ajustado: 90 %"))
+    assert tuple(plain[200, 100]) == EDGE_COLOR  # sin ajustar, la arista izquierda, en su sitio
+    assert tuple(fitted[200, 100]) != EDGE_COLOR  # ajustada, se ha corrido con la escena
+    assert tuple(fitted[200, 100 + fit.dx]) == EDGE_COLOR
+    assert (fitted[:60, :400] == EDGE_COLOR).all(axis=-1).any()  # el texto, en rojo
