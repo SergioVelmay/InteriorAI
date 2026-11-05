@@ -36,6 +36,7 @@ from shared.models import (
 )
 from shared.roles import Role
 from shared.sizes import DEFAULT_RENDERER_SIZE
+from shared.supports import MAX_SUPPORTS
 
 INPUT_MAX_SIDE_PX = 2_048  # imágenes de entrada a los modelos de imagen
 GPT_IMAGE_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
@@ -44,6 +45,10 @@ INPAINT_STAGES = frozenset({RenderStage.COMPOSITION})  # solo con máscara nativ
 DEFAULT_GPT_SIZE = "1536x1024"  # 3:2 (B-040)
 # Papel de cada imagen de entrada, tal como se explica al PROMPT_ARCHITECT.
 BASE_ROLE = "imagen base: se dibuja sobre ella y se conserva su punto de vista y su geometría"
+SCHEME_ROLE = (
+    "esquema 3D del espacio: manda en el encuadre, el punto de vista y la geometría; de él no se "
+    "toman materiales ni acabados"
+)
 SUPPORT_ROLE = "apoyo: se toma solo lo marcado en su ficha"
 START_DRAFT_ROLE = (
     "imagen de partida: el boceto seleccionado, que se materializa con fidelidad en geometría, "
@@ -353,10 +358,15 @@ async def generate_composition(
     source: CompositionSource = "boceto",
     use_audit: bool = False,
     audit_notes: str = "",
+    use_start: bool = True,
+    use_scheme: bool = True,
 ) -> list[RenderRecord]:
     """Etapa 2 (B-045, B-055): composición a partir del boceto seleccionado o de la composición
     actual (la seleccionada), con las referencias activas como apoyo (hasta 12, por prioridad) y,
     si se pide, las correcciones de la auditoría del boceto.
+
+    `use_start` y `use_scheme` eligen qué imágenes se envían (B-116, Paso 50): la de partida, el
+    esquema 3D o las dos. Solo con el esquema, es él quien se edita.
     """
     project = await repo.get(project_id)
     options = RenderOptions(**{**options.__dict__, "quality": options.quality or "medium"})
@@ -374,8 +384,18 @@ async def generate_composition(
         if draft is None:
             raise PipelineInputError("Selecciona un boceto para generar la composición")
         start, start_role = draft, START_DRAFT_ROLE
-    supports, _ = split_supports(project, None)
-    roles = [InputRole(_render_asset(project, start), start_role)]
+    # Paso 50: el usuario elige qué entra, la imagen de partida y/o el esquema 3D. El esquema
+    # sale siempre de los apoyos y se añade aparte, para que no se duplique y vaya por delante.
+    scheme = draft_base(project)
+    if not (use_start or use_scheme):
+        raise PipelineInputError("Elige al menos una imagen para generar la composición")
+    if use_scheme and scheme is None and not use_start:
+        raise PipelineInputError("No hay esquema 3D: marca la perspectiva en una referencia")
+    supports, _ = split_supports(project, scheme)
+    roles = [InputRole(_render_asset(project, start), start_role)] if use_start else []
+    if use_scheme and scheme is not None:
+        roles.append(InputRole(scheme, SCHEME_ROLE if use_start else BASE_ROLE))
+        supports = supports[: MAX_SUPPORTS - 1]  # el esquema ocupa una de las plazas de apoyo
     roles += [InputRole(a, SUPPORT_ROLE) for a in supports]
     size = resolve_size(Role.COMPOSITION_BUILDER, options.size or DEFAULT_GPT_SIZE, roles[0].asset)
     corrections = audit_corrections(project, draft, audit_notes) if use_audit else ""

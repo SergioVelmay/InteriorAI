@@ -94,6 +94,7 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 | 47 | [Superponer el esquema 3D y medir la geometría](paso-47-geometria.md) (B-116) | `feat/paso-47` | ✅ Cerrado |
 | 48 | [Laboratorio de geometría](paso-48-laboratorio-geometria.md) (B-116) | `feat/paso-48` | ✅ Cerrado |
 | 49 | [El encuadre: medir y corregir el desplazamiento](paso-49-encuadre.md) (B-116) | `feat/paso-49` | ⏳ En curso |
+| 50 | [La geometría en los prompts y el esquema como base](paso-50-geometria-prompts.md) (B-116) | `feat/paso-50` | ⏳ En curso |
 
 ## Plantilla de documento de paso
 

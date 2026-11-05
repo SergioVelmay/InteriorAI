@@ -203,6 +203,16 @@ def support_thumbs(project: ProjectMetadata, data_dir: Path) -> list[Thumb]:
     return items + _excluded(data_dir, project, excluded)
 
 
+def scheme_thumb(project: ProjectMetadata, data_dir: Path) -> list[Thumb]:
+    """El esquema 3D (la referencia con la perspectiva marcada), para elegir si entra en la
+    composición (Paso 50)."""
+    scheme = draft_base(project)
+    if scheme is None:
+        return []
+    return [Thumb(_file(data_dir, project, scheme), f"Esquema 3D · {scheme.original_name}",
+                  "start")]  # fmt: skip
+
+
 def render_thumb(
     project: ProjectMetadata, render: RenderRecord | None, data_dir: Path, caption: str
 ) -> list[Thumb]:
@@ -293,9 +303,16 @@ def composition_cost(quality: str, inputs: int) -> float:
     return COST_PROMPT + inputs * COST_COMPOSITION_INPUT + COST_DRAFT_OUTPUT.get(quality, 0.009)
 
 
-def composition_inputs(project: ProjectMetadata) -> int:
-    """Imágenes de una composición o un retoque: la de partida y los apoyos que caben."""
-    return 1 + len(split_supports(project)[0])
+def composition_inputs(
+    project: ProjectMetadata, use_start: bool = True, use_scheme: bool = True
+) -> int:
+    """Imágenes de una composición o un retoque: las que el usuario elige (la de partida y/o el
+    esquema 3D, Paso 50) y los apoyos que caben."""
+    scheme = draft_base(project)
+    supports = len(split_supports(project, scheme)[0])
+    if use_scheme and scheme is not None:
+        return int(use_start) + 1 + min(supports, MAX_SUPPORTS - 1)
+    return int(use_start) + supports
 
 
 # --- Renders ---------------------------------------------------------------------------------

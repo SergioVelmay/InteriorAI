@@ -469,7 +469,10 @@ async def test_tabs_unlock_in_order_and_show_the_selected_image(tmp_path: Path) 
     assert by_id(result, "iai-gen-drafts")["interactive"] is True
     # Estimaciones (B-104): el modo y las imágenes de entrada; el texto, con las opciones.
     context = {
-        "mode": "azure", "drafts": 1, "compositions": 2,  # partida + 1 apoyo
+        "mode": "azure", "drafts": 1,
+        # Paso 50: las imágenes según lo que se marque (la de partida, el esquema 3D o las dos)
+        "compositions": {"con_partida": 1, "con_esquema": 1, "con_ambas": 2},
+        "scheme": True,
         "final_sources": {"render_final": None, "render_final_actual": final.size},
     }  # fmt: skip
     assert context in result.values()

@@ -1147,6 +1147,8 @@
                   "extra_instructions": "",
                   "source": "boceto",
                   "use_audit": false,
+                  "use_start": true,
+                  "use_scheme": true,
                   "audit_notes": "",
                   "n": 1,
                   "quality": "medium"
@@ -2227,6 +2229,18 @@
             "title": "Use Audit",
             "description": "Usar la auditoría del boceto",
             "default": false
+          },
+          "use_start": {
+            "type": "boolean",
+            "title": "Use Start",
+            "description": "Enviar la imagen de partida (el boceto o la composición)",
+            "default": true
+          },
+          "use_scheme": {
+            "type": "boolean",
+            "title": "Use Scheme",
+            "description": "Enviar el esquema 3D (la referencia con la perspectiva marcada). Sin la imagen de partida, es el esquema el que se edita",
+            "default": true
           },
           "audit_notes": {
             "type": "string",
