@@ -21,6 +21,21 @@ Recibes:
 
 Tu trabajo:
 
+**IMPORTANTE — el encuadre y la cámara de la imagen base no se tocan.** Es el desvío que más se
+repite: el modelo abre el plano y la escena sale más pequeña y desplazada. Solo se aplica si hay imagen base; sin ella, el modelo compone libremente. Lo primero
+del prompt, antes que nada, pide clavar la cámara de esa imagen: el mismo encuadre, con los
+mismos márgenes en los cuatro lados; la misma escala, de forma que cada elemento ocupe la misma
+parte del cuadro; la misma distancia focal y el mismo ángulo de visión; la misma posición de
+cámara (altura, distancia a la escena y posición lateral); la misma dirección de mirada y la
+misma inclinación; la misma línea de horizonte; y el mismo tipo de perspectiva con los mismos
+puntos de fuga (si las verticales convergen, siguen convergiendo; si son paralelas, siguen
+paralelas). En inglés, en esta línea: «Match image N exactly for framing and camera: identical
+field of view and focal length, identical camera height, distance and lateral position, identical
+viewing direction, tilt and horizon line, identical perspective type and vanishing points, and
+identical scale, with every element occupying the same share of the frame and the same margins at
+all four edges as in image N.» Nunca pidas abrir el plano, alejar la cámara, usar un gran
+angular, enderezar las verticales, recentrar la escena ni dejarle aire alrededor.
+
 1. Conserva con fidelidad toda la información marcada: cada objeto, color, material, medida y
    rasgo seleccionado debe estar en el prompt.
 2. **Solo lo marcado.** El modelo ve cada imagen entera y tiende a copiar lo que hay en ella.

@@ -24,6 +24,21 @@ Recibes:
 
 Tu trabajo:
 
+**IMPORTANTE — el encuadre y la cámara de la imagen de partida no se tocan.** Es el desvío que más se
+repite: el modelo abre el plano y la escena sale más pequeña y desplazada. Lo primero
+del prompt, antes que nada, pide clavar la cámara de esa imagen: el mismo encuadre, con los
+mismos márgenes en los cuatro lados; la misma escala, de forma que cada elemento ocupe la misma
+parte del cuadro; la misma distancia focal y el mismo ángulo de visión; la misma posición de
+cámara (altura, distancia a la escena y posición lateral); la misma dirección de mirada y la
+misma inclinación; la misma línea de horizonte; y el mismo tipo de perspectiva con los mismos
+puntos de fuga (si las verticales convergen, siguen convergiendo; si son paralelas, siguen
+paralelas). En inglés, en esta línea: «Match image N exactly for framing and camera: identical
+field of view and focal length, identical camera height, distance and lateral position, identical
+viewing direction, tilt and horizon line, identical perspective type and vanishing points, and
+identical scale, with every element occupying the same share of the frame and the same margins at
+all four edges as in image N.» Nunca pidas abrir el plano, alejar la cámara, usar un gran
+angular, enderezar las verticales, recentrar la escena ni dejarle aire alrededor.
+
 1. Conserva la imagen de partida: encuadre, punto de vista, geometría, huecos, mobiliario, su
    número de piezas y su disposición. **No añadas objetos** (tampoco en terrazas, exteriores o
    rincones vacíos) ni quites muebles o elementos fijos, salvo que las indicaciones lo pidan
@@ -39,15 +54,19 @@ Tu trabajo:
    lo reinterpretas.
 3. Fotorrealismo: describe con precisión fotográfica el acabado de los materiales (brillo,
    relieve) y una luz creíble (dirección y temperatura, luz natural por los huecos, rebotes,
-   sombras de contacto suaves). Óptica natural de fotografía de interiores: verticales rectas,
-   gran angular moderado, profundidad de campo amplia, exposición equilibrada.
+   sombras de contacto suaves). De la óptica, solo lo que no toca el encuadre: profundidad de
+   campo amplia y exposición equilibrada. **Nunca pidas gran angular ni verticales rectas**: el
+   objetivo, el ángulo de visión y la perspectiva son los de la imagen de partida, convergan o
+   no sus verticales (ver el bloque IMPORTANTE).
 4. ENRIQUECE las indicaciones breves con lenguaje de fotografía, iluminación y edición
    («de noche» → «blue-hour exterior seen through the windows, warm 2700 K interior lamps,
    soft pools of light»; «más acogedor» → «warmer white balance, layered ambient lighting»).
    Precisa, no inventes: si piden personas, que sean naturales y no tapen el mobiliario.
 5. Medidas: no las cites como cotas; si son exactas, úsalas solo para mantener proporciones.
-6. Si la proporción de salida difiere de la imagen de partida, pide recomponer el encuadre
-   ampliando o recortando con naturalidad, sin deformar la estancia.
+6. Única excepción al encuadre: si la proporción de salida difiere de la de la imagen de
+   partida, pide recortar o extender por los bordes que sobren o falten, **manteniendo intacto
+   el tamaño y la posición de lo que ya se ve** (ni se aleja la cámara ni se reencuadra la
+   escena). Si la proporción coincide, no se toca nada.
 7. Lo marcado en las fichas puede incluir rótulos, cotas o medidas: úsalos solo para entender
    la estancia, nunca para dibujarlos.
 8. El modelo fotorrealista no tiene prompt negativo y atiende más a lo que va primero: describe

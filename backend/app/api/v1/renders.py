@@ -58,6 +58,14 @@ class CompositionRequest(_RenderRequest):
         default="boceto", description="Imagen de partida: boceto o composición seleccionados"
     )
     use_audit: bool = Field(default=False, description="Usar la auditoría del boceto")
+    use_start: bool = Field(
+        default=True, description="Enviar la imagen de partida (el boceto o la composición)"
+    )
+    use_scheme: bool = Field(
+        default=True,
+        description="Enviar el esquema 3D (la referencia con la perspectiva marcada). Sin la "
+        "imagen de partida, es el esquema el que se edita",
+    )
     audit_notes: str = Field(
         default="", max_length=2_000, description="Auditoría manual: notas del usuario"
     )
@@ -151,7 +159,7 @@ async def create_composition(
     with telemetry_scope(project_id):
         renders = await generate_composition(
             repo, foundry, project_id, _options(body, quality=body.quality), body.draft_id,
-            body.source, body.use_audit, body.audit_notes,
+            body.source, body.use_audit, body.audit_notes, body.use_start, body.use_scheme,
         )  # fmt: skip
     return await _response(repo, project_id, renders)
 

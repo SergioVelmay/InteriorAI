@@ -57,6 +57,7 @@ que el tramo entre el horno y el frigorífico no cuadraba con cinco módulos de 
 | **Usar la auditoría** | Añade al prompt las correcciones de la última auditoría con IA y tus observaciones |
 | **Usar el retoque** | Aplica el retoque de la sección **Retoque** (ver abajo); solo con **Generar con la composición actual** |
 | **Indicaciones** | Cambios que quieres en esta composición |
+| **Usar el boceto** / **Usar la composición actual** y **Usar el esquema 3D** | Debajo de cada botón, con sus miniaturas: eligen qué imágenes recibe el modelo. Puedes generar con la imagen de partida, solo con el esquema 3D (la referencia con la perspectiva marcada) o con las dos. Solo con el esquema, es él quien se edita, y la geometría se respeta más |
 | **Generar con el boceto seleccionado** | Parte del boceto elegido |
 | **Generar con la composición actual** | Parte de la composición seleccionada, para seguir mejorándola |
 

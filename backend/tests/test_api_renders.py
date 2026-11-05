@@ -236,6 +236,36 @@ def test_composition_with_and_without_selected_draft(
     assert "Correcciones de la auditoría" not in context
 
 
+def test_composition_chooses_the_start_image_the_scheme_or_both(
+    api: TestClient, spy: SpyClient, project: dict
+) -> None:
+    """B-116, Paso 50: se compone con el boceto, con el esquema 3D o con los dos. El esquema es
+    la referencia con la perspectiva marcada («vista.png»)."""
+    draft = run(api, project, "drafts", n=1)["renders"][0]
+    select(api, project, draft["id"])
+    scheme = project["capture"]
+
+    both = run(api, project, "compositions")["renders"][0]  # por defecto, las dos
+    assert both["input_asset_ids"][:2] == [draft["id"], scheme]
+    assert "Imagen 2: esquema 3D del espacio" in spy.texts[-1][1].input
+
+    only_draft = run(api, project, "compositions", use_scheme=False)["renders"][0]
+    assert only_draft["input_asset_ids"][0] == draft["id"]
+    assert scheme not in only_draft["input_asset_ids"]
+
+    only_scheme = run(api, project, "compositions", use_start=False)["renders"][0]
+    assert only_scheme["input_asset_ids"][0] == scheme  # el esquema es lo que se edita
+    assert draft["id"] not in only_scheme["input_asset_ids"]
+    assert only_scheme["parent_render_id"] == draft["id"]  # la cadena del usuario no se rompe
+    assert "Imagen 1: imagen base" in spy.texts[-1][1].input
+
+    neither = api.post(
+        f"{project['url']}/renders/compositions", json={"use_start": False, "use_scheme": False}
+    )
+    assert neither.status_code == 422
+    assert "al menos una imagen" in neither.json()["detail"]
+
+
 def test_composition_from_the_current_composition(
     api: TestClient, spy: SpyClient, project: dict
 ) -> None:

@@ -61,6 +61,7 @@ from ui.studio_views import (
     render_title_md,
     renders_of,
     resolution_choices,
+    scheme_thumb,
     selected_render,
     support_thumbs,
     thumbs_html,
@@ -434,6 +435,13 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         with gr.Row(equal_height=False):
             with gr.Column(scale=1):
                 start_draft = gr.HTML(elem_id="iai-start-draft", elem_classes="iai-half")
+                with gr.Row():  # B-116, Paso 50: con el boceto, con el esquema 3D o con ambos
+                    draft_use_start = gr.Checkbox(
+                        label="Usar el boceto", value=True, elem_id="iai-use-draft"
+                    )
+                    draft_use_scheme = gr.Checkbox(
+                        label="Usar el esquema 3D", value=True, elem_id="iai-use-scheme-draft"
+                    )
                 actions["composicion"] = _action(
                     "Generar con el boceto seleccionado", "compositions"
                 )
@@ -441,6 +449,13 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 start_composition = gr.HTML(
                     elem_id="iai-start-composition", elem_classes="iai-half"
                 )
+                with gr.Row():
+                    current_use_start = gr.Checkbox(
+                        label="Usar la composición actual", value=True, elem_id="iai-use-current"
+                    )
+                    current_use_scheme = gr.Checkbox(
+                        label="Usar el esquema 3D", value=True, elem_id="iai-use-scheme-current"
+                    )
                 actions["composicion_actual"] = _action(
                     "Generar con la composición actual", "compositions-current"
                 )
@@ -647,12 +662,18 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             (r for r in project.renders if str(r.id) == updates[panels[RenderStage.FINAL].shown]),
             None,
         )
+        has_scheme = draft_base(project) is not None  # Paso 50: hay esquema 3D que marcar
         updates |= {
             text_project: active_id,
             hint_context: {
                 "mode": current_mode,
                 "drafts": n_drafts,
-                "compositions": composition_inputs(project),
+                "compositions": {
+                    "con_partida": composition_inputs(project, True, False),
+                    "con_esquema": composition_inputs(project, False, True),
+                    "con_ambas": composition_inputs(project, True, True),
+                },
+                "scheme": has_scheme,
                 "final_sources": {  # imagen de partida de cada botón del render final
                     kind: final_source(project, kind)
                     for kind in ("render_final", "render_final_actual")
@@ -680,11 +701,23 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 support_thumbs(project, data_dir),
                 "Sin referencias activas: solo la imagen de partida.",
             ),
-            start_draft: thumbs_html(render_thumb(project, draft, data_dir, "Boceto seleccionado")),
-            start_composition: thumbs_html(
-                render_thumb(project, composition, data_dir, "Composición actual"),
-                "Selecciona una composición para partir de ella.",
+            start_draft: thumbs_html(
+                render_thumb(project, draft, data_dir, "Boceto seleccionado")
+                + scheme_thumb(project, data_dir)
             ),
+            # Sin composición, el aviso y, aun así, el esquema 3D por si se genera solo con él
+            start_composition: (
+                thumbs_html(
+                    render_thumb(project, composition, data_dir, "Composición actual")
+                    + scheme_thumb(project, data_dir)
+                )
+                if composition
+                else thumbs_html([], "Selecciona una composición para partir de ella.")
+                + thumbs_html(scheme_thumb(project, data_dir))
+            ),
+            # Sin esquema 3D no hay nada que marcar (Paso 50)
+            draft_use_scheme: gr.update(interactive=has_scheme, value=has_scheme),
+            current_use_scheme: gr.update(interactive=has_scheme, value=has_scheme),
             selected_final: str(final.id) if final else None,
             start_final_composition: thumbs_html(
                 render_thumb(project, composition, data_dir, "Composición seleccionada"),
@@ -729,14 +762,23 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         draft_quality_value: str,
         comp_quality_value: str,
         size: str | None,
+        draft_start: bool,
+        draft_scheme: bool,
+        current_start: bool,
+        current_scheme: bool,
     ) -> dict:
         """Estimaciones con las opciones de cada formulario (B-104): al cargar el proyecto y al
-        cambiar las variantes, la calidad o la resolución."""
+        cambiar las variantes, la calidad, la resolución o las imágenes de la composición."""
         context = context or {}
         current_mode = context.get("mode")
-        comp_hint = composition_hint(
-            comp_quality_value, context.get("compositions", 1), current_mode
-        )
+        counts = context.get("compositions") or {}
+
+        def comp_hint(start_on: bool, scheme_on: bool) -> str:
+            key = "con_ambas" if start_on and scheme_on else (
+                "con_esquema" if scheme_on else "con_partida"
+            )  # fmt: skip
+            return composition_hint(comp_quality_value, counts.get(key, 1), current_mode)
+
         sources = context.get("final_sources", {})
 
         def final(kind: str) -> str:
@@ -746,8 +788,8 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             actions["boceto"].cost: draft_hint(
                 int(n), draft_quality_value, context.get("drafts", 0), current_mode
             ),
-            actions["composicion"].cost: comp_hint,
-            actions["composicion_actual"].cost: comp_hint,
+            actions["composicion"].cost: comp_hint(draft_start, draft_scheme),
+            actions["composicion_actual"].cost: comp_hint(current_start, current_scheme),
             actions["render_final"].cost: final("render_final"),
             actions["render_final_actual"].cost: final("render_final_actual"),
         }
@@ -770,7 +812,11 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         quality = action.get("quality", "medium")
         if kind == "boceto":
             return draft_cost(action["body"]["n"], quality, draft_inputs(project))
-        return composition_cost(quality, composition_inputs(project))
+        body = action["body"]
+        return composition_cost(
+            quality,
+            composition_inputs(project, body.get("use_start", True), body.get("use_scheme", True)),
+        )
 
     def describe(action: dict[str, Any]) -> str:
         kind = action["kind"]
@@ -990,7 +1036,7 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         composition_tab, audit_box,
         final_tab, audit_images, audit_md, retouch_md, use_retouch, supports_md, supports,
         start_draft, start_composition, selected_final, start_final_composition,
-        start_final_current,
+        start_final_current, draft_use_scheme, current_use_scheme,
         *(c for action in actions.values() for c in action.components()),
         *(c for panel in panels.values() for c in panel.components()),
     ]  # fmt: skip
@@ -1022,42 +1068,38 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         audit_notes,
     )
 
-    def composition_body(quality, size, extra, audit_on, notes) -> dict[str, Any]:
-        body = {"quality": quality, "size": size, "extra_instructions": extra or "",
-                "use_audit": bool(audit_on), "audit_notes": (notes or "").strip()}  # fmt: skip
-        return body
+    def composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on) -> dict:
+        return {"quality": quality, "size": size, "extra_instructions": extra or "",
+                "use_audit": bool(audit_on), "audit_notes": (notes or "").strip(),
+                "use_start": bool(start_on), "use_scheme": bool(scheme_on)}  # fmt: skip
+
+    def from_draft(draft_id, quality, size, extra, audit_on, notes, start_on, scheme_on):
+        if not draft_id:
+            return {"error": "Selecciona un boceto para componer"}
+        if not (start_on or scheme_on):
+            return {"error": "Marca el boceto, el esquema 3D o los dos"}
+        body = composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on)
+        return {"quality": quality, "body": {**body, "draft_id": draft_id, "source": "boceto"}}
 
     wire(
-        "composicion",
-        lambda draft_id, quality, size, extra, audit_on, notes: (
-            {
-                "quality": quality,
-                "body": {
-                    **composition_body(quality, size, extra, audit_on, notes),
-                    "draft_id": draft_id,
-                    "source": "boceto",
-                },
-            }
-            if draft_id
-            else {"error": "Selecciona un boceto para componer"}
-        ),
-        selected_draft,
-        comp_quality,
-        comp_size,
-        comp_extra,
-        use_audit,
-        audit_notes,
-    )
+        "composicion", from_draft,
+        selected_draft, comp_quality, comp_size, comp_extra, use_audit, audit_notes,
+        draft_use_start, draft_use_scheme,
+    )  # fmt: skip
 
-    def from_composition(composition_id, quality, size, extra, audit_on, notes):
+    def from_composition(composition_id, quality, size, extra, audit_on, notes, start_on,
+                         scheme_on):  # fmt: skip
         if not composition_id:
             return {"error": "Selecciona una composición para generar a partir de ella"}
-        body = composition_body(quality, size, extra, audit_on, notes)
+        if not (start_on or scheme_on):
+            return {"error": "Marca la composición actual, el esquema 3D o los dos"}
+        body = composition_body(quality, size, extra, audit_on, notes, start_on, scheme_on)
         return {"quality": quality, "body": {**body, "source": "composicion"}}
 
     wire(
         "composicion_actual", from_composition,
         selected_composition, comp_quality, comp_size, comp_extra, use_audit, audit_notes,
+        current_use_start, current_use_scheme,
         trigger=plain_current,
     )  # fmt: skip
     actions["composicion_actual"].button.click(None, js=RETOUCH_BRIDGE_JS)
@@ -1115,7 +1157,10 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
     )  # fmt: skip
     selected_draft.change(lambda: "", outputs=audit_notes, queue=False, show_progress="hidden")
 
-    hint_inputs = [hint_context, draft_n, draft_quality, comp_quality, final_size]
+    hint_inputs = [
+        hint_context, draft_n, draft_quality, comp_quality, final_size,
+        draft_use_start, draft_use_scheme, current_use_start, current_use_scheme,
+    ]  # fmt: skip
     hint_outputs = [
         actions[key].cost
         for key in ("boceto", "composicion", "composicion_actual", "render_final",
