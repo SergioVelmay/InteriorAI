@@ -58,10 +58,10 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 
 ## Flujo de trabajo
 
-- Desarrollo incremental por pasos: rama `feat/paso-NN` → Pull Request en GitHub → validación
-  del usuario en el PR → merge a `main`.
-- Cada paso se documenta en `docs/pasos/paso-NN-*.md`; lo diferido va a `docs/pasos/BACKLOG.md`.
-- Índice y estado de pasos: [docs/pasos/README.md](docs/pasos/README.md).
+- El ciclo completo para analizar, planificar, implementar, validar y entregar cambios está en
+  [docs/agent/flujo_de_trabajo.md](docs/agent/flujo_de_trabajo.md).
+- La bitácora y el estado de los pasos están en [docs/pasos/README.md](docs/pasos/README.md); los
+  elementos diferidos se registran en [docs/pasos/BACKLOG.md](docs/pasos/BACKLOG.md).
 
 ## Mapa de rutas
 
@@ -82,3 +82,5 @@ habitación. **Ninguna etapa del pipeline avanza sin aprobación explícita del 
 - Integración con Azure AI Foundry, roles y costes → [docs/agent/azure_foundry.md](docs/agent/azure_foundry.md)
 - API FastAPI, almacenamiento y convenciones → [docs/agent/fast_api_specs.md](docs/agent/fast_api_specs.md)
 - Interfaz Gradio, tema y pestañas → [docs/agent/gradio_ui.md](docs/agent/gradio_ui.md)
+- Flujo completo de trabajo para tareas y nuevas funcionalidades →
+  [docs/agent/flujo_de_trabajo.md](docs/agent/flujo_de_trabajo.md)
