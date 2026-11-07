@@ -131,6 +131,9 @@ CSS = f"""
 .iai-kpi span {{ color: #a1a1aa; font-size: 0.8rem; }}
 .iai-kpi strong {{ font-size: 1.35rem; font-weight: 600; }}
 .iai-muted {{ color: #a1a1aa; font-size: 0.875rem; }}
+/* B-119: la medida de la geometría, bajo su casilla (antes iba en rojo sobre la imagen). */
+.iai-geometry {{ margin-top: -0.35rem !important; min-height: 1.2rem; }}
+.iai-geometry p {{ margin: 0 !important; font-size: {SMALL} !important; }}
 /* Galería de proyectos: tarjetas 3:2 de ancho fijo mínimo y pie siempre visible. */
 /* Registro de Costes IA (B-033): letra compacta para que quepan todas las columnas. */
 #iai-cost-table table, #iai-cost-table table * {{

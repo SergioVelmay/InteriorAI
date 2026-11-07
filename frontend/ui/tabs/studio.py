@@ -177,6 +177,9 @@ class Panel:
     overlay_opacity: gr.Slider
     overlay_plain_view: gr.Image
     overlay_fitted_view: gr.Image
+    # B-119: la medida de cada comparativa, debajo de su casilla
+    overlay_plain_md: gr.Markdown
+    overlay_fitted_md: gr.Markdown
     more_md: gr.Markdown
     inputs: gr.Gallery
     chain_md: gr.Markdown
@@ -236,15 +239,27 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
         elem_id=f"iai-overlay-fitted-view-{slug}", elem_classes="iai-viewer",
     )  # fmt: skip
     title = gr.Markdown()
-    with gr.Row(equal_height=True):  # B-116
-        overlay_plain = gr.Checkbox(
-            label="Superponer el esquema 3D (las aristas de la imagen base, en rojo)",
-            value=False, elem_id=f"iai-overlay-{slug}",
-        )  # fmt: skip
-        overlay_fitted = gr.Checkbox(
-            label="Superponerlo corrigiendo el desplazamiento del encuadre",
-            value=False, elem_id=f"iai-overlay-fitted-{slug}",
-        )  # fmt: skip
+    # B-119: las medidas van debajo de su casilla, no sobre la imagen; y las dos casillas son
+    # excluyentes (solo se ve una comparativa a la vez).
+    with gr.Row(equal_height=False):  # B-116
+        with gr.Column():
+            overlay_plain = gr.Checkbox(
+                label="Superponer el esquema 3D (las aristas de la imagen base, en rojo)",
+                value=False, elem_id=f"iai-overlay-{slug}",
+            )  # fmt: skip
+            overlay_plain_md = gr.Markdown(
+                elem_classes=["iai-muted", "iai-geometry"],
+                elem_id=f"iai-overlay-note-{slug}",
+            )  # fmt: skip
+        with gr.Column():
+            overlay_fitted = gr.Checkbox(
+                label="Superponerlo corrigiendo el desplazamiento del encuadre",
+                value=False, elem_id=f"iai-overlay-fitted-{slug}",
+            )  # fmt: skip
+            overlay_fitted_md = gr.Markdown(
+                elem_classes=["iai-muted", "iai-geometry"],
+                elem_id=f"iai-overlay-fitted-note-{slug}",
+            )  # fmt: skip
         overlay_opacity = gr.Slider(
             0.2, 1.0, value=0.8, step=0.1, label="Opacidad de las aristas",
             elem_id=f"iai-overlay-opacity-{slug}",
@@ -270,6 +285,7 @@ def _viewer(slug: str, *, after_select: Callable[[], None] | None = None) -> dic
             "overlay_plain": overlay_plain, "overlay_fitted": overlay_fitted,
             "overlay_opacity": overlay_opacity, "overlay_plain_view": overlay_plain_view,
             "overlay_fitted_view": overlay_fitted_view,
+            "overlay_plain_md": overlay_plain_md, "overlay_fitted_md": overlay_fitted_md,
             "chain_md": chain_md, "shown": gr.State(None)}  # fmt: skip
 
 
@@ -1195,23 +1211,35 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
             outputs=[action.pending, action.confirm_box, action.button],
         )
 
-    def overlay_handler(stage: RenderStage):
-        """B-116: la imagen mostrada con las aristas del esquema encima (vistas aparte). La de
-        «tal cual» lleva el porcentaje; la ajustada, el desplazamiento del encuadre y el
-        porcentaje con él. Ambas en rojo sobre la imagen (Paso 49)."""
+    def overlay_handler(stage: RenderStage, source: str | None = None):
+        """B-116: la imagen mostrada con las aristas del esquema encima (vista aparte). B-119: las
+        dos casillas son excluyentes (manda la que se acaba de marcar) y la medida de cada una
+        —el porcentaje y, en la ajustada, también el desplazamiento del encuadre— va debajo de su
+        casilla, ya no escrita sobre la imagen."""
 
         async def handler(active_id, render_id, plain_on, fitted_on, opacity) -> dict:
             panel = panels[stage]
+            # Excluyentes: al marcar una se desmarca la otra. Las que no cambian van con
+            # `gr.skip()` para no disparar su propio evento.
+            boxes: dict[Any, Any] = {panel.overlay_plain: gr.skip(),
+                                     panel.overlay_fitted: gr.skip()}  # fmt: skip
+            if source == "plain" and plain_on and fitted_on:
+                fitted_on = False
+                boxes[panel.overlay_fitted] = gr.update(value=False)
+            elif source == "fitted" and fitted_on and plain_on:
+                plain_on = False
+                boxes[panel.overlay_plain] = gr.update(value=False)
             nothing = {panel.viewer: gr.update(visible=True),
                        panel.overlay_plain_view: gr.update(value=None, visible=False),
-                       panel.overlay_fitted_view: gr.update(value=None, visible=False)}  # fmt: skip
+                       panel.overlay_fitted_view: gr.update(value=None, visible=False),
+                       panel.overlay_plain_md: "", panel.overlay_fitted_md: ""}  # fmt: skip
             if not ((plain_on or fitted_on) and active_id and render_id):
-                return nothing
+                return {**nothing, **boxes}
             try:
                 project = await client.get_project(active_id)
             except ApiError as exc:
                 gr.Warning(exc.detail)
-                return nothing
+                return {**nothing, **boxes}
             sketch = sketch_of(project)
             asset = next((a for a in project.assets if str(a.id) == render_id), None)
             image = asset_path(data_dir, project.id, asset) if asset else None
@@ -1219,22 +1247,23 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
                 gr.Warning("Falta la imagen base: marca la perspectiva en una referencia")
                 return {**nothing, panel.overlay_plain: gr.update(value=False),
                         panel.overlay_fitted: gr.update(value=False)}  # fmt: skip
-            updates: dict[Any, Any] = {panel.viewer: gr.update(visible=False)}
-            for on, view, fit, prefix in (
-                (plain_on, panel.overlay_plain_view, None, "Tal cual"),
-                (fitted_on, panel.overlay_fitted_view, True, "Ajustado"),
+            updates: dict[Any, Any] = {panel.viewer: gr.update(visible=False), **boxes}
+            for on, view, note, fit in (
+                (plain_on, panel.overlay_plain_view, panel.overlay_plain_md, None),
+                (fitted_on, panel.overlay_fitted_view, panel.overlay_fitted_md, True),
             ):
                 if not on:
                     updates[view] = gr.update(value=None, visible=False)
+                    updates[note] = ""
                     continue
                 measure = await anyio.to_thread.run_sync(
                     alignment if fit else fidelity, sketch, image
                 )
                 picture = await anyio.to_thread.run_sync(
-                    overlay, sketch, image, float(opacity),
-                    measure if fit else None, f"{prefix}: {measure.label()}",
-                )  # fmt: skip
+                    overlay, sketch, image, float(opacity), measure if fit else None
+                )
                 updates[view] = gr.update(value=picture, visible=True)
+                updates[note] = measure.label()
             return updates
 
         return handler
@@ -1243,11 +1272,14 @@ def build_studio_tabs(client: BackendClient, data_dir: Path, active: gr.BrowserS
         overlay_inputs = [active, panel.shown, panel.overlay_plain, panel.overlay_fitted,
                           panel.overlay_opacity]  # fmt: skip
         overlay_outputs = [panel.viewer, panel.overlay_plain_view, panel.overlay_fitted_view,
+                           panel.overlay_plain_md, panel.overlay_fitted_md,
                            panel.overlay_plain, panel.overlay_fitted]  # fmt: skip
-        for trigger in (panel.overlay_plain.change, panel.overlay_fitted.change,
-                        panel.overlay_opacity.release, panel.shown.change):  # fmt: skip
+        for trigger, source in ((panel.overlay_plain.change, "plain"),
+                                (panel.overlay_fitted.change, "fitted"),
+                                (panel.overlay_opacity.release, None),
+                                (panel.shown.change, None)):  # fmt: skip
             trigger(
-                overlay_handler(stage), inputs=overlay_inputs, outputs=overlay_outputs,
+                overlay_handler(stage, source), inputs=overlay_inputs, outputs=overlay_outputs,
                 show_progress="hidden",
             )  # fmt: skip
         panel.select_btn.click(select_handler(stage), inputs=common, outputs=outputs)

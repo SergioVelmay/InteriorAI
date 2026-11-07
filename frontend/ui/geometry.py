@@ -15,7 +15,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 DARK = 45  # gris por debajo del cual un píxel es negro de arista (los colores oscuros, no)
 THIN = 5  # lado del núcleo: lo oscuro más grueso que esto es una superficie, no una arista
@@ -199,31 +199,15 @@ def _warped(edges: np.ndarray, fit: Alignment | None) -> np.ndarray:
     return cv2.warpAffine(edges, matrix, (width, height), flags=cv2.INTER_NEAREST)
 
 
-def _captioned(picture: Image.Image, text: str) -> Image.Image:
-    """El texto en rojo sobre la imagen, arriba a la izquierda, con reborde oscuro para que se
-    lea sobre cualquier fondo."""
-    size = max(14, picture.width // 48)
-    try:
-        font = ImageFont.load_default(size=size)
-    except TypeError:  # Pillow sin tamaño en la fuente por defecto
-        font = ImageFont.load_default()
-    margin = max(8, picture.width // 120)
-    ImageDraw.Draw(picture).text(
-        (margin, margin), text, font=font, fill=EDGE_COLOR,
-        stroke_width=max(1, size // 10), stroke_fill=(17, 17, 17), spacing=size // 3,
-    )  # fmt: skip
-    return picture
-
-
 def overlay(
     sketch: str | Path,
     image: str | Path,
     opacity: float = 0.8,
     fit: Alignment | None = None,
-    caption: str = "",
 ) -> Image.Image:
     """La imagen generada con las aristas del esquema encima, en rojo, a su tamaño. Con `fit`, las
-    aristas van con el encuadre ajustado; con `caption`, el dato en rojo sobre la imagen."""
+    aristas van con el encuadre ajustado. Las medidas van en la interfaz, bajo su casilla
+    (B-119): sobre la imagen tapaban la escena y costaba leerlas."""
     with Image.open(image) as opened:
         base = np.asarray(opened.convert("RGB")).astype(np.float32)
     edges = _warped(sketch_edges(str(sketch)).astype(np.uint8), fit)
@@ -236,5 +220,4 @@ def overlay(
     mask = edges.astype(bool)
     alpha = min(max(opacity, 0.0), 1.0)
     base[mask] = base[mask] * (1 - alpha) + np.array(EDGE_COLOR, np.float32) * alpha
-    picture = Image.fromarray(base.clip(0, 255).astype(np.uint8))
-    return _captioned(picture, caption) if caption else picture
+    return Image.fromarray(base.clip(0, 255).astype(np.uint8))

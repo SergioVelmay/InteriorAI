@@ -7,7 +7,7 @@ from uuid import uuid4
 import gradio as gr
 import httpx
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from shared.models import (
     RECIPE_GROUPS,
@@ -547,6 +547,67 @@ def test_retouch_caption_detail_and_mask_input(tmp_path: Path) -> None:
     assert f"**Retoque de** `{source.id.hex[:8]}`" in text
     assert "Cojines &lt;mostaza&gt;" in text and "zona 4%" in text
     assert render_inputs(p, retouch, tmp_path)[-1][1] == "Máscara (blanco = zona retocada)"
+
+
+def overlay_handlers(demo: gr.Blocks, slug: str = "drafts") -> dict[str, object]:
+    """Los eventos de la superposición de una etapa, por la casilla que los dispara."""
+    notes = {f"iai-overlay-note-{slug}", f"iai-overlay-fitted-note-{slug}"}
+    found = {}
+    for fn in demo.fns.values():
+        outputs = {getattr(o, "elem_id", None) for o in fn.outputs}
+        if notes <= outputs:
+            trigger = demo.blocks.get(fn.targets[0][0])  # type: ignore[arg-type]
+            found[getattr(trigger, "elem_id", None)] = fn
+    return found
+
+
+async def test_overlay_boxes_are_exclusive_and_measure_below_them(tmp_path: Path) -> None:
+    """B-119: al marcar una casilla se desmarca la otra (solo una comparativa a la vez) y la
+    medida va debajo de cada casilla, ya no escrita en rojo sobre la imagen."""
+    base = reference("vista.png", ["perspectiva"])
+    draft = render(RenderStage.DRAFT)
+    shot = Asset(
+        id=draft.id, kind=AssetKind.RENDER, stored_name=f"{draft.id}.png",
+        original_name="boceto.png", mime_type="image/png", size_bytes=1, sha256=SHA,
+    )  # fmt: skip
+    p = project(assets=[base, shot], renders=[draft])
+    for asset in (base, shot):
+        folder = tmp_path / str(p.id) / asset.kind.folder
+        folder.mkdir(parents=True, exist_ok=True)
+        image = Image.new("RGB", (240, 160), (240, 240, 240))
+        ImageDraw.Draw(image).rectangle((40, 30, 180, 130), fill=(1, 94, 95), outline=(0, 0, 0))
+        image.save(folder / asset.stored_name)
+
+    body = p.model_dump(mode="json")
+    client = BackendClient(
+        "http://backend.test",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body)),
+    )
+    with gr.Blocks() as demo, gr.Tabs():
+        build_studio_tabs(client, tmp_path, gr.BrowserState(None))
+    handlers = overlay_handlers(demo)
+    box, fitted_box = "iai-overlay-drafts", "iai-overlay-fitted-drafts"
+
+    # Se marca «tal cual» con la ajustada ya marcada: la ajustada se desmarca sola.
+    result = await handlers[box].fn(str(p.id), str(draft.id), True, True, 0.8)
+    assert by_id(result, fitted_box) == {"__type__": "update", "value": False}
+    assert by_id(result, box) == gr.skip()  # la que se acaba de marcar, sin tocar
+    assert by_id(result, "iai-overlay-view-drafts")["visible"] is True
+    assert by_id(result, "iai-overlay-fitted-view-drafts")["visible"] is False
+    assert "a ±3 px" in by_id(result, "iai-overlay-note-drafts")
+    assert by_id(result, "iai-overlay-fitted-note-drafts") == ""
+
+    # Y al revés: manda la ajustada, que además mide el desplazamiento del encuadre.
+    result = await handlers[fitted_box].fn(str(p.id), str(draft.id), True, True, 0.8)
+    assert by_id(result, box) == {"__type__": "update", "value": False}
+    assert by_id(result, "iai-overlay-note-drafts") == ""
+    assert "desplazamiento" in by_id(result, "iai-overlay-fitted-note-drafts")
+
+    # Sin ninguna marcada, se vuelve a la imagen y las medidas se van.
+    result = await handlers[box].fn(str(p.id), str(draft.id), False, False, 0.8)
+    assert by_id(result, "iai-viewer-drafts")["visible"] is True
+    assert by_id(result, "iai-overlay-note-drafts") == ""
+    assert by_id(result, "iai-overlay-fitted-note-drafts") == ""
 
 
 @pytest.mark.parametrize(

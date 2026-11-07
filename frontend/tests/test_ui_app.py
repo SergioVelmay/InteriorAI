@@ -9,6 +9,7 @@ from shared import Settings
 from shared.models import utc_now
 from ui.api_client import BackendClient
 from ui.app import build_app, launch_kwargs
+from ui.covers import PLACEHOLDER_SIZE
 from ui.forecast import FORECAST_S, Forecast
 from ui.tabs.projects import build_projects_tab
 from ui.theme import CSS
@@ -148,6 +149,10 @@ async def test_refresh_loads_gallery_and_active_project(tmp_path: Path) -> None:
     assert gallery["value"][1][1].startswith("Estudio · ")
     assert "**0.10 €** en 2 llamadas" in result[tab.summary]
     assert result[tab.fields[0]] == "Estudio"
+    # B-118: la portada del proyecto elegido, en grande junto a su ficha
+    cover = result[tab.cover]
+    assert cover["visible"] is True
+    assert cover["value"].size == PLACEHOLDER_SIZE  # sin imágenes, la de relleno
 
 
 async def test_refresh_falls_back_to_the_latest_project(tmp_path: Path) -> None:
@@ -165,6 +170,7 @@ async def test_refresh_falls_back_to_the_latest_project(tmp_path: Path) -> None:
     assert result[active] is None
     assert "Sin proyecto activo" in result[header]
     assert "Ningún proyecto seleccionado" in result[empty.summary]
+    assert result[empty.cover] == {"__type__": "update", "value": None, "visible": False}
 
 
 def test_handlers_never_return_an_empty_dict() -> None:

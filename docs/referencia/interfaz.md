@@ -23,7 +23,8 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   actualizado. La cabecera muestra el proyecto, el estado del backend y el modo de la IA
   («Simulación · sin coste» o «Azure · con coste»).
 - **Portada de cada proyecto:** la imagen más avanzada que exista (render final seleccionado,
-  composición, boceto o la primera referencia).
+  composición, boceto o la primera referencia). En Proyectos se repite **en grande sobre la
+  ficha** del proyecto activo (B-118), para no perder de vista cuál se está mirando.
 - **Estimación y confirmación:** cada botón con coste muestra una estimación, que se recalcula
   al cambiar las variantes, la calidad o la resolución; en modo Azure, por encima de 0,20 € pide
   confirmarlo en un cuadro rojo, que se oculta al pulsar para no confirmar
@@ -36,10 +37,11 @@ La lógica de presentación (textos, miniaturas, tablas) está separada en módu
   Las pestañas, los desplegables y los avisos siguen libres. Elegir, crear o mover a la papelera
   un proyecto se bloquea mientras haya algo en marcha en cualquier pestaña (B-111). Todo botón
   desactivado se ve gris oscuro, con el texto atenuado (`ui.locks.BUSY_LOCK_JS` y `theme.CSS`).
-- **Esquema 3D (B-116):** bajo la imagen en grande, «Superponer el esquema 3D» muestra en una
-  vista aparte las aristas de la imagen base sobre la imagen (`ui/geometry.py`, OpenCV); la
-  fidelidad (aristas del esquema con una arista de la imagen a ±3 y ±8 px) va en el título y en
-  el pie de cada miniatura.
+- **Esquema 3D (B-116):** bajo la imagen en grande, dos casillas muestran en una vista aparte
+  las aristas de la imagen base sobre la imagen (`ui/geometry.py`, OpenCV), tal cual o
+  corrigiendo el desplazamiento del encuadre. Son **excluyentes** y su medida va **debajo de
+  cada casilla**, no escrita sobre la imagen (B-119). La fidelidad (aristas del esquema con una
+  arista de la imagen a ±3 y ±8 px) va además en el título y en el pie de cada miniatura.
 - **Descartes (B-109):** en Bocetos, Composición y Render final, un aspa en cada candidata
   (salvo la seleccionada) y «Descartar» junto a «Seleccionar» la apartan al desplegable
   «Descartados (n)», al final de la pestaña, cerrado y solo con alguna; su ✓ la recupera.
