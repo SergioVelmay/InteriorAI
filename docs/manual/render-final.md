@@ -24,6 +24,12 @@ día, la iluminación, el ambiente o personas en la escena.
 | **Generar con la composición seleccionada** | Parte de la composición elegida |
 | **Generar con el render final actual** | Parte del render seleccionado, para cambiarle algo conservando lo demás |
 
+Las dos casillas de superposición del esquema 3D también están disponibles bajo el render en
+grande. Son excluyentes y la medida aparece debajo de la activa, igual que en
+[Bocetos](bocetos.md#superponer-el-esquema-3d).
+
+![Comparativa del render final con el esquema 3D](img/render-superposicion.jpg)
+
 Junto a cada botón se ve la estimación del coste, que cambia con la resolución y con la imagen de
 partida: a 4 MP, unos 0,09 € desde una composición y 0,11 € desde otro render.
 
@@ -99,6 +105,8 @@ Los renders que no quieras usar se apartan con el aspa o con **Descartar** y se 
 descartado:
 
 ![El atardecer descartado](img/render-descartados.jpg)
+
+![Render final en el desplegable de descartados](img/render-lista-descartados.jpg)
 
 ## El render elegido
 

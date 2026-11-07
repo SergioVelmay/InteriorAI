@@ -52,9 +52,6 @@ indicaciones y la segunda con estas:
 
 ![Las dos tandas en la galería](img/bocetos-galeria.jpg)
 
-Todas conservan la vista de la infografía, con la cocina antracita y roble sin desayunador; las de
-la segunda tanda dejan la mesa del comedor despejada, como pedían las indicaciones.
-
 ## Elegir un boceto
 
 Al hacer clic en una miniatura se ve en grande, en su proporción, con su línea de datos (estado,
@@ -79,6 +76,8 @@ también cuánto se ha movido el encuadre); la imagen no cambia ni lleva texto e
 Cada imagen indica además su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3
 y ±8 px (en el pie de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda.
 Funciona igual en Composición y Render final.
+
+![Comparativa del esquema, con la medida bajo su casilla](img/bocetos-superposicion.jpg)
 
 ## Descartar y recuperar
 

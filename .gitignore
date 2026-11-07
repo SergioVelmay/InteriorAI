@@ -28,6 +28,16 @@ azure_credentials*
 # --- Datos de usuario, proyectos y renders (volumen studio_shared_data) -----
 data/
 /data
+# Imágenes sueltas en la raíz pueden contener fotos de viviendas o referencias privadas. Las
+# capturas públicas del manual se guardan dentro de docs/manual/img/.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.PNG
+/*.JPG
+/*.JPEG
+/*.WEBP
 renders/
 uploads/
 *.sqlite

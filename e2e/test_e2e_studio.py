@@ -1,8 +1,11 @@
 """Bocetos → Composición → Render Final (Pasos 22-23): pestañas de primer nivel con desbloqueo
-progresivo, prompt automático, auditoría del boceto y selección única por etapa."""
+progresivo, prompt automático, auditoría del boceto, selección única y superposición geométrica."""
+
+from io import BytesIO
 
 import httpx
 from conftest import UI, Projects
+from PIL import Image, ImageDraw
 from playwright.sync_api import expect
 
 
@@ -99,3 +102,55 @@ def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> Non
     selected = page.locator("#iai-finals .thumbnail-item", has_text="seleccionado")
     expect(selected).to_have_count(1)
     expect(page.get_by_text("Confirmar (con coste)")).to_be_hidden()  # en mock no se confirma
+
+
+def test_geometry_overlay_checkboxes_are_exclusive(ui: UI, projects: Projects) -> None:
+    """B-121: la exclusión y las siete salidas de las comparativas funcionan en el navegador."""
+    page = ui.page
+    project = projects.create("superposición geométrica", capture=False, reference=False)
+
+    # Referencia geométrica sintética con aristas negras y rellenos planos; nunca usa imágenes
+    # reales del proyecto del usuario. El fixture la analiza mediante el proveedor mock.
+    scheme = Image.new("RGB", (600, 400), (240, 240, 240))
+    draw = ImageDraw.Draw(scheme)
+    draw.rectangle((100, 120, 300, 330), fill=(1, 94, 95), outline=(0, 0, 0))
+    draw.rectangle((340, 60, 520, 200), fill=(241, 228, 193), outline=(0, 0, 0))
+    buffer = BytesIO()
+    scheme.save(buffer, format="PNG")
+    projects.upload(project["url"], "referencia", "esquema-prueba.png", buffer.getvalue())
+
+    ui.activate(project["name"])
+    ui.tab("Bocetos")
+    page.locator("#iai-gen-drafts").click()
+    ui.toast("Boceto: 4 imagen(es)")
+    page.locator("#iai-drafts .thumbnail-item").first.click()
+
+    plain = page.locator("#iai-overlay-drafts input[type=checkbox]")
+    fitted = page.locator("#iai-overlay-fitted-drafts input[type=checkbox]")
+    plain_view = page.locator("#iai-overlay-view-drafts")
+    fitted_view = page.locator("#iai-overlay-fitted-view-drafts")
+    plain_note = page.locator("#iai-overlay-note-drafts")
+    fitted_note = page.locator("#iai-overlay-fitted-note-drafts")
+    normal_view = page.locator("#iai-viewer-drafts")
+
+    # La comparativa tal cual aparece con su medida bajo la casilla correspondiente.
+    plain.check()
+    expect(plain_view).to_be_visible()
+    expect(plain_note).to_contain_text("a ±3 px")
+
+    # Marcar la ajustada desmarca la anterior, borra su medida y oculta su vista.
+    fitted.check()
+    expect(fitted).to_be_checked()
+    expect(plain).not_to_be_checked()
+    expect(plain_view).to_be_hidden()
+    expect(plain_note).to_be_empty()
+    expect(fitted_view).to_be_visible()
+    expect(fitted_note).to_contain_text("a ±3 px")
+
+    # Al desmarcar la única activa se recupera el visor original y se limpian ambas medidas.
+    fitted.uncheck()
+    expect(fitted_view).to_be_hidden()
+    expect(fitted_note).to_be_empty()
+    expect(normal_view).to_be_visible()
+    expect(plain_view).to_be_hidden()
+    expect(plain_note).to_be_empty()
