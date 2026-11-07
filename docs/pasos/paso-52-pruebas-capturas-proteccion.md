@@ -48,7 +48,7 @@ ninguna imagen nueva, solo se navega y se fotografía lo que ya hay. Coste: 0 �
 | pre-commit | ✅ Todos los hooks pasan; la regla cubre las rutas raíz y Git deja versionables las capturas bajo `docs/manual/img/` |
 | Capturas | ✅ Revisadas una a una; JPG en `docs/manual/img/`, de 27 a 433 kB, con renders reales. Siete rehechas y ocho revertidas a su versión anterior por no necesitar cambio |
 | Coste | ✅ 0 €; la instancia aislada informa `mock` y no recibe credenciales del `.env` |
-| CI de la PR | Pendiente |
+| CI de la PR #74 | ✅ Lint y tests, gitleaks, Docker con newman y los nueve e2e, y la construcción de la documentación |
 
 ## 5. Estado final
 
