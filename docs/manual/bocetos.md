@@ -65,12 +65,20 @@ hay **una seleccionada por etapa**; al elegir otra, la anterior deja de estarlo.
 
 ## Superponer el esquema 3D
 
-Si la imagen base es un esquema 3D (por ejemplo, de SketchUp, con aristas negras), marca
-**Superponer el esquema 3D** bajo la imagen en grande: sus aristas aparecen en rojo encima, con
-la opacidad que elijas, para ver qué volúmenes coinciden. La imagen no cambia. Cada imagen indica
-también su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3 y ±8 px (en el pie
-de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda. Funciona igual en
-Composición y Render final.
+Si la imagen base es un esquema 3D (por ejemplo, de SketchUp, con aristas negras), bajo la imagen
+en grande tienes dos comparativas, con la opacidad que elijas:
+
+- **Superponer el esquema 3D**: sus aristas, en rojo, tal cual sobre la imagen.
+- **Superponerlo corrigiendo el desplazamiento del encuadre**: las mismas aristas movidas para
+  que encajen lo mejor posible, útil cuando el modelo ha corrido la escena entera.
+
+Las dos son **excluyentes**: al marcar una se desmarca la otra, así solo se ve una comparativa a
+la vez. La medida de cada una aparece **debajo de su casilla** (el porcentaje y, en la ajustada,
+también cuánto se ha movido el encuadre); la imagen no cambia ni lleva texto encima.
+
+Cada imagen indica además su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3
+y ±8 px (en el pie de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda.
+Funciona igual en Composición y Render final.
 
 ## Descartar y recuperar
 

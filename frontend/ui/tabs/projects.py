@@ -32,6 +32,7 @@ EMPTY_SUMMARY = (
 @dataclass
 class ProjectsTab:
     gallery: gr.Gallery
+    cover: gr.Image  # B-118: la portada del proyecto elegido, en grande
     summary: gr.Markdown
     fields: list[gr.components.Component]
     refresh_all: Callable[[str | None], Awaitable[dict]]  # recarga galería, cabecera y ficha
@@ -83,6 +84,13 @@ def build_projects_tab(
                 )
                 create = gr.Button("Crear proyecto", variant="primary", elem_id="iai-create")
         with gr.Column(scale=1):
+            # B-118: la portada del proyecto elegido, en grande. Con muchas tarjetas, al elegir
+            # una de abajo la ficha quedaba lejos de su miniatura y se perdía de vista qué
+            # proyecto se está mirando.
+            cover = gr.Image(
+                show_label=False, interactive=False, buttons=[], visible=False,
+                elem_id="iai-project-cover", elem_classes="iai-viewer",
+            )  # fmt: skip
             summary = gr.Markdown(EMPTY_SUMMARY, elem_id="iai-project-summary")
             with gr.Accordion(calls_label(None), open=False) as calls_box:  # B-027
                 calls = gr.Markdown(
@@ -107,7 +115,7 @@ def build_projects_tab(
                 cancel_delete = gr.Button("Cancelar", visible=False, variant="secondary")
 
     fields = [name, description]
-    detail_outputs = [summary, calls_box, calls, *fields, save, delete]
+    detail_outputs = [cover, summary, calls_box, calls, *fields, save, delete]
 
     # --- Manejadores ---------------------------------------------------------------------
 
@@ -118,6 +126,7 @@ def build_projects_tab(
     def detail(project: ProjectMetadata | None, costs: dict | None) -> dict:
         if project is None:
             return {
+                cover: gr.update(value=None, visible=False),
                 summary: EMPTY_SUMMARY,
                 calls_box: gr.update(label=calls_label(None)),
                 calls: project_calls_md([]),
@@ -126,6 +135,7 @@ def build_projects_tab(
                 delete: gr.update(interactive=False),
             }
         return {
+            cover: gr.update(value=cover_image(project, data_dir), visible=True),
             summary: project_summary_md(project, costs),
             calls_box: gr.update(label=calls_label(costs)),
             calls: project_calls_md((costs or {}).get("records", [])),
@@ -246,4 +256,4 @@ def build_projects_tab(
     cancel_delete.click(hide_delete, outputs=[confirm_delete, cancel_delete])
     confirm_delete.click(on_confirm_delete, inputs=active, outputs=delete_outputs)
 
-    return ProjectsTab(gallery, summary, fields, refresh_all, all_outputs)
+    return ProjectsTab(gallery, cover, summary, fields, refresh_all, all_outputs)

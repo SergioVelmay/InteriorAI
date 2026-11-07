@@ -75,13 +75,15 @@ def test_alignment_never_measures_worse_than_the_scheme_as_it_is(tmp_path: Path)
         assert alignment(sketch, image).fit.loose >= fidelity(sketch, image).loose
 
 
-def test_overlay_moves_the_edges_with_the_encuadre_and_writes_the_caption(tmp_path: Path) -> None:
+def test_overlay_moves_the_edges_with_the_encuadre_and_writes_no_caption(tmp_path: Path) -> None:
     sketch = scheme(tmp_path / "esquema.png")
     image = moved(tmp_path / "corrida.png", sketch, 30, 0)
     fit = alignment(sketch, image)
     plain = np.asarray(overlay(sketch, image, opacity=1.0))
-    fitted = np.asarray(overlay(sketch, image, opacity=1.0, fit=fit, caption="Ajustado: 90 %"))
+    fitted = np.asarray(overlay(sketch, image, opacity=1.0, fit=fit))
     assert tuple(plain[200, 100]) == EDGE_COLOR  # sin ajustar, la arista izquierda, en su sitio
     assert tuple(fitted[200, 100]) != EDGE_COLOR  # ajustada, se ha corrido con la escena
     assert tuple(fitted[200, 100 + fit.dx]) == EDGE_COLOR
-    assert (fitted[:60, :400] == EDGE_COLOR).all(axis=-1).any()  # el texto, en rojo
+    # B-119: la medida va en la interfaz, no escrita sobre la imagen; donde iba el rótulo
+    # (arriba a la izquierda, sin geometría) no queda ni un píxel rojo.
+    assert not (fitted[:50, :300] == EDGE_COLOR).all(axis=-1).any()

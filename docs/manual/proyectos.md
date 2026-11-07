@@ -11,7 +11,9 @@ La pestaña tiene dos columnas:
   avanzada (el render final elegido, si lo hay) y la fecha de su último cambio. Al hacer clic en
   uno, pasa a ser el **proyecto activo** (la cabecera lo indica) y el resto de pestañas trabajan
   con él. La aplicación lo recuerda en tu navegador.
-- **A la derecha**, el resumen del proyecto activo y sus datos.
+- **A la derecha**, la **portada del proyecto activo en grande** y, debajo, su resumen y sus
+  datos. Así, con muchos proyectos, siempre ves de qué proyecto estás leyendo la ficha aunque su
+  tarjeta quede lejos, al final de la galería.
 
 ## Crear un proyecto
 
@@ -67,6 +69,9 @@ El borrado es suave: el proyecto pasa a `data/.papelera/` y se puede restaurar
 ![Llamadas de IA del proyecto](img/proyectos-llamadas.jpg)
 
 </div>
+
+Sobre el resumen está la portada del proyecto, la misma imagen de su tarjeta pero a todo el
+ancho de la columna.
 
 El resumen cuenta las referencias (y cuántas están activas), las imágenes generadas en cada
 etapa, si hay un render final elegido y el **gasto real estimado** del proyecto, por rol. Debajo,

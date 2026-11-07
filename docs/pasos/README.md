@@ -95,6 +95,7 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 | 48 | [Laboratorio de geometría](paso-48-laboratorio-geometria.md) (B-116) | `feat/paso-48` | ✅ Cerrado |
 | 49 | [El encuadre: medir y corregir el desplazamiento](paso-49-encuadre.md) (B-116) | `feat/paso-49` | ✅ Cerrado |
 | 50 | [La geometría en los prompts y el esquema como base](paso-50-geometria-prompts.md) (B-116) | `feat/paso-50` | ✅ Cerrado |
+| 51 | [La portada del proyecto y las medidas de la geometría](paso-51-portada-geometria.md) (B-118, B-119) | `feat/paso-51` | ⏳ En revisión |
 
 ## Plantilla de documento de paso
 
