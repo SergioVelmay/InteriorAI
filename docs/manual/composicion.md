@@ -144,9 +144,6 @@ retoque, porque la IA conoce el **historial** de la imagen de partida:
 
 ![Composición apartada en el desplegable de descartados](img/composicion-descartados.jpg)
 
-La captura de la interfaz se tomó con el proyecto sintético «Estudio de muestra» en modo mock;
-las imágenes de prueba llevan la banda «MOCK».
-
 Esta es la composición seleccionada para el render final. Su cadena (recetas, boceto, auditoría,
 composiciones y retoque) costó:
 

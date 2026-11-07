@@ -5,9 +5,6 @@ Un proyecto es **un espacio de la casa**: una cocina, un salón, un dormitorio�
 
 ![Pestaña Proyectos al abrir la aplicación](img/proyectos-galeria.jpg)
 
-Esta captura de la interfaz usa el proyecto sintético «Estudio de muestra» en modo mock; la banda
-«MOCK» identifica la imagen de prueba.
-
 La pestaña tiene dos columnas:
 
 - **A la izquierda**, la galería de proyectos. Cada uno muestra como portada su imagen más

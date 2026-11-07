@@ -112,10 +112,6 @@ descartado:
 
 ![Galería de renders finales](img/render-galeria.jpg)
 
-La captura de la interfaz se tomó con el proyecto sintético «Estudio de muestra» en modo mock;
-las imágenes de prueba llevan la banda «MOCK». Los resultados de día, atardecer y noche del caso
-se muestran arriba.
-
 Como en las demás etapas, **Seleccionar** elige el render final; en el caso, el de **noche**. Pasa
 a ser la portada del proyecto en la galería de **Proyectos**.
 

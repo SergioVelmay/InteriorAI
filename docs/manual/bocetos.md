@@ -50,11 +50,7 @@ indicaciones y la segunda con estas:
 
 ![Indicaciones de la segunda tanda](img/bocetos-indicaciones.jpg)
 
-![Una tanda de cuatro bocetos en la galería](img/bocetos-galeria.jpg)
-
-Esta captura de interfaz usa una tanda y referencias geométricas sintéticas en modo mock; las
-imágenes generadas se identifican con la banda «MOCK». El caso de la guía tiene las dos tandas
-descritas arriba.
+![Las dos tandas en la galería](img/bocetos-galeria.jpg)
 
 ## Elegir un boceto
 

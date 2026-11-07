@@ -12,13 +12,15 @@ Cerrar cuatro pendientes de calidad y seguridad:
   aunque midan menos de 1 MB.
 - Corregir la coma de B-116 y cerrar la documentación del Paso 51, ya mergeado.
 
-Todo se realiza en modo `mock`, con un proyecto sintético sin dirección ni datos reales. Coste: 0 €.
+Todo se realiza en modo `mock`, sobre los proyectos que ya existen en el volumen: no se genera
+ninguna imagen nueva, solo se navega y se fotografía lo que ya hay. Coste: 0 €.
 
 ## 2. Decisiones
 
 | Tema | Decisión |
 |------|----------|
-| Proyecto para capturas y E2E | Datos geométricos dibujados para la prueba; nombre «Estudio de muestra» y sin dirección |
+| Proyecto de las capturas | Los reales del volumen: «Cocina Abierta para Manual de Usuario» para la galería de Proyectos y «Diverso Getafe 3 5B Cocina y Desayunero» para el esquema 3D y los descartes. El manual enseña interiores de verdad, no imágenes de relleno |
+| Proyecto de la prueba E2E | Esquema sintético dibujado en la propia prueba: no depende de los datos del usuario |
 | Capturas del manual | Guardarlas en `docs/manual/img/`, en JPG y por debajo de 1 MB |
 | Imágenes sueltas en la raíz | Ignorarlas en Git y bloquearlas en pre-commit, también si pesan menos de 1 MB |
 | IA | Solo `AI_PROVIDER_MODE=mock`; ninguna llamada real |
@@ -44,7 +46,7 @@ Todo se realiza en modo `mock`, con un proyecto sintético sin dirección ni dat
 | Ruff | ✅ `uv run ruff check .` y `uv run ruff format --check .` |
 | `uv run --group docs mkdocs build --strict` | ✅ Construcción correcta, sin enlaces de imagen rotos |
 | pre-commit | ✅ Todos los hooks pasan; la regla cubre las rutas raíz y Git deja versionables las capturas bajo `docs/manual/img/` |
-| Capturas | ✅ Revisadas visualmente; JPG en `docs/manual/img/`, todas menores de 130 kB y con datos sintéticos |
+| Capturas | ✅ Revisadas una a una; JPG en `docs/manual/img/`, de 27 a 433 kB, con renders reales. Siete rehechas y ocho revertidas a su versión anterior por no necesitar cambio |
 | Coste | ✅ 0 €; la instancia aislada informa `mock` y no recibe credenciales del `.env` |
 | CI de la PR | Pendiente |
 
