@@ -41,7 +41,7 @@ Dos observaciones del usuario (2026-11-07), las dos de interfaz y **sin coste**:
 | pre-commit | ✅ |
 | Playwright de extremo a extremo | ⚠️ 5 de 8; los 3 fallos son `page.goto: net::ERR_ABORTED` con el frontend respondiendo 200. **Pasan exactamente igual con el código de `main`** (se reconstruyó la imagen sin estos cambios para comprobarlo) y sueltas pasan: intermitencia del entorno local, anotada como B-120 |
 | Comprobación en el navegador (Playwright, modo simulación) | ✅ Proyectos: la portada se ve sobre la ficha a todo el ancho de la columna y cambia al elegir otro proyecto. Bocetos: «tal cual» da «35 % a ±3 px · 53 % a ±8 px» bajo su casilla; al marcar la ajustada, la otra se desmarca sola, su medida desaparece y su vista se oculta; al desmarcar, vuelve la imagen sin medidas |
-| CI de la PR | (pendiente) |
+| CI de la PR #73 | ✅ lint y tests, gitleaks, Docker con newman y Playwright (las 8 pruebas de extremo a extremo, en Chromium) y la construcción de la documentación. Que ahí pasen las tres que fallaban en local confirma B-120 |
 
 Coste del paso: 0 € (todo en modo simulación).
 
