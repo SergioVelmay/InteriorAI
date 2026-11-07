@@ -61,6 +61,11 @@ que el tramo entre el horno y el frigorífico no cuadraba con cinco módulos de 
 | **Generar con el boceto seleccionado** | Parte del boceto elegido |
 | **Generar con la composición actual** | Parte de la composición seleccionada, para seguir mejorándola |
 
+La superposición geométrica tiene las mismas dos casillas excluyentes que en Bocetos. La medida
+queda debajo de la casilla activa:
+
+![Comparativa de una composición con el esquema 3D](img/composicion-superposicion.jpg)
+
 En el caso, la primera composición se generó **con el boceto seleccionado** y **usando la
 auditoría**, con estas indicaciones para que el salón y el comedor combinen con la cocina:
 
@@ -136,6 +141,11 @@ retoque, porque la IA conoce el **historial** de la imagen de partida:
 ![Composición final](img/composicion-final.jpg)
 
 ![Galería de composiciones](img/composicion-galeria.jpg)
+
+![Composición apartada en el desplegable de descartados](img/composicion-descartados.jpg)
+
+La captura de la interfaz se tomó con el proyecto sintético «Estudio de muestra» en modo mock;
+las imágenes de prueba llevan la banda «MOCK».
 
 Esta es la composición seleccionada para el render final. Su cadena (recetas, boceto, auditoría,
 composiciones y retoque) costó:

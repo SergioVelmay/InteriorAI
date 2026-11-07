@@ -50,10 +50,11 @@ indicaciones y la segunda con estas:
 
 ![Indicaciones de la segunda tanda](img/bocetos-indicaciones.jpg)
 
-![Las dos tandas en la galería](img/bocetos-galeria.jpg)
+![Una tanda de cuatro bocetos en la galería](img/bocetos-galeria.jpg)
 
-Todas conservan la vista de la infografía, con la cocina antracita y roble sin desayunador; las de
-la segunda tanda dejan la mesa del comedor despejada, como pedían las indicaciones.
+Esta captura de interfaz usa una tanda y referencias geométricas sintéticas en modo mock; las
+imágenes generadas se identifican con la banda «MOCK». El caso de la guía tiene las dos tandas
+descritas arriba.
 
 ## Elegir un boceto
 
@@ -79,6 +80,8 @@ también cuánto se ha movido el encuadre); la imagen no cambia ni lleva texto e
 Cada imagen indica además su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3
 y ±8 px (en el pie de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda.
 Funciona igual en Composición y Render final.
+
+![Comparativa del esquema, con la medida bajo su casilla](img/bocetos-superposicion.jpg)
 
 ## Descartar y recuperar
 

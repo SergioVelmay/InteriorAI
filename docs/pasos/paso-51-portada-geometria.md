@@ -47,7 +47,7 @@ Coste del paso: 0 € (todo en modo simulación).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-51`, pendiente de la validación del usuario en la PR.
+✅ Cerrado — rama `feat/paso-51`, PR #73 mergeada en `main` (2026-11-07), commit `936f377`.
 
 ## 6. Pendiente / futuro
 

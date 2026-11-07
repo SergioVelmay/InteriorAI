@@ -38,7 +38,7 @@ repos:
         files: '(^|/)(\.env(\..+)?|[^/]+\.env)$'
         exclude: '(^|/)\.env\.example$'
       - id: forbid-data-dir
-        name: Bloquear datos de usuario (data/)
-        entry: "data/ contiene proyectos y renders locales: nunca se versiona"
+        name: Bloquear datos de usuario e imágenes sueltas en la raíz
+        entry: "data/ y las imágenes sueltas en la raíz pueden contener datos privados: no se versionan"
         language: fail
-        files: '^data/'
+        files: '^(data/|[^/]+\.(?i:png|jpe?g|webp)$)'
