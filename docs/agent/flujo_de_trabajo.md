@@ -8,8 +8,10 @@ aplique el área del cambio.
 ## 1. Recibir y entender la petición
 
 Las peticiones suelen llegar en español y pueden mezclar una observación, una pregunta y varios
-cambios. Identifica qué comportamiento pide el usuario, qué problema intenta resolver y qué queda
-fuera de alcance. No conviertas una pregunta o un análisis en cambios de código sin autorización.
+cambios. Identifica qué comportamiento pide el usuario, qué problema intenta resolver y qué
+queda fuera de alcance. No conviertas una pregunta o un análisis en cambios de código sin
+autorización. Respóndele también en español: los resúmenes, las preguntas, los planes y los
+avisos, igual que la interfaz, la documentación y los mensajes de commit.
 
 Antes de proponer una solución, comprueba el estado real del repositorio y lee la implementación,
 las pruebas y la documentación relacionadas. No deduzcas cómo funciona una parte por su nombre ni
@@ -192,7 +194,8 @@ construye MkDocs en modo estricto cuando corresponde. En una PR, la publicación
 figurar como omitida: se publica al integrar en `main`.
 
 Cuando haya resultados, añade al documento del paso una fila `CI de la PR #N` con los trabajos y
-su resultado real. Corrige fallos y vuelve a comprobar la CI después de cada cambio. Envía al
+su resultado real. Ese commit dispara otra ejecución, así que los tiempos que anotes son los de
+la anterior: son orientativos y lo que importa es el veredicto de cada trabajo. Corrige fallos y vuelve a comprobar la CI después de cada cambio. Envía al
 usuario un resumen con el alcance, la validación, los checks, los pendientes y el enlace a la PR; a
 continuación espera su revisión. No merges, no empujes a `main`, no borres ramas y no crees etiquetas
 ni Releases sin el OK explícito.

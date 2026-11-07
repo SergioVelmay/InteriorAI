@@ -6,7 +6,7 @@ Documentar el ciclo completo que sigue un agente al trabajar en InteriorAI. El p
 ser utilizable leyendo el repositorio, sin depender del historial de conversaciones, y cubrir
 desde la petición del usuario hasta la revisión y el cierre después del merge.
 
-Entrada de backlog: [B-122](BACKLOG.md#L128), petición del usuario en este chat (2026-11-07).
+Entrada de backlog: [B-122](BACKLOG.md), petición del usuario en este chat (2026-11-07).
 
 ## 2. Decisiones tomadas
 
@@ -46,11 +46,10 @@ El documento mantiene el contexto para agentes fuera del sitio público: `mkdocs
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-53`, PR #75 abierta para revisión del usuario; CI en verde. El
-agente no hará merge.
+✅ Cerrado — rama `feat/paso-53`, PR #75 revisada y mergeada por el usuario (2026-11-07), con la
+CI en verde. Sin reconstrucción de Docker: el paso no toca código de la aplicación.
 
 ## 6. Pendiente / futuro
 
-- Tras el merge del usuario, reconstruir Docker, comprobar el healthcheck y cerrar este paso en
-  esta bitácora y en el índice.
-- B-122 queda abierto hasta que el Paso 53 esté mergeado.
+- Nada pendiente de este paso. El ciclo que documenta se mantiene al día según cambien las
+  convenciones del repositorio.

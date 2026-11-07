@@ -52,7 +52,8 @@ ninguna imagen nueva, solo se navega y se fotografía lo que ya hay. Coste: 0 �
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-52`, pendiente de revisión y merge por el usuario.
+✅ Cerrado — rama `feat/paso-52`, PR #74 revisada y mergeada por el usuario (2026-11-07), con la
+CI en verde.
 
 ## 6. Pendiente / futuro
 
