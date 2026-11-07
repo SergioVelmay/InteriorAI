@@ -42,16 +42,15 @@ El documento mantiene el contexto para agentes fuera del sitio público: `mkdocs
 | `uvx pre-commit run --all-files` | ✅ Hooks aplicables pasaron; los de `.env` y `data/` se omitieron al no haber archivos coincidentes |
 | `git diff --check` | ✅ Sin errores de whitespace |
 | Playwright E2E | No aplica: no se modificó la interfaz |
-| CI de la PR | Pendiente de abrir la PR |
+| CI de la PR #75 | ✅ Lint y tests (55 s), gitleaks (7 s), Docker y extremo a extremo (5 min 8 s), documentación (12 s); publicación de Pages omitida en la PR |
 
 ## 5. Estado final
 
-⏳ En curso — rama `feat/paso-53`; falta validar, crear el commit y abrir la PR para revisión del
-usuario. El agente no hará merge.
+⏳ En revisión — rama `feat/paso-53`, PR #75 abierta para revisión del usuario; CI en verde. El
+agente no hará merge.
 
 ## 6. Pendiente / futuro
 
-- Tras abrir la PR, registrar aquí los resultados reales de `CI de la PR #N`.
 - Tras el merge del usuario, reconstruir Docker, comprobar el healthcheck y cerrar este paso en
   esta bitácora y en el índice.
 - B-122 queda abierto hasta que el Paso 53 esté mergeado.
