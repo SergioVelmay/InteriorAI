@@ -35,6 +35,25 @@ Las notas deciden qué se analiza y qué queda marcado en la ficha. Funcionan me
 - **Descarta lo que sobra.** Una referencia sin nada marcado no se envía; si otra ya aporta lo
   mismo, descártala en vez de duplicar.
 
+## La vista del esquema 3D
+
+Si partes de un modelo de SketchUp, **de qué vista lo exportas cambia el resultado**, y bastante.
+Los modelos de imagen reinterpretan el encuadre: enderezan las verticales siempre y abren el plano
+siempre (la escena sale al 68–85 % de su tamaño). Cuanto más forzada sea tu perspectiva, más
+tienen que reinterpretar y más lejos queda el resultado del esquema.
+
+Saca la vista como si fuera una **fotografía de interiores al uso**:
+
+- **Dos puntos de fuga**, con las verticales rectas. Una vista picada, de tres puntos, el modelo te
+  la va a enderezar de todas formas.
+- **Focal normal, no angular.** Comparando la misma escena, a 60 mm la fidelidad fue del 48–53 % y
+  con un gran angular equivalente (campo de visión vertical de 50°, unos 26 mm) bajó al 42–43 %.
+- **Encuadra lo que te importa.** Como el modelo abre el plano, un encuadre algo más cerrado de lo
+  que quieres acaba más cerca de lo que buscas.
+
+Aun así no esperes coincidencia exacta: ningún encuadre evita del todo que la escena salga algo más
+pequeña y movida. Para verlo, usa las dos comparativas que tienes bajo la imagen en grande.
+
 ## Las indicaciones
 
 | Etapa | Para qué sirven | Ejemplo del caso |

@@ -58,7 +58,10 @@ Se probaron tres criterios y ninguno es lo bastante fiable:
 | Cobertura dividida por la densidad de la zona | Corrige el sesgo anterior por lo poblada que esté la región | Es el único que sigue la verdad (x0,90 de base; al encoger el render a 0,80 da x0,75, esperado 0,72), pero la curva es muy plana y con el render ampliado a 1,20 se queda en x1,00 en vez de 1,08 |
 
 Medir el zum bien pide emparejar estructuras, no contar píxeles cerca. Como el desplazamiento sí
-está validado y es útil por sí solo, este paso entrega eso y deja el zum **abierto** (B-117).
+está validado y es útil por sí solo, este paso entrega eso y deja el zum abierto (B-117).
+
+> **Cerrado después.** En el [Paso 54](paso-54-cierre-del-zum.md) se probó además Fourier-Mellin
+> (log-polar y correlación de fase), que tampoco sirve, y B-117 se cerró sin implementar.
 
 ## 6. Estado final
 
