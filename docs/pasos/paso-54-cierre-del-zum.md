@@ -117,11 +117,19 @@ salida literal.
 
 **Coste: 0 €.** No hubo ninguna llamada a IA; la aplicación siguió en `AI_PROVIDER_MODE=mock`.
 
-Documentación: `uv run --group docs mkdocs build --strict`.
+Documentación: `uv run --group docs mkdocs build --strict`, sin errores.
+
+| Comprobación | Resultado |
+|--------------|-----------|
+| `uvx pre-commit run` sobre los archivos cambiados | Pasa |
+| `uv run --group docs mkdocs build --strict` | Construye sin errores |
+| CI de la PR #77 | Lint y tests ✅ · gitleaks ✅ · Docker y extremo a extremo ✅ (4 min 44 s) · Construir la documentación ✅ · Publicar en GitHub Pages omitido (solo en `main`) |
 
 ## 7. Estado final
 
-✅ Cerrado — rama `feat/paso-54`.
+✅ Cerrado — rama `feat/paso-54`, PR [#77](https://github.com/SergioVelmay/InteriorAI/pull/77)
+revisada y mergeada por el usuario (2026-11-08, commit `513fd57`). Sin reconstruir Docker: el paso
+no toca código.
 
 ## 8. Pendiente / futuro
 
