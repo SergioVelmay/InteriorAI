@@ -6,17 +6,46 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [4.2.0] — 2026-11-08
+
+La geometría de tu esquema 3D, medida y a la vista: superponerlo sobre cualquier imagen, saber
+cuánto se parece y poder componer directamente desde él. Bitácora:
+[docs/pasos/README.md](docs/pasos/README.md) (Pasos 46 a 56).
+
+Actualización desde la 4.1.0: sin cambios en el `.env` ni migración de datos. Las indicaciones
+guardadas con cada imagen (`indications`) son un campo nuevo que la 4.1.0 ignora.
+
 ### Añadido
 
-- **Superponer el esquema 3D y medir la geometría** (Paso 47, B-116): en Bocetos, Composición y
-  Render final, la casilla «Superponer el esquema 3D» muestra las aristas de la imagen base (el
-  esquema de SketchUp con la perspectiva) en rojo sobre la imagen, con su opacidad, sin tocarla;
-  y cada imagen indica su fidelidad al esquema (aristas que coinciden a ±3 y ±8 px), en su pie y
-  en su título.
-
+- **Superponer el esquema 3D y medir la geometría** (Pasos 47, 49 y 51, B-116, B-119): si la
+  imagen base es un esquema 3D (el de SketchUp con la perspectiva marcada), bajo la imagen en
+  grande de Bocetos, Composición y Render final hay dos casillas **excluyentes** con una opacidad
+  común: «Superponer esquema 3D original» pinta sus aristas en rojo sobre la imagen tal cual, y
+  «Superponer esquema 3D corregido» las mueve para que encajen lo mejor posible, útil cuando el
+  modelo ha corrido la escena entera. No se retoca nada: la superposición es una vista. La medida
+  aparece en **«Fidelidad al esquema 3D»**, bajo el título (aristas que coinciden a ±3 y ±8 px, y
+  en la corregida también cuánto se ha movido el encuadre), y el pie de cada miniatura lleva la de
+  ±8 px, para elegir la más fiel de una tanda.
+- **Componer desde el esquema 3D** (Paso 50, B-116): los dos botones de Composición tienen ahora
+  casillas para elegir qué recibe el modelo. Puedes partir de la imagen de siempre, **solo del
+  esquema 3D** —entonces es él el que se edita y la geometría se respeta más— o de las dos.
 - **Tus indicaciones, con cada imagen** (Paso 46, B-115): lo que escribes al generar bocetos,
   composiciones y renders finales queda guardado con cada imagen (`indications`) y se ve en su
   trazabilidad; las observaciones de la auditoría, en su informe.
+- **La portada del proyecto activo, en grande** (Paso 51, B-118): con muchos proyectos, al elegir
+  uno del final de la galería su ficha quedaba lejos de su tarjeta y se perdía de vista cuál
+  estabas mirando. Ahora su portada se repite a todo el ancho, encima de la ficha.
+
+### Cambiado
+
+- **Los prompts de imagen ya no abren el plano** (Paso 50, B-116): se retiran de las
+  instrucciones el «gran angular moderado» y las «verticales rectas» del render final —pedían
+  justo el defecto que perseguíamos— y los tres prompts llevan un bloque de cámara que manda
+  conservar el encuadre del esquema.
+- **Consejo nuevo sobre la vista de SketchUp** (Paso 54, B-117) en el manual: exporta la vista
+  como una fotografía de interiores al uso, con dos puntos de fuga y focal normal. Medido sobre la
+  misma escena, a 60 mm la fidelidad fue del 48–53 % y con un gran angular equivalente bajó al
+  42–43 %.
 
 ### Corregido
 
@@ -384,6 +413,7 @@ cada etapa.
   escalada de privilegios, límites de recursos), usuario configurable (`APP_UID`/`APP_GID`) y
   comando de papelera (`listar`, `restaurar`, `vaciar` con confirmación).
 
+[4.2.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.2.0
 [4.1.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.1.0
 [4.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0
 [3.0.0]: https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0

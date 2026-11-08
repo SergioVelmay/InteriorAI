@@ -9,7 +9,7 @@ Estudio de interiorismo asistido por IA con **supervisión humana en cada etapa*
 planos, muebles e inspiración) genera bocetos, una composición fiel y una fotografía realista de
 cada habitación. **Nada avanza sin tu elección** y cada acción con coste lo muestra antes.
 
-Construido con FastAPI, Gradio y Azure AI Foundry. Versión **4.1.0** ([CHANGELOG](CHANGELOG.md)).
+Construido con FastAPI, Gradio y Azure AI Foundry. Versión **4.2.0** ([CHANGELOG](CHANGELOG.md)).
 
 📖 **Documentación:** <https://sergiovelmay.github.io/InteriorAI/> (instalación, configuración,
 manual de usuario y referencia técnica).

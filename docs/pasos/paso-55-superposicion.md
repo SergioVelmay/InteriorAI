@@ -63,10 +63,10 @@ modo `mock` (`/health`: `status=ok`, `mode=mock`).
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-55`, PR #79. No mergeada; pendiente de revisión del usuario.
-B-123, B-124 y B-125 quedan abiertos hasta la integración, conforme a
-[`docs/agent/flujo_de_trabajo.md`](../agent/flujo_de_trabajo.md) («no marques una entrada como
-resuelta antes de que el cambio esté mergeado en `main`»).
+✅ Cerrado — rama `feat/paso-55`, PR [#79](https://github.com/SergioVelmay/InteriorAI/pull/79)
+revisada y mergeada por el usuario (2026-11-08, commit `fa2e760`), que comprobó el resultado en la
+aplicación. B-123, B-124 y B-125 quedan marcados como resueltos en el
+[Paso 56](paso-56-version-4-2.md), ya integrados; las capturas del manual (B-126) se rehacen allí.
 
 ## 6. Pendiente / futuro
 
