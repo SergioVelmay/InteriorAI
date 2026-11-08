@@ -78,7 +78,7 @@ Cada imagen indica además su **fidelidad al esquema**: la parte de sus aristas 
 y ±8 px (en el pie de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda.
 Funciona igual en Composición y Render final.
 
-![Captura pendiente de actualizar: aún muestra la medida bajo la casilla](img/bocetos-superposicion.jpg)
+![Un boceto con las aristas del esquema 3D superpuestas en rojo](img/bocetos-superposicion.jpg)
 
 ## Descartar y recuperar
 

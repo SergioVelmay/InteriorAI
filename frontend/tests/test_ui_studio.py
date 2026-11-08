@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -549,6 +550,12 @@ def test_retouch_caption_detail_and_mask_input(tmp_path: Path) -> None:
     assert render_inputs(p, retouch, tmp_path)[-1][1] == "Máscara (blanco = zona retocada)"
 
 
+# Lo que `Alignment.label()` escribe siempre y `Fidelity.label()` nunca: el encuadre, se haya
+# movido («12 px a la derecha») o no («sin desplazamiento horizontal»). Buscar solo la palabra
+# «desplazamiento» distinguiría al revés, porque solo sale cuando el encuadre NO se ha movido.
+ENCUADRE = re.compile(r"px a la (derecha|izquierda)|sin desplazamiento horizontal")
+
+
 def overlay_handlers(demo: gr.Blocks, slug: str = "drafts") -> dict[str, object]:
     """Los eventos de superposición de la etapa, identificados por sus salidas compartidas."""
     required = {
@@ -604,7 +611,7 @@ async def test_overlay_boxes_are_exclusive_and_share_one_viewer(tmp_path: Path) 
     original_measure = by_id(result, "iai-geometry-drafts")
     normal_view = by_id(result, "iai-viewer-drafts")["value"]
     assert "Fidelidad al esquema 3D" in original_measure
-    assert "a ±3 px" in original_measure and "desplazamiento" not in original_measure
+    assert "a ±3 px" in original_measure and not ENCUADRE.search(original_measure)
     assert isinstance(normal_view, str) and normal_view.endswith(shot.stored_name)
 
     # Al marcar «original» con «corregido» ya marcado, la segunda se desmarca sola.
@@ -614,14 +621,14 @@ async def test_overlay_boxes_are_exclusive_and_share_one_viewer(tmp_path: Path) 
     picture = by_id(result, "iai-viewer-drafts")["value"]
     assert isinstance(picture, Image.Image)
     original_measure = by_id(result, "iai-geometry-drafts")
-    assert "a ±3 px" in original_measure and "desplazamiento" not in original_measure
+    assert "a ±3 px" in original_measure and not ENCUADRE.search(original_measure)
 
     # Y al revés: manda «corregido» y la medida añade el desplazamiento del encuadre.
     result = await handlers[fitted_box].fn(str(p.id), str(draft.id), True, True, 0.8)
     assert by_id(result, box) == {"__type__": "update", "value": False}
     assert isinstance(by_id(result, "iai-viewer-drafts")["value"], Image.Image)
     fitted_measure = by_id(result, "iai-geometry-drafts")
-    assert "a ±3 px" in fitted_measure and "desplazamiento" in fitted_measure
+    assert "a ±3 px" in fitted_measure and ENCUADRE.search(fitted_measure)
 
     # Al desmarcar ambas, se recupera la imagen normal y la medida original.
     result = await handlers[box].fn(str(p.id), str(draft.id), False, False, 0.8)

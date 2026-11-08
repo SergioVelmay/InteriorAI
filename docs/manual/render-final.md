@@ -29,7 +29,7 @@ están disponibles bajo el render en grande y son excluyentes. La medida aparece
 esquema 3D**, bajo el título de la imagen, igual que en
 [Bocetos](bocetos.md#superponer-el-esquema-3d).
 
-![Captura pendiente de actualizar: aún muestra la medida bajo la casilla](img/render-superposicion.jpg)
+![Un render final con las aristas del esquema 3D superpuestas en rojo](img/render-superposicion.jpg)
 
 Junto a cada botón se ve la estimación del coste, que cambia con la resolución y con la imagen de
 partida: a 4 MP, unos 0,09 € desde una composición y 0,11 € desde otro render.

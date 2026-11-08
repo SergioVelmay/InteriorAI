@@ -65,7 +65,7 @@ La superposición geométrica tiene las dos casillas **Superponer esquema 3D ori
 **Superponer esquema 3D corregido**, excluyentes entre sí. La medida aparece en **Fidelidad al
 esquema 3D**, bajo el título de la imagen; la corregida añade el desplazamiento del encuadre.
 
-![Captura pendiente de actualizar: aún muestra la medida bajo la casilla](img/composicion-superposicion.jpg)
+![Una composición con las aristas del esquema 3D superpuestas en rojo](img/composicion-superposicion.jpg)
 
 En el caso, la primera composición se generó **con el boceto seleccionado** y **usando la
 auditoría**, con estas indicaciones para que el salón y el comedor combinen con la cocina:
