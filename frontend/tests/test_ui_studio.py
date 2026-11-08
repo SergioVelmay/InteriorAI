@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -549,21 +550,31 @@ def test_retouch_caption_detail_and_mask_input(tmp_path: Path) -> None:
     assert render_inputs(p, retouch, tmp_path)[-1][1] == "Máscara (blanco = zona retocada)"
 
 
+# Lo que `Alignment.label()` escribe siempre y `Fidelity.label()` nunca: el encuadre, se haya
+# movido («12 px a la derecha») o no («sin desplazamiento horizontal»). Buscar solo la palabra
+# «desplazamiento» distinguiría al revés, porque solo sale cuando el encuadre NO se ha movido.
+ENCUADRE = re.compile(r"px a la (derecha|izquierda)|sin desplazamiento horizontal")
+
+
 def overlay_handlers(demo: gr.Blocks, slug: str = "drafts") -> dict[str, object]:
-    """Los eventos de la superposición de una etapa, por la casilla que los dispara."""
-    notes = {f"iai-overlay-note-{slug}", f"iai-overlay-fitted-note-{slug}"}
+    """Los eventos de superposición de la etapa, identificados por sus salidas compartidas."""
+    required = {
+        f"iai-viewer-{slug}",
+        f"iai-geometry-{slug}",
+        f"iai-overlay-{slug}",
+        f"iai-overlay-fitted-{slug}",
+    }
     found = {}
     for fn in demo.fns.values():
-        outputs = {getattr(o, "elem_id", None) for o in fn.outputs}
-        if notes <= outputs:
+        outputs = {getattr(output, "elem_id", None) for output in fn.outputs}
+        if required <= outputs:
             trigger = demo.blocks.get(fn.targets[0][0])  # type: ignore[arg-type]
             found[getattr(trigger, "elem_id", None)] = fn
     return found
 
 
-async def test_overlay_boxes_are_exclusive_and_measure_below_them(tmp_path: Path) -> None:
-    """B-119: al marcar una casilla se desmarca la otra (solo una comparativa a la vez) y la
-    medida va debajo de cada casilla, ya no escrita en rojo sobre la imagen."""
+async def test_overlay_boxes_are_exclusive_and_share_one_viewer(tmp_path: Path) -> None:
+    """B-123/125: medida por estado, casillas excluyentes y una sola imagen en el visor."""
     base = reference("vista.png", ["perspectiva"])
     draft = render(RenderStage.DRAFT)
     shot = Asset(
@@ -587,27 +598,70 @@ async def test_overlay_boxes_are_exclusive_and_measure_below_them(tmp_path: Path
         build_studio_tabs(client, tmp_path, gr.BrowserState(None))
     handlers = overlay_handlers(demo)
     box, fitted_box = "iai-overlay-drafts", "iai-overlay-fitted-drafts"
+    elements = {getattr(block, "elem_id", None): block for block in demo.blocks.values()}
+    assert elements[box].label == "Superponer esquema 3D original"
+    assert elements[fitted_box].label == "Superponer esquema 3D corregido"
+    assert "iai-overlay-view-drafts" not in elements
+    assert "iai-overlay-fitted-view-drafts" not in elements
+    assert "iai-overlay-note-drafts" not in elements
+    assert "iai-overlay-fitted-note-drafts" not in elements
 
-    # Se marca «tal cual» con la ajustada ya marcada: la ajustada se desmarca sola.
+    # Sin casillas marcadas, vuelve a la imagen y muestra la medida del esquema original.
+    result = await handlers[box].fn(str(p.id), str(draft.id), False, False, 0.8)
+    original_measure = by_id(result, "iai-geometry-drafts")
+    normal_view = by_id(result, "iai-viewer-drafts")["value"]
+    assert "Fidelidad al esquema 3D" in original_measure
+    assert "a ±3 px" in original_measure and not ENCUADRE.search(original_measure)
+    assert isinstance(normal_view, str) and normal_view.endswith(shot.stored_name)
+
+    # Al marcar «original» con «corregido» ya marcado, la segunda se desmarca sola.
     result = await handlers[box].fn(str(p.id), str(draft.id), True, True, 0.8)
     assert by_id(result, fitted_box) == {"__type__": "update", "value": False}
-    assert by_id(result, box) == gr.skip()  # la que se acaba de marcar, sin tocar
-    assert by_id(result, "iai-overlay-view-drafts")["visible"] is True
-    assert by_id(result, "iai-overlay-fitted-view-drafts")["visible"] is False
-    assert "a ±3 px" in by_id(result, "iai-overlay-note-drafts")
-    assert by_id(result, "iai-overlay-fitted-note-drafts") == ""
+    assert by_id(result, box) == gr.skip()
+    picture = by_id(result, "iai-viewer-drafts")["value"]
+    assert isinstance(picture, Image.Image)
+    original_measure = by_id(result, "iai-geometry-drafts")
+    assert "a ±3 px" in original_measure and not ENCUADRE.search(original_measure)
 
-    # Y al revés: manda la ajustada, que además mide el desplazamiento del encuadre.
+    # Y al revés: manda «corregido» y la medida añade el desplazamiento del encuadre.
     result = await handlers[fitted_box].fn(str(p.id), str(draft.id), True, True, 0.8)
     assert by_id(result, box) == {"__type__": "update", "value": False}
-    assert by_id(result, "iai-overlay-note-drafts") == ""
-    assert "desplazamiento" in by_id(result, "iai-overlay-fitted-note-drafts")
+    assert isinstance(by_id(result, "iai-viewer-drafts")["value"], Image.Image)
+    fitted_measure = by_id(result, "iai-geometry-drafts")
+    assert "a ±3 px" in fitted_measure and ENCUADRE.search(fitted_measure)
 
-    # Sin ninguna marcada, se vuelve a la imagen y las medidas se van.
+    # Al desmarcar ambas, se recupera la imagen normal y la medida original.
     result = await handlers[box].fn(str(p.id), str(draft.id), False, False, 0.8)
-    assert by_id(result, "iai-viewer-drafts")["visible"] is True
-    assert by_id(result, "iai-overlay-note-drafts") == ""
-    assert by_id(result, "iai-overlay-fitted-note-drafts") == ""
+    assert by_id(result, "iai-viewer-drafts")["value"] == normal_view
+    assert by_id(result, "iai-geometry-drafts") == original_measure
+
+
+async def test_overlay_measure_is_blank_without_scheme_or_active_image(tmp_path: Path) -> None:
+    draft = render(RenderStage.DRAFT)
+    shot = Asset(
+        id=draft.id, kind=AssetKind.RENDER, stored_name=f"{draft.id}.png",
+        original_name="boceto.png", mime_type="image/png", size_bytes=1, sha256=SHA,
+    )  # fmt: skip
+    p = project(assets=[shot], renders=[draft])
+    folder = tmp_path / str(p.id) / shot.kind.folder
+    folder.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (240, 160), (240, 240, 240)).save(folder / shot.stored_name)
+    body = p.model_dump(mode="json")
+    client = BackendClient(
+        "http://backend.test",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body)),
+    )
+    with gr.Blocks() as demo, gr.Tabs():
+        build_studio_tabs(client, tmp_path, gr.BrowserState(None))
+    handler = overlay_handlers(demo)["iai-overlay-drafts"].fn
+
+    without_scheme = await handler(str(p.id), str(draft.id), False, False, 0.8)
+    assert by_id(without_scheme, "iai-geometry-drafts") == ""
+    assert by_id(without_scheme, "iai-viewer-drafts")["value"].endswith(shot.stored_name)
+
+    without_project = await handler(None, str(draft.id), False, False, 0.8)
+    assert by_id(without_project, "iai-geometry-drafts") == ""
+    assert by_id(without_project, "iai-viewer-drafts")["value"] is None
 
 
 @pytest.mark.parametrize(

@@ -99,6 +99,7 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 | 52 | [Pruebas E2E, capturas del manual y protección de datos](paso-52-pruebas-capturas-proteccion.md) (B-121) | `feat/paso-52` | ✅ Cerrado |
 | 53 | [Modo de proceder del proyecto](paso-53-flujo-de-trabajo.md) (B-122) | `feat/paso-53` | ✅ Cerrado |
 | 54 | [Cerrar el zum del encuadre](paso-54-cierre-del-zum.md) (B-117) | `feat/paso-54` | ✅ Cerrado |
+| 55 | [Superposición del esquema 3D](paso-55-superposicion.md) (B-123, B-124, B-125) | `feat/paso-55` | ⏳ En revisión (PR #79) |
 
 ## Plantilla de documento de paso
 

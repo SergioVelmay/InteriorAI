@@ -24,11 +24,12 @@ día, la iluminación, el ambiente o personas en la escena.
 | **Generar con la composición seleccionada** | Parte de la composición elegida |
 | **Generar con el render final actual** | Parte del render seleccionado, para cambiarle algo conservando lo demás |
 
-Las dos casillas de superposición del esquema 3D también están disponibles bajo el render en
-grande. Son excluyentes y la medida aparece debajo de la activa, igual que en
+Las casillas **Superponer esquema 3D original** y **Superponer esquema 3D corregido** también
+están disponibles bajo el render en grande y son excluyentes. La medida aparece en **Fidelidad al
+esquema 3D**, bajo el título de la imagen, igual que en
 [Bocetos](bocetos.md#superponer-el-esquema-3d).
 
-![Comparativa del render final con el esquema 3D](img/render-superposicion.jpg)
+![Un render final con las aristas del esquema 3D superpuestas en rojo](img/render-superposicion.jpg)
 
 Junto a cada botón se ve la estimación del coste, que cambia con la resolución y con la imagen de
 partida: a 4 MP, unos 0,09 € desde una composición y 0,11 € desde otro render.

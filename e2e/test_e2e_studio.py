@@ -1,12 +1,18 @@
 """Bocetos → Composición → Render Final (Pasos 22-23): pestañas de primer nivel con desbloqueo
 progresivo, prompt automático, auditoría del boceto, selección única y superposición geométrica."""
 
+import re
 from io import BytesIO
 
 import httpx
 from conftest import UI, Projects
 from PIL import Image, ImageDraw
 from playwright.sync_api import expect
+
+# Lo que `Alignment.label()` escribe siempre y `Fidelity.label()` nunca: el encuadre, se haya
+# movido («12 px a la derecha») o no («sin desplazamiento horizontal»). Buscar solo la palabra
+# «desplazamiento» distinguiría al revés, porque solo sale cuando el encuadre NO se ha movido.
+ENCUADRE = re.compile(r"px a la (derecha|izquierda)|sin desplazamiento horizontal")
 
 
 def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> None:
@@ -105,7 +111,7 @@ def test_studio_three_tabs(ui: UI, projects: Projects, api: httpx.Client) -> Non
 
 
 def test_geometry_overlay_checkboxes_are_exclusive(ui: UI, projects: Projects) -> None:
-    """B-121: la exclusión y las siete salidas de las comparativas funcionan en el navegador."""
+    """B-123/125: medida compartida y estable en un único visor mientras alternan las casillas."""
     page = ui.page
     project = projects.create("superposición geométrica", capture=False, reference=False)
 
@@ -127,30 +133,65 @@ def test_geometry_overlay_checkboxes_are_exclusive(ui: UI, projects: Projects) -
 
     plain = page.locator("#iai-overlay-drafts input[type=checkbox]")
     fitted = page.locator("#iai-overlay-fitted-drafts input[type=checkbox]")
-    plain_view = page.locator("#iai-overlay-view-drafts")
-    fitted_view = page.locator("#iai-overlay-fitted-view-drafts")
-    plain_note = page.locator("#iai-overlay-note-drafts")
-    fitted_note = page.locator("#iai-overlay-fitted-note-drafts")
-    normal_view = page.locator("#iai-viewer-drafts")
+    geometry = page.locator("#iai-geometry-drafts")
+    viewer = page.locator("#iai-viewer-drafts")
+    expect(
+        page.get_by_role("checkbox", name="Superponer esquema 3D original", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("checkbox", name="Superponer esquema 3D corregido", exact=True)
+    ).to_be_visible()
+    expect(page.locator("#iai-overlay-view-drafts")).to_have_count(0)
+    expect(page.locator("#iai-overlay-fitted-view-drafts")).to_have_count(0)
+    expect(geometry).to_contain_text("Fidelidad al esquema 3D")
+    expect(geometry).to_contain_text("a ±3 px")
+    expect(geometry).not_to_contain_text(ENCUADRE)
 
-    # La comparativa tal cual aparece con su medida bajo la casilla correspondiente.
+    def scroll_and_height() -> tuple[float, float]:
+        box = viewer.bounding_box()
+        assert box is not None
+        return page.evaluate("window.scrollY"), box["height"]
+
+    def wait_for_viewer_image() -> None:
+        page.wait_for_function(
+            """() => {
+                const image = document.querySelector('#iai-viewer-drafts img');
+                return image && image.complete && image.naturalWidth > 0;
+            }"""
+        )
+        page.wait_for_timeout(150)
+
+    # La comparativa original reutiliza el visor y conserva la medida original.
+    page.locator("#iai-overlay-drafts").scroll_into_view_if_needed()
+    before_scroll, before_height = scroll_and_height()
     plain.check()
-    expect(plain_view).to_be_visible()
-    expect(plain_note).to_contain_text("a ±3 px")
+    expect(plain).to_be_checked()
+    expect(geometry).to_contain_text("a ±3 px")
+    expect(geometry).not_to_contain_text(ENCUADRE)
+    wait_for_viewer_image()
+    after_scroll, after_height = scroll_and_height()
+    assert abs(after_scroll - before_scroll) <= 4
+    assert abs(after_height - before_height) <= 4
 
-    # Marcar la ajustada desmarca la anterior, borra su medida y oculta su vista.
+    # «Corregido» desmarca la otra opción y añade el desplazamiento sin reflujo del visor.
+    before_scroll, before_height = scroll_and_height()
     fitted.check()
     expect(fitted).to_be_checked()
     expect(plain).not_to_be_checked()
-    expect(plain_view).to_be_hidden()
-    expect(plain_note).to_be_empty()
-    expect(fitted_view).to_be_visible()
-    expect(fitted_note).to_contain_text("a ±3 px")
+    expect(geometry).to_contain_text(ENCUADRE)
+    expect(geometry).to_contain_text("a ±3 px")
+    wait_for_viewer_image()
+    after_scroll, after_height = scroll_and_height()
+    assert abs(after_scroll - before_scroll) <= 4
+    assert abs(after_height - before_height) <= 4
 
-    # Al desmarcar la única activa se recupera el visor original y se limpian ambas medidas.
+    # Al desmarcar la opción vuelve la imagen y la medida original, en el mismo visor.
+    before_scroll, before_height = scroll_and_height()
     fitted.uncheck()
-    expect(fitted_view).to_be_hidden()
-    expect(fitted_note).to_be_empty()
-    expect(normal_view).to_be_visible()
-    expect(plain_view).to_be_hidden()
-    expect(plain_note).to_be_empty()
+    expect(fitted).not_to_be_checked()
+    expect(geometry).to_contain_text("a ±3 px")
+    expect(geometry).not_to_contain_text(ENCUADRE)
+    wait_for_viewer_image()
+    after_scroll, after_height = scroll_and_height()
+    assert abs(after_scroll - before_scroll) <= 4
+    assert abs(after_height - before_height) <= 4
