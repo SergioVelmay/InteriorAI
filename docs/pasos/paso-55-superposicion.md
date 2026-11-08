@@ -44,12 +44,11 @@ manual pendiente conserva el motivo indicado en la tabla.
 | `uv run --group e2e pytest e2e --browser-channel msedge` | ✅ 9 passed en 158,88 s; 1 aviso `PytestRemovedIn10Warning` por fixture legacy en `test_e2e_costs.py::test_costs_tab`. |
 | Comprobación manual del scroll en el navegador | Pendiente: el navegador de control bloqueó la navegación a `localhost` por política; no se eludió. El E2E en Edge sí midió scroll y altura del visor al marcar/desmarcar las dos casillas y pasó. |
 | `uv run --group docs mkdocs build --strict` | ✅ Construcción correcta; mostró el aviso de que Material for MkDocs llega al fin de vida el 5 de mayo de 2027 (B-103). |
-| CI de la PR | Pendiente |
+| CI de la PR #79 | ✅ Lint y tests (1m 2s), gitleaks de todo el historial (8 s), Docker y extremo a extremo (5m 35s), documentación (12 s). Publicar en GitHub Pages se omitió, como corresponde en una PR. |
 
 ## 5. Estado final
 
-⏳ En curso — rama `feat/paso-55`; PR y commit pendientes. B-123, B-124 y B-125 quedan abiertos
-hasta que el usuario integre el cambio.
+⏳ En revisión — rama `feat/paso-55`, PR #79, commit `df11796`; CI completada con los checks requeridos en verde. No mergeada; pendiente de revisión del usuario. B-123, B-124 y B-125 quedan abiertos hasta la integración.
 
 ## 6. Pendiente / futuro
 
