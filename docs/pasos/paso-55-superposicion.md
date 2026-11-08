@@ -25,7 +25,8 @@ opacidad.
 | `frontend/ui/theme.py` | Retira el CSS `.iai-geometry`, que deja de tener uso. |
 | `frontend/tests/test_ui_studio.py` | Comprueba labels, ausencia de componentes antiguos, exclusión, medidas y recuperación del visor/medida original. |
 | `e2e/test_e2e_studio.py` | Comprueba el estado de las medidas, el único visor y la estabilidad de scroll/altura en el navegador con una referencia sintética. |
-| `docs/manual/bocetos.md`, `docs/manual/composicion.md`, `docs/manual/render-final.md` | Actualiza los textos; identifica las capturas antiguas como pendientes sin modificarlas. |
+| Las dos comparativas se distinguen con `ENCUADRE` (en los dos archivos de prueba) | Revisión: buscar la palabra «desplazamiento» lo hacía **al revés**. `Alignment.label()` solo la escribe cuando el encuadre **no** se ha movido («sin desplazamiento horizontal»); si se ha movido dice «12 px a la derecha». Las pruebas pasaban solo porque la referencia sintética da desplazamiento cero, y habrían fallado con código correcto en cuanto diera uno real. Ahora se busca lo que `Alignment.label()` escribe siempre y `Fidelity.label()` nunca, se haya movido el encuadre o no. |
+| `docs/manual/bocetos.md`, `docs/manual/composicion.md`, `docs/manual/render-final.md` | Actualiza los textos. Las capturas no se modifican y sus textos alternativos siguen describiendo la imagen: el aviso de que están pendientes se publica en la web y lo leen los lectores de pantalla, así que va aquí y en B-126, no en el manual. |
 | `docs/agent/gradio_ui.md` | Actualiza el mapa técnico del bloque de superposición. |
 | `docs/pasos/BACKLOG.md`, `docs/pasos/README.md`, `docs/pasos/paso-55-superposicion.md` | Registra B-123–B-126, el índice y este documento. |
 
@@ -44,11 +45,27 @@ manual pendiente conserva el motivo indicado en la tabla.
 | `uv run --group e2e pytest e2e --browser-channel msedge` | ✅ 9 passed en 158,88 s; 1 aviso `PytestRemovedIn10Warning` por fixture legacy en `test_e2e_costs.py::test_costs_tab`. |
 | Comprobación manual del scroll en el navegador | Pendiente: el navegador de control bloqueó la navegación a `localhost` por política; no se eludió. El E2E en Edge sí midió scroll y altura del visor al marcar/desmarcar las dos casillas y pasó. |
 | `uv run --group docs mkdocs build --strict` | ✅ Construcción correcta; mostró el aviso de que Material for MkDocs llega al fin de vida el 5 de mayo de 2027 (B-103). |
-| CI de la PR #79 | ✅ Lint y tests (1m 2s), gitleaks de todo el historial (8 s), Docker y extremo a extremo (5m 35s), documentación (12 s). Publicar en GitHub Pages se omitió, como corresponde en una PR. |
+| CI de la PR #79, primera tanda (commit `c9f4716`) | ✅ Lint y tests (1m 2s), gitleaks de todo el historial (8 s), Docker y extremo a extremo (5m 35s), documentación (12 s). Publicar en GitHub Pages se omitió, como corresponde en una PR. |
+
+### Revisión del paso (2026-11-08)
+
+Se repitió la validación entera sobre la rama, ya con la aplicación levantada contra `./data` en
+modo `mock` (`/health`: `status=ok`, `mode=mock`).
+
+| Comprobación | Resultado |
+|--------------|-----------|
+| `uv run ruff check .` y `uv run ruff format --check .` | ✅ All checks passed; 226 archivos ya formateados |
+| `uv run pytest` | ✅ 388 passed en 88,97 s |
+| `uv run --group docs mkdocs build --strict` | ✅ Construye sin errores |
+| `uv run --group e2e pytest e2e --browser-channel msedge` | ⚠️ Dos tandas con 2 y 3 fallos, **distintos en cada una** y siempre en `Page.goto` (`net::ERR_ABORTED`, `net::ERR_EMPTY_RESPONSE`) con el frontend respondiendo 200. Repetidos sueltos pasan, incluido el de la superposición. Se comprobó además que el mismo fallo sale con el código de `main`: es **B-120**, del entorno local con Edge, no de este paso. La CI (Chromium) es la que manda |
+| Criterio de los tests | ✅ Corregido: ver la fila de `ENCUADRE` en la sección 3 |
 
 ## 5. Estado final
 
-⏳ En revisión — rama `feat/paso-55`, PR #79, commit `df11796`; CI completada con los checks requeridos en verde. No mergeada; pendiente de revisión del usuario. B-123, B-124 y B-125 quedan abiertos hasta la integración.
+⏳ En revisión — rama `feat/paso-55`, PR #79. No mergeada; pendiente de revisión del usuario.
+B-123, B-124 y B-125 quedan abiertos hasta la integración, conforme a
+[`docs/agent/flujo_de_trabajo.md`](../agent/flujo_de_trabajo.md) («no marques una entrada como
+resuelta antes de que el cambio esté mergeado en `main`»).
 
 ## 6. Pendiente / futuro
 
