@@ -61,10 +61,11 @@ que el tramo entre el horno y el frigorífico no cuadraba con cinco módulos de 
 | **Generar con el boceto seleccionado** | Parte del boceto elegido |
 | **Generar con la composición actual** | Parte de la composición seleccionada, para seguir mejorándola |
 
-La superposición geométrica tiene las mismas dos casillas excluyentes que en Bocetos. La medida
-queda debajo de la casilla activa:
+La superposición geométrica tiene las dos casillas **Superponer esquema 3D original** y
+**Superponer esquema 3D corregido**, excluyentes entre sí. La medida aparece en **Fidelidad al
+esquema 3D**, bajo el título de la imagen; la corregida añade el desplazamiento del encuadre.
 
-![Comparativa de una composición con el esquema 3D](img/composicion-superposicion.jpg)
+![Captura pendiente de actualizar: aún muestra la medida bajo la casilla](img/composicion-superposicion.jpg)
 
 En el caso, la primera composición se generó **con el boceto seleccionado** y **usando la
 auditoría**, con estas indicaciones para que el salón y el comedor combinen con la cocina:

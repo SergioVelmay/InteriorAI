@@ -65,19 +65,20 @@ hay **una seleccionada por etapa**; al elegir otra, la anterior deja de estarlo.
 Si la imagen base es un esquema 3D (por ejemplo, de SketchUp, con aristas negras), bajo la imagen
 en grande tienes dos comparativas, con la opacidad que elijas:
 
-- **Superponer el esquema 3D**: sus aristas, en rojo, tal cual sobre la imagen.
-- **Superponerlo corrigiendo el desplazamiento del encuadre**: las mismas aristas movidas para
-  que encajen lo mejor posible, útil cuando el modelo ha corrido la escena entera.
+- **Superponer esquema 3D original**: sus aristas, en rojo, tal cual sobre la imagen.
+- **Superponer esquema 3D corregido**: las mismas aristas movidas para que encajen lo mejor
+  posible, útil cuando el modelo ha corrido la escena entera.
 
 Las dos son **excluyentes**: al marcar una se desmarca la otra, así solo se ve una comparativa a
-la vez. La medida de cada una aparece **debajo de su casilla** (el porcentaje y, en la ajustada,
-también cuánto se ha movido el encuadre); la imagen no cambia ni lleva texto encima.
+la vez. La medida aparece en **Fidelidad al esquema 3D**, bajo el título: sin casillas marcadas o
+con «original» muestra la fidelidad tal cual; con «corregido» añade cuánto se ha movido el
+encuadre. Al desmarcar la activa, vuelve la medida original.
 
 Cada imagen indica además su **fidelidad al esquema**: la parte de sus aristas que coincide a ±3
 y ±8 px (en el pie de la miniatura, la de ±8 px), útil para elegir la más fiel de una tanda.
 Funciona igual en Composición y Render final.
 
-![Comparativa del esquema, con la medida bajo su casilla](img/bocetos-superposicion.jpg)
+![Captura pendiente de actualizar: aún muestra la medida bajo la casilla](img/bocetos-superposicion.jpg)
 
 ## Descartar y recuperar
 
