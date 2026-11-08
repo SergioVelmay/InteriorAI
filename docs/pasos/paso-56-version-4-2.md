@@ -53,7 +53,15 @@ Coste real del paso: **0 €**. Ninguna llamada a IA.
 
 ## 5. Estado final
 
-Pendiente de completar tras el merge.
+✅ Cerrado — rama `feat/paso-56`, PR [#80](https://github.com/SergioVelmay/InteriorAI/pull/80)
+revisada y mergeada por el usuario (2026-11-08, commit `3741810`). Con la CI de `main` en verde
+(CI y Documentación) y el OK del usuario: etiqueta anotada `v4.2.0` sobre `3741810` y
+[Release «InteriorAI 4.2.0»](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.2.0), la
+última, con las notas del CHANGELOG (enlaces relativos reescritos a `blob/v4.2.0/`).
+
+Comprobado tras publicar: `/health` responde la versión 4.2.0; la Release y el enlace de sus notas
+devuelven 200; la página Versiones de la web lista la 4.2.0 y el manual ya sirve las capturas
+nuevas (`bocetos-superposicion.jpg`, 246 765 bytes, la rehecha en este paso).
 
 ## 6. Pendiente / futuro
 
