@@ -47,7 +47,7 @@ desplazamiento real del encuadre (6 px a la izquierda · 32 px arriba) y así se
 | `uvx pre-commit run --all-files` | ✅ |
 | `uv run --group docs mkdocs build --strict` | ✅ |
 | `/health` tras reconstruir Docker | ✅ `version` 4.2.0, `mode` `mock` |
-| CI de la PR | pendiente de anotar |
+| CI de la PR [#80](https://github.com/SergioVelmay/InteriorAI/pull/80) | ✅ Lint y tests (1m 5s), gitleaks de todo el historial (10 s), Docker y extremo a extremo (5m 12s), documentación (12 s). Publicar en GitHub Pages se omitió, como corresponde en una PR |
 
 Coste real del paso: **0 €**. Ninguna llamada a IA.
 
