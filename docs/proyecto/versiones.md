@@ -10,6 +10,7 @@ El detalle de cada versión está en el
 
 | Versión | Fecha | Lo principal |
 |---------|-------|--------------|
+| [4.2.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.2.0) | 2026-11-08 | Superponer el esquema 3D de SketchUp sobre cualquier imagen y medir su fidelidad, componer partiendo del propio esquema y tus indicaciones guardadas con cada imagen |
 | [4.1.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.1.0) | 2026-11-02 | Descartar y recuperar candidatas, vista previa al subir una referencia, botones y controles bloqueados mientras se procesa |
 | [4.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v4.0.0) | 2026-10-29 | Prompts más precisos, sin la compatibilidad con la v1 (esquema de datos v3), esta documentación y precios contrastados con la factura real |
 | [3.0.0](https://github.com/SergioVelmay/InteriorAI/releases/tag/v3.0.0) | 2026-10-27 | Pulido completo de la interfaz tras un caso real y roles con nombres nuevos |
@@ -22,6 +23,11 @@ El detalle de cada versión está en el
 git pull
 docker compose up --build -d
 ```
+
+### Desde la 4.1.0 a la 4.2.0
+
+Sin cambios en el `.env` ni migración de datos. Las indicaciones que escribes al generar quedan
+guardadas con cada imagen en un campo nuevo (`indications`) que la 4.1.0 ignora.
 
 ### Desde la 4.0.0 a la 4.1.0
 

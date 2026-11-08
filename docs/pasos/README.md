@@ -86,7 +86,9 @@ Después de la 4.0.0:
 Versión 4.1.0 (publicada el 2026-11-02): [plan de acción](plan-version-4-1.md), Pasos 41 a 45, entradas B-107 a
 B-113 del [backlog](BACKLOG.md).
 
-Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versión):
+Versión 4.2.0 (publicada el 2026-11-08): sin plan previo; agrupa los Pasos 46 a 56 y las entradas
+B-115 a B-126 del [backlog](BACKLOG.md). La línea principal es B-116, la geometría fiel al esquema
+3D de SketchUp.
 
 | Paso | Documento | Rama | Estado |
 |------|-----------|------|--------|
@@ -99,7 +101,8 @@ Después de la 4.1.0 (se agruparán varios arreglos antes de la próxima versió
 | 52 | [Pruebas E2E, capturas del manual y protección de datos](paso-52-pruebas-capturas-proteccion.md) (B-121) | `feat/paso-52` | ✅ Cerrado |
 | 53 | [Modo de proceder del proyecto](paso-53-flujo-de-trabajo.md) (B-122) | `feat/paso-53` | ✅ Cerrado |
 | 54 | [Cerrar el zum del encuadre](paso-54-cierre-del-zum.md) (B-117) | `feat/paso-54` | ✅ Cerrado |
-| 55 | [Superposición del esquema 3D](paso-55-superposicion.md) (B-123, B-124, B-125) | `feat/paso-55` | ⏳ En revisión (PR #79) |
+| 55 | [Superposición del esquema 3D](paso-55-superposicion.md) (B-123, B-124, B-125) | `feat/paso-55` | ✅ Cerrado |
+| 56 | [Versión 4.2.0](paso-56-version-4-2.md) (B-126) | `feat/paso-56` | ✅ Cerrado |
 
 ## Plantilla de documento de paso
 
