@@ -59,6 +59,7 @@ modo `mock` (`/health`: `status=ok`, `mode=mock`).
 | `uv run --group docs mkdocs build --strict` | ✅ Construye sin errores |
 | `uv run --group e2e pytest e2e --browser-channel msedge` | ⚠️ Dos tandas con 2 y 3 fallos, **distintos en cada una** y siempre en `Page.goto` (`net::ERR_ABORTED`, `net::ERR_EMPTY_RESPONSE`) con el frontend respondiendo 200. Repetidos sueltos pasan, incluido el de la superposición. Se comprobó además que el mismo fallo sale con el código de `main`: es **B-120**, del entorno local con Edge, no de este paso. La CI (Chromium) es la que manda |
 | Criterio de los tests | ✅ Corregido: ver la fila de `ENCUADRE` en la sección 3 |
+| CI de la PR #79, tanda final (commit `cc8c387`) | ✅ Lint y tests (48 s), gitleaks de todo el historial (8 s), Docker y extremo a extremo (5m 6s), documentación (14 s). Publicar en GitHub Pages se omitió, como corresponde en una PR. El E2E pasa entero en Chromium con el criterio corregido, lo que confirma que los fallos locales eran B-120 |
 
 ## 5. Estado final
 
