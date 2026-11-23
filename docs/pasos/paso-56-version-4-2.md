@@ -65,8 +65,7 @@ nuevas (`bocetos-superposicion.jpg`, 246 765 bytes, la rehecha en este paso).
 
 ## 6. Pendiente / futuro
 
-- **B-116**: queda la prueba real en `azure` (una composición con boceto + esquema y otra solo con
-  el esquema, sobre la misma partida, midiendo las dos con la superposición). Unos 0,24 €,
-  anunciando antes cada llamada.
+- **B-116**: cerrada; la comprobación final de contraste en llamadas reales en `azure` se cancela
+  por decisión del usuario al no considerarse necesaria.
 - **B-024** (Gradio sigue exigiendo `pillow<13`), **B-103** (Material for MkDocs llega al fin de
   vida el 5 de mayo de 2027) y **B-120** (E2E intermitentes en local con Edge) siguen abiertas.
